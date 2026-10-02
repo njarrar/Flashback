@@ -37,8 +37,12 @@ def fetch(pid, portrait):
 
 def save(img, when, name):
     stamp = when.strftime("%Y:%m:%d %H:%M:%S").encode()
-    exif = piexif.dump({"0th": {piexif.ImageIFD.DateTime: stamp},
-                        "Exif": {piexif.ExifIFD.DateTimeOriginal: stamp, piexif.ExifIFD.DateTimeDigitized: stamp}})
+    # Android only trusts the capture time when it also has a time zone offset.
+    exif = piexif.dump({"0th": {piexif.ImageIFD.DateTime: stamp, piexif.ImageIFD.Make: b"Apple",
+                                piexif.ImageIFD.Model: b"iPhone"},
+                        "Exif": {piexif.ExifIFD.DateTimeOriginal: stamp, piexif.ExifIFD.DateTimeDigitized: stamp,
+                                 piexif.ExifIFD.OffsetTime: b"+00:00", piexif.ExifIFD.OffsetTimeOriginal: b"+00:00",
+                                 piexif.ExifIFD.OffsetTimeDigitized: b"+00:00"}})
     img.save(out / name, "JPEG", quality=88, exif=exif)
 
 
@@ -54,3 +58,4 @@ for delta, pid in nearby:
     save(fetch(pid, portrait=False), datetime.datetime.combine(day, datetime.time(12)), f"IMG_{n:04d}.jpg")
     n += 1
 print(f"made {n} photos in {out}")
+print(piexif.load(str(out / "IMG_0000.jpg"))["Exif"])

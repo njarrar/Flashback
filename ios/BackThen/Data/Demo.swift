@@ -15,6 +15,9 @@ extension AppStore {
         saved.sources.device = true
         await refreshIndex()
         let photos = await photos(for: .today).flatMap(\.photos)
+        let times = await PhotoLibrary.allTimes()
+        let note = "access=\(PhotoLibrary.hasAccess) library=\(times.count) today=\(photos.count) first=\(times.prefix(5))\n"
+        try? note.write(to: URL.documentsDirectory.appending(path: "demo.log"), atomically: true, encoding: .utf8)
         guard !photos.isEmpty else { return }
         saved.favorites = stride(from: 0, to: photos.count, by: 3).map { photos[$0] }
         let album = Album(id: "demo", name: "Fall weekends", photos: Array(photos.prefix(9)), createdAt: Date())
