@@ -35,4 +35,3 @@ for scene in today calendar viewer favorites album; do
   sleep 1
   adb exec-out screencap -p > "shots/android/$scene.png"
 done
-adb logcat -d -s BackThenDemo || true

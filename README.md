@@ -47,7 +47,9 @@ Google Photos.
 
 The photos in these screenshots are samples from [Lorem Picsum](https://picsum.photos),
 stamped with past dates. The [Screenshots workflow](.github/workflows/screenshots.yml)
-takes them from the real apps on an iPhone simulator and an Android emulator.
+takes them from the real apps on an iPhone simulator and an Android emulator. (A
+simulator can't be given photo access without a tap, so on iPhone the samples load
+the same way Google Photos picks do.)
 
 ## What it does
 

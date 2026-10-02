@@ -1,6 +1,5 @@
 package com.njarrar.backthen
 
-import android.util.Log
 import androidx.lifecycle.viewModelScope
 import com.njarrar.backthen.core.Album
 import com.njarrar.backthen.core.MonthDay
@@ -15,7 +14,6 @@ fun AppViewModel.runDemo(scene: String) = viewModelScope.launch {
     val times = library.readAllTimes()
     updateSaved { it.copy(onboarded = true, sources = it.sources.copy(device = true), deviceIndex = buildDayIndex(times)) }
     val photos = photosFor(MonthDay.today()).flatMap { it.photos }
-    Log.i("BackThenDemo", "access=${library.hasAccess()} library=${times.size} today=${photos.size} first=${times.take(5)}")
     if (photos.isEmpty()) return@launch
     val now = System.currentTimeMillis()
     val album = Album("demo", "Fall weekends", photos.take(9), now)

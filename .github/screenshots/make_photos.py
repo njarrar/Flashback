@@ -58,4 +58,3 @@ for delta, pid in nearby:
     save(fetch(pid, portrait=False), datetime.datetime.combine(day, datetime.time(12)), f"IMG_{n:04d}.jpg")
     n += 1
 print(f"made {n} photos in {out}")
-print(piexif.load(str(out / "IMG_0000.jpg"))["Exif"])
