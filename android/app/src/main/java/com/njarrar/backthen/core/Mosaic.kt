@@ -54,3 +54,22 @@ fun layoutMosaic(count: Int): Pair<List<Tile>, Int> {
     }
     return tiles to rows
 }
+
+/** Width over height for a photo tile, kept in a sane range so odd sizes don't make huge tiles. */
+fun tileAspect(width: Int, height: Int): Float =
+    if (width <= 0 || height <= 0) 1f else (width.toFloat() / height).coerceIn(0.6f, 1.8f)
+
+/**
+ * Splits photos into columns of about equal height, as in the design's strip layout.
+ * Each photo, in order, goes to the shortest column so far. Returns indexes per column.
+ */
+fun masonryColumns(aspects: List<Float>, columns: Int = 2): List<List<Int>> {
+    val cols = List(columns) { ArrayList<Int>() }
+    val heights = FloatArray(columns)
+    aspects.forEachIndexed { i, a ->
+        val c = heights.indices.minBy { heights[it] }
+        cols[c] += i
+        heights[c] += 1f / a
+    }
+    return cols
+}

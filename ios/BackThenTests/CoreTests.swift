@@ -1,0 +1,117 @@
+import XCTest
+@testable import Back_Then
+
+final class CoreTests: XCTestCase {
+    private var cal: Calendar = {
+        var c = Calendar(identifier: .gregorian)
+        c.timeZone = TimeZone(identifier: "America/New_York")!
+        return c
+    }()
+
+    /// `m` is 0-based, like MonthDay.
+    private func at(_ y: Int, _ m: Int, _ d: Int, _ h: Int = 12) -> Date {
+        cal.date(from: DateComponents(year: y, month: m + 1, day: d, hour: h))!
+    }
+
+    private lazy var today = at(2026, 9, 2)
+    private lazy var index = buildDayIndex(
+        [at(2014, 9, 2), at(2019, 9, 2), at(2019, 9, 2, 15), at(2026, 9, 2, 8), at(2025, 9, 9), at(2026, 8, 20)],
+        calendar: cal
+    )
+
+    func testShiftWrapsAcrossMonthsAndYears() {
+        XCTAssertEqual(MonthDay(month: 0, day: 1).shifted(by: -1), MonthDay(month: 11, day: 31))
+        XCTAssertEqual(MonthDay(month: 11, day: 31).shifted(by: 1), MonthDay(month: 0, day: 1))
+        XCTAssertEqual(MonthDay(month: 1, day: 28).shifted(by: 1), MonthDay(month: 1, day: 29))
+        XCTAssertEqual(MonthDay(month: 1, day: 29).shifted(by: 1), MonthDay(month: 2, day: 1))
+    }
+
+    func testMonthDayKeysRoundTrip() {
+        XCTAssertEqual(MonthDay(key: MonthDay(month: 9, day: 2).key), MonthDay(month: 9, day: 2))
+        XCTAssertEqual(MonthDay(key: "1-29"), MonthDay(month: 1, day: 29))
+        XCTAssertNil(MonthDay(key: "1-30"))
+        XCTAssertNil(MonthDay(key: "x"))
+    }
+
+    func testLabels() {
+        XCTAssertEqual(agoLabel(2025, thisYear: 2026), "1 year ago")
+        XCTAssertEqual(agoLabel(2016, thisYear: 2026), "10 years ago")
+        XCTAssertEqual(plural(1, "photo"), "1 photo")
+        XCTAssertEqual(plural(3, "photo"), "3 photos")
+        // 12 or 24 hour, as the phone is set.
+        XCTAssertEqual(formatTime(hour: 18, minute: 30, locale: Locale(identifier: "en_GB")), "18:30")
+        XCTAssertTrue(formatTime(hour: 18, minute: 30, locale: Locale(identifier: "en_US")).hasPrefix("6:30"))
+    }
+
+    func testIndexCountsPerDayAndYear() {
+        XCTAssertEqual(index["9-2"], [2014: 1, 2019: 2, 2026: 1])
+    }
+
+    func testYearsSkipTodayInThisYear() {
+        XCTAssertEqual(yearsForDay(index, MonthDay(month: 9, day: 2), today: today, calendar: cal), [2019, 2014])
+        XCTAssertEqual(yearsForDay(index, MonthDay(month: 8, day: 20), today: today, calendar: cal), [2026])
+    }
+
+    func testNearbyDaysFound() {
+        let near = nearbyDays(index, MonthDay(month: 9, day: 5), today: today)
+        XCTAssertEqual(near.before, MonthDay(month: 9, day: 2))
+        XCTAssertEqual(near.after, MonthDay(month: 9, day: 9))
+    }
+
+    func testMerges() {
+        XCTAssertEqual(mergeIndexes(["1-1": [2020: 1]], ["1-1": [2020: 2, 2021: 1]]), ["1-1": [2020: 3, 2021: 1]])
+    }
+
+    func testDropsGoogleCopies() {
+        func p(_ key: String, _ t: TimeInterval, _ w: Int = 4, _ h: Int = 3) -> Photo {
+            Photo(key: key, source: key.hasPrefix("d") ? .device : .google, ref: key, width: w, height: h, time: Date(timeIntervalSince1970: t))
+        }
+        let out = dropDuplicates(device: [p("d:1", 1)], google: [p("g:1", 1.5), p("g:2", 9), p("g:3", 1.2, 3, 4)])
+        XCTAssertEqual(out.map(\.key), ["d:1", "g:2", "g:3"])
+    }
+
+    func testMosaicPacksWithoutGaps() {
+        for n in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 25] {
+            let layout = layoutMosaic(n)
+            XCTAssertEqual(layout.tiles.count, n)
+            var grid = Array(repeating: Array(repeating: 0, count: mosaicColumns), count: layout.rows)
+            for t in layout.tiles {
+                XCTAssertLessThanOrEqual(t.col + t.cols, mosaicColumns)
+                for r in t.row..<(t.row + t.rows) { for c in t.col..<(t.col + t.cols) { grid[r][c] += 1 } }
+            }
+            XCTAssertTrue(grid.allSatisfy { $0.allSatisfy { $0 == 1 } }, "gap or overlap for \(n)")
+        }
+    }
+
+    func testMasonryBalancesColumns() {
+        // A tall photo first, so the next three fit beside it.
+        XCTAssertEqual(masonryColumns([0.6, 1.5, 1.5, 1]), [[0], [1, 2, 3]])
+        XCTAssertEqual(masonryColumns([]), [[], []])
+        XCTAssertEqual(tileAspect(width: 0, height: 0), 1)
+        XCTAssertEqual(tileAspect(width: 4000, height: 1000), 1.8)
+    }
+
+    func testHiddenDaysLeaveTheIndex() {
+        var s = SavedState()
+        s.sources.device = true
+        s.deviceIndex = ["9-2": [2019: 3], "9-3": [2020: 1]]
+        s.hiddenDates = ["9-2"]
+        XCTAssertEqual(Set(s.visibleIndex.keys), ["9-3"])
+    }
+
+    func testOldSaveFilesStillLoad() throws {
+        let old = #"{"onboarded":true,"sources":{"device":true,"google":false},"favorites":[]}"#
+        let s = try JSONDecoder().decode(SavedState.self, from: Data(old.utf8))
+        XCTAssertTrue(s.onboarded)
+        XCTAssertTrue(s.sources.device)
+        XCTAssertEqual(s.layout, .mosaic)
+        XCTAssertTrue(s.hiddenDates.isEmpty)
+    }
+
+    func testTokenOnlyGoesToGoogle() {
+        XCTAssertTrue(GooglePhotos.isGoogleHTTPS(URL(string: "https://photospicker.googleapis.com/v1/sessions")!))
+        XCTAssertTrue(GooglePhotos.isGoogleHTTPS(URL(string: "https://lh3.googleusercontent.com/abc=w2048-h2048")!))
+        XCTAssertFalse(GooglePhotos.isGoogleHTTPS(URL(string: "http://lh3.googleusercontent.com/abc")!))
+        XCTAssertFalse(GooglePhotos.isGoogleHTTPS(URL(string: "https://googleusercontent.com.evil.com/x")!))
+    }
+}

@@ -10,6 +10,12 @@ data class MonthDay(val month: Int, val day: Int) {
     companion object {
         fun of(date: LocalDate) = MonthDay(date.monthValue - 1, date.dayOfMonth)
         fun today() = of(LocalDate.now())
+
+        /** Reads a [key] back, or null if it isn't one. */
+        fun fromKey(key: String): MonthDay? {
+            val (m, d) = key.split("-").takeIf { it.size == 2 }?.map { it.toIntOrNull() ?: return null } ?: return null
+            return if (m in 0..11 && d in 1..DAYS_IN_MONTH[m]) MonthDay(m, d) else null
+        }
     }
 }
 
@@ -48,9 +54,12 @@ fun agoLabel(year: Int, thisYear: Int = LocalDate.now().year): String = when (va
     else -> "$diff years ago"
 }
 
-fun formatTime(hour: Int, minute: Int): String {
+/** "9:00 AM", or "09:00" when the phone uses 24-hour time. */
+fun formatTime(hour: Int, minute: Int, use24: Boolean = false): String {
+    val mm = minute.toString().padStart(2, '0')
+    if (use24) return "${hour.toString().padStart(2, '0')}:$mm"
     val h = if (hour % 12 == 0) 12 else hour % 12
-    return "$h:${minute.toString().padStart(2, '0')} ${if (hour < 12) "AM" else "PM"}"
+    return "$h:$mm ${if (hour < 12) "AM" else "PM"}"
 }
 
 /** Start and end (exclusive) of a local calendar day, in epoch ms. Null if the day doesn't exist that year. */

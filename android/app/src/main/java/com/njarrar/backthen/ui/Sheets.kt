@@ -1,6 +1,18 @@
 package com.njarrar.backthen.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
+import com.njarrar.backthen.core.MonthDay
+import com.njarrar.backthen.core.label
+import com.njarrar.backthen.data.YearLayout
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.offset
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.IosShare
+import androidx.compose.ui.draw.rotate
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -51,7 +63,6 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.njarrar.backthen.core.Album
 import com.njarrar.backthen.core.Photo
-import com.njarrar.backthen.core.formatTime
 import com.njarrar.backthen.core.plural
 import com.njarrar.backthen.GoogleImport
 import com.njarrar.backthen.data.SavedState
@@ -137,43 +148,87 @@ private val TIMES = listOf(8 to 0, 9 to 0, 12 to 0, 18 to 0, 20 to 0)
 @Composable
 fun SettingsSheet(
     state: SavedState,
+    day: MonthDay,
     onConnectDevice: () -> Unit,
     onGoogle: () -> Unit,
     onReminder: (Boolean) -> Unit,
     onReminderTime: (Int, Int) -> Unit,
+    onLayout: (YearLayout) -> Unit,
+    onHidden: (MonthDay, Boolean) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val p = LocalPalette.current
     BottomSheet(onDismiss) {
-        T("Photo sources", size = 13, weight = FontWeight.Bold, muted = true)
-        SourceRow(Icons.Outlined.PhoneAndroid, "Photos on this phone", if (state.sources.device) "Connected" else "Not connected", state.sources.device, onConnectDevice)
-        SourceRow(
-            Icons.Outlined.PhotoLibrary, "Google Photos",
-            if (state.sources.google) "${plural(state.googlePhotos.size, "photo")} picked" else "Not connected",
-            state.sources.google, onGoogle,
-        )
-        HorizontalDivider(color = p.line)
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Icon(Icons.Outlined.Notifications, null, tint = p.ink)
-            T("Daily reminder", weight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-            if (state.reminder.on) {
-                Box(
-                    Modifier.clip(RoundedCornerShape(50)).background(p.fill)
-                        .clickable(role = Role.Button) {
-                            val i = TIMES.indexOf(state.reminder.hour to state.reminder.minute)
-                            val (h, m) = TIMES[(i + 1) % TIMES.size]
-                            onReminderTime(h, m)
-                        }
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
-                ) { T(formatTime(state.reminder.hour, state.reminder.minute), size = 15, weight = FontWeight.SemiBold) }
-            }
-            Switch(
-                checked = state.reminder.on,
-                onCheckedChange = onReminder,
-                colors = SwitchDefaults.colors(checkedTrackColor = Accent, checkedThumbColor = Color.White),
+        Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            T("Photo sources", size = 13, weight = FontWeight.Bold, muted = true)
+            SourceRow(Icons.Outlined.PhoneAndroid, "Photos on this phone", if (state.sources.device) "Connected" else "Not connected", state.sources.device, onConnectDevice)
+            SourceRow(
+                Icons.Outlined.PhotoLibrary, "Google Photos",
+                if (state.sources.google) "${plural(state.googlePhotos.size, "photo")} picked" else "Not connected",
+                state.sources.google, onGoogle,
             )
+            HorizontalDivider(color = p.line)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Icon(Icons.Outlined.Notifications, null, tint = p.ink)
+                T("Daily reminder", weight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                if (state.reminder.on) {
+                    Box(
+                        Modifier.clip(RoundedCornerShape(50)).background(p.fill)
+                            .clickable(role = Role.Button) {
+                                val i = TIMES.indexOf(state.reminder.hour to state.reminder.minute)
+                                val (h, m) = TIMES[(i + 1) % TIMES.size]
+                                onReminderTime(h, m)
+                            }
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                    ) { T(timeLabel(state.reminder.hour, state.reminder.minute), size = 15, weight = FontWeight.SemiBold) }
+                }
+                Switch(
+                    checked = state.reminder.on,
+                    onCheckedChange = onReminder,
+                    colors = SwitchDefaults.colors(checkedTrackColor = Accent, checkedThumbColor = Color.White),
+                )
+            }
+            T("Only on days that have photos from past years. Tap the time to change it.", size = 13, muted = true)
+            HorizontalDivider(color = p.line)
+            T("Layout", size = 13, weight = FontWeight.Bold, muted = true)
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(50)).background(p.fill).padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                listOf(YearLayout.MOSAIC to "All years", YearLayout.STRIP to "One year at a time").forEach { (layout, label) ->
+                    val on = state.layout == layout
+                    Box(
+                        Modifier.weight(1f).height(40.dp).clip(RoundedCornerShape(50))
+                            .background(if (on) p.surface else Color.Transparent)
+                            .clickable(role = Role.RadioButton) { onLayout(layout) },
+                        contentAlignment = Alignment.Center,
+                    ) { T(label, size = 14, weight = FontWeight.SemiBold, color = if (on) p.ink else p.muted) }
+                }
+            }
+            HorizontalDivider(color = p.line)
+            val hidden = day.key in state.hiddenDates
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(role = Role.Button) { onHidden(day, !hidden) }.padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Icon(if (hidden) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff, null, tint = p.ink)
+                Column(Modifier.weight(1f)) {
+                    T(if (hidden) "Show ${day.label()} again" else "Hide ${day.label()}", weight = FontWeight.SemiBold)
+                    T("Hidden dates don't come up on their own or in reminders.", size = 13, muted = true)
+                }
+            }
+            val others = state.hiddenDates.mapNotNull { MonthDay.fromKey(it) }.filter { it != day }.sortedWith(compareBy({ it.month }, { it.day }))
+            if (others.isNotEmpty()) {
+                T("Hidden dates", size = 13, weight = FontWeight.Bold, muted = true)
+                others.forEach { md ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        T(md.label(), weight = FontWeight.Medium, modifier = Modifier.weight(1f))
+                        Pill("Show", { onHidden(md, false) }, kind = Kind.Secondary, height = 36.dp)
+                    }
+                }
+            }
         }
-        T("Only on days that have photos from past years. Tap the time to change it.", size = 13, muted = true)
     }
 }
 
@@ -254,3 +309,45 @@ fun SelectBar(count: Int, onShare: () -> Unit, onAlbum: () -> Unit, modifier: Mo
 
 @Composable
 fun Dot(color: Color) = Box(Modifier.size(5.dp).clip(RoundedCornerShape(50)).background(color))
+
+/** What to share: a year, a selection, or an album. */
+data class ShareRequest(val title: String, val photos: List<Photo>)
+
+/** The design's share sheet: a preview, then send through any app or save copies. */
+@Composable
+fun ShareSheet(request: ShareRequest, onSend: () -> Unit, onSave: () -> Unit, onDismiss: () -> Unit) {
+    val p = LocalPalette.current
+    BottomSheet(onDismiss) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            Box(Modifier.size(64.dp)) {
+                request.photos.take(3).withIndex().reversed().forEach { (i, ph) ->
+                    AsyncImage(
+                        ph.uri, null,
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                        modifier = Modifier
+                            .offset((i * 6).dp, (i * 5).dp)
+                            .size(52.dp)
+                            .rotate(listOf(-6f, 4f, -1f)[i])
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(p.fill)
+                            .border(2.dp, p.surface, RoundedCornerShape(10.dp)),
+                    )
+                }
+            }
+            Column(Modifier.weight(1f)) {
+                T(request.title, size = 18, weight = FontWeight.Bold, maxLines = 2)
+                T(plural(request.photos.size, "photo"), size = 14, muted = true)
+            }
+        }
+        Pill("Share", onSend, modifier = Modifier.fillMaxWidth(), icon = { Icon(Icons.Outlined.IosShare, null, tint = it, modifier = Modifier.size(18.dp)) })
+        HorizontalDivider(color = p.line)
+        Row(
+            Modifier.fillMaxWidth().height(52.dp).clip(RoundedCornerShape(12.dp)).clickable(role = Role.Button, onClick = onSave).padding(horizontal = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Icon(Icons.Outlined.Download, null, tint = p.ink)
+            T("Save copies to Pictures", weight = FontWeight.Medium)
+        }
+    }
+}

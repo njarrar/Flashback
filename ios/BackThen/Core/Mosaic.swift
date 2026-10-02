@@ -57,3 +57,22 @@ func layoutMosaic(_ count: Int) -> (tiles: [Tile], rows: Int) {
     }
     return (tiles, rows)
 }
+
+/// Width over height for a photo tile, kept in a sane range so odd sizes don't make huge tiles.
+func tileAspect(width: Int, height: Int) -> CGFloat {
+    guard width > 0, height > 0 else { return 1 }
+    return min(max(CGFloat(width) / CGFloat(height), 0.6), 1.8)
+}
+
+/// Splits photos into columns of about equal height, as in the design's strip layout.
+/// Each photo, in order, goes to the shortest column so far. Returns indexes per column.
+func masonryColumns(_ aspects: [CGFloat], columns: Int = 2) -> [[Int]] {
+    var cols = Array(repeating: [Int](), count: columns)
+    var heights = Array(repeating: CGFloat(0), count: columns)
+    for (i, a) in aspects.enumerated() {
+        let c = heights.indices.min { heights[$0] < heights[$1] }!
+        cols[c].append(i)
+        heights[c] += 1 / a
+    }
+    return cols
+}

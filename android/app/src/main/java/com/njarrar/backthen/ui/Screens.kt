@@ -5,6 +5,7 @@ import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -38,6 +39,7 @@ import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.HideImage
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.PhotoLibrary
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -69,13 +71,13 @@ import com.njarrar.backthen.core.MONTHS_SHORT
 import com.njarrar.backthen.core.MonthDay
 import com.njarrar.backthen.core.Photo
 import com.njarrar.backthen.core.YearGroup
-import com.njarrar.backthen.core.formatTime
 import com.njarrar.backthen.core.label
 import com.njarrar.backthen.core.localDate
 import com.njarrar.backthen.core.nearbyDays
 import com.njarrar.backthen.core.plural
 import com.njarrar.backthen.core.shortLabel
 import com.njarrar.backthen.core.yearsForDay
+import com.njarrar.backthen.data.YearLayout
 import kotlinx.coroutines.launch
 
 /** Asks for photo access, then notification access, as each step needs it. */
@@ -105,9 +107,10 @@ fun OnboardingScreen(vm: AppViewModel) {
     var chosePhone by remember { mutableStateOf(false) }
     val today = MonthDay.today()
     val askPhotos = rememberPhotoPermission(vm) { ok -> denied = !ok; chosePhone = ok }
+    val time = timeLabel(state.reminder.hour, state.reminder.minute)
     val askNotify = rememberNotificationPermission { ok ->
         vm.finishOnboarding(ok)
-        if (ok) vm.say("Daily reminder set for ${formatTime(state.reminder.hour, state.reminder.minute)}")
+        if (ok) vm.say("Daily reminder set for $time")
     }
     val startGoogle = rememberGoogleImport(vm)
 
@@ -124,7 +127,7 @@ fun OnboardingScreen(vm: AppViewModel) {
                     Column(Modifier.weight(1f)) {
                         Row {
                             T("Back Then", size = 14, weight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                            T(formatTime(state.reminder.hour, state.reminder.minute), size = 14, muted = true)
+                            T(time, size = 14, muted = true)
                         }
                         T("${today.shortLabel()} has photos from ${if (years.isEmpty()) "past years" else plural(years.size, "year")}", size = 14, weight = FontWeight.SemiBold)
                         T((if (years.isEmpty()) "" else "The oldest is from ${years.last()}. ") + "Tap to look back.", size = 14, muted = true)
@@ -177,6 +180,7 @@ fun OnboardingScreen(vm: AppViewModel) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, onSelectingChange: (Boolean) -> Unit) {
     val p = LocalPalette.current
@@ -194,6 +198,8 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, on
     var selecting by remember { mutableStateOf(false) }
     var picked by remember { mutableStateOf(listOf<Photo>()) }
     var albumFor by remember { mutableStateOf<List<Photo>?>(null) }
+    var shareFor by remember { mutableStateOf<ShareRequest?>(null) }
+    var stripPick by remember(day) { mutableStateOf<Int?>(null) }
     val list = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val index = vm.index(state)
@@ -216,8 +222,10 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, on
     BackHandler(enabled = selecting) { stopSelecting() }
 
     val today = MonthDay.today()
+    val hidden = day.key in state.hiddenDates
     val total = groups?.sumOf { it.photos.size } ?: 0
     val summary = when {
+        hidden -> "You hid this date"
         groups == null || indexing && groups.isEmpty() -> "Looking through your library…"
         groups.isNotEmpty() -> "${plural(total, "photo")} from ${plural(groups.size, "year")}"
         else -> "No photos on this date"
@@ -255,16 +263,32 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, on
                 }
             }
             when {
+                hidden -> item { HiddenDay(day) { vm.setHidden(day, false) } }
                 groups == null -> item { Skeleton() }
                 groups.isEmpty() -> item {
                     val noSources = !state.sources.device && !state.sources.google
                     EmptyDay(day, noSources, nearbyDays(index, day), onGo = ::go, onConnect = { settings = true })
                 }
+                state.layout == YearLayout.STRIP -> {
+                    val years = groups.map { it.year }
+                    val at = stripPick?.let { years.indexOf(it) }?.takeIf { it >= 0 } ?: 0
+                    val g = groups[at]
+                    stickyHeader(key = "years") { YearPills(years, g.year) { stripPick = it } }
+                    item(key = g.year) {
+                        StripYear(
+                            g.year, g.photos, day, favorites, selection,
+                            newer = years.getOrNull(at - 1), older = years.getOrNull(at + 1),
+                            onOpen = { i -> vm.viewer.value = com.njarrar.backthen.Viewer(g.photos, i) },
+                            onShare = { shareFor = ShareRequest("${day.label()}, ${g.year}", g.photos) },
+                            onPick = { stripPick = it },
+                        )
+                    }
+                }
                 else -> items(groups, key = { it.year }) { g ->
                     YearSection(
                         g.year, g.photos, day, favorites, selection,
                         onOpen = { i -> vm.viewer.value = com.njarrar.backthen.Viewer(g.photos, i) },
-                        onShare = { sharePhotos(context, g.photos, "${day.label()}, ${g.year}") },
+                        onShare = { shareFor = ShareRequest("${day.label()}, ${g.year}", g.photos) },
                     )
                 }
             }
@@ -272,7 +296,7 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, on
         if (selecting) {
             SelectBar(
                 picked.size,
-                onShare = { sharePhotos(context, picked, plural(picked.size, "photo")) },
+                onShare = { shareFor = ShareRequest(plural(picked.size, "photo"), picked) },
                 onAlbum = { albumFor = picked },
                 modifier = Modifier.align(Alignment.BottomCenter).padding(12.dp).padding(bottom = bottomPadding),
             )
@@ -282,11 +306,13 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, on
     if (calendar) CalendarDialog(day, index, onPick = ::go, onDismiss = { calendar = false })
     if (settings) {
         SettingsSheet(
-            state,
+            state, day,
             onConnectDevice = { if (!state.sources.device) askPhotos() },
             onGoogle = { settings = false; google = true },
             onReminder = { on -> if (on) askNotify() else vm.setReminder { it.copy(on = false) } },
             onReminderTime = { h, m -> vm.setReminder { it.copy(hour = h, minute = m) } },
+            onLayout = vm::setLayout,
+            onHidden = { md, on -> vm.setHidden(md, on); if (md == day) settings = false },
             onDismiss = { settings = false },
         )
     }
@@ -305,6 +331,28 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, on
             onAdd = { a -> vm.addToAlbum(a.id, photos); albumFor = null; stopSelecting() },
             onDismiss = { albumFor = null },
         )
+    }
+    shareFor?.let { req ->
+        ShareSheet(
+            req,
+            onSend = { sharePhotos(context, req.photos, req.title); shareFor = null },
+            onSave = { vm.saveToGallery(req.title, req.photos); shareFor = null },
+            onDismiss = { shareFor = null },
+        )
+    }
+}
+
+/** Shown instead of photos on a day the user hid. */
+@Composable
+private fun HiddenDay(day: MonthDay, onShow: () -> Unit) {
+    val p = LocalPalette.current
+    Column(Modifier.padding(start = 32.dp, end = 32.dp, top = 64.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Box(Modifier.size(56.dp).clip(RoundedCornerShape(16.dp)).background(p.fill), contentAlignment = Alignment.Center) {
+            Icon(Icons.Outlined.VisibilityOff, null, tint = p.muted, modifier = Modifier.size(28.dp))
+        }
+        T("${day.label()} is hidden", size = 24, weight = FontWeight.Bold, tight = true)
+        T("It won't come up on its own or in reminders.", size = 15, muted = true, modifier = Modifier.widthIn(max = 300.dp))
+        Row { Pill("Show it again", onShow, height = 40.dp) }
     }
 }
 
@@ -426,6 +474,7 @@ fun AlbumScreen(vm: AppViewModel, album: Album, bottomPadding: androidx.compose.
     val p = LocalPalette.current
     val context = LocalContext.current
     var confirmDelete by remember { mutableStateOf(false) }
+    var sharing by remember { mutableStateOf(false) }
     val made = localDate(album.createdAt)
     BackHandler(onBack = onBack)
     LazyColumn(Modifier.fillMaxSize().background(p.bg).statusBarsPadding(), contentPadding = PaddingValues(bottom = bottomPadding + 24.dp)) {
@@ -433,9 +482,9 @@ fun AlbumScreen(vm: AppViewModel, album: Album, bottomPadding: androidx.compose.
             Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Albums", tint = p.ink) }
                 Spacer(Modifier.weight(1f))
-                IconButton(onClick = { vm.saveAlbumToGallery(album) }) { Icon(Icons.Outlined.Download, "Save to gallery", tint = p.ink) }
+                IconButton(onClick = { vm.saveToGallery(album.name, album.photos) }) { Icon(Icons.Outlined.Download, "Save to gallery", tint = p.ink) }
                 IconButton(onClick = { confirmDelete = true }) { Icon(Icons.Outlined.Delete, "Delete album", tint = p.ink) }
-                Pill("Share album", { sharePhotos(context, album.photos, album.name) }, kind = Kind.Accent, height = 40.dp, modifier = Modifier.padding(end = 12.dp))
+                Pill("Share album", { sharing = true }, kind = Kind.Accent, height = 40.dp, modifier = Modifier.padding(end = 12.dp))
             }
             Column(Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 16.dp)) {
                 T(album.name, size = 30, weight = FontWeight.Bold, tight = true, modifier = Modifier.semantics { heading() })
@@ -443,6 +492,14 @@ fun AlbumScreen(vm: AppViewModel, album: Album, bottomPadding: androidx.compose.
             }
             SquareGrid(album.photos, emptySet(), showYear = false) { i -> vm.viewer.value = com.njarrar.backthen.Viewer(album.photos, i) }
         }
+    }
+    if (sharing) {
+        ShareSheet(
+            ShareRequest(album.name, album.photos),
+            onSend = { sharePhotos(context, album.photos, album.name); sharing = false },
+            onSave = { vm.saveToGallery(album.name, album.photos); sharing = false },
+            onDismiss = { sharing = false },
+        )
     }
     if (confirmDelete) {
         AlertDialog(
