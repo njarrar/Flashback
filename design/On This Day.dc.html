@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>body{margin:0;background:#E7E7E3}a{color:#141416}a:hover{color:#E5533D}</style>
+</helmet>
+<div style="padding:56px 64px 96px;display:flex;flex-direction:column;gap:40px;font-family:Nunito, system-ui, sans-serif;color:#141416">
+  <div style="display:flex;flex-direction:column;gap:12px;max-width:760px">
+    <div style="display:flex;align-items:center;gap:16px"><div style="width:64px;height:64px;border-radius:15px;overflow:hidden;flex:none;position:relative;box-shadow:0 1px 2px rgba(20,20,22,0.12), 0 4px 12px rgba(20,20,22,0.12)"><div style="position:absolute;left:0;top:0;width:180px;height:180px;transform:scale(0.3556);transform-origin:0 0;background:#2E7BFF"><div style="position:absolute;inset:0;background:radial-gradient(circle at 30% 18%, rgba(255,255,255,0.22), transparent 55%)"></div><div style="position:absolute;left:62px;top:30px;width:86px;height:102px;border-radius:14px;background:#FFFFFF;transform:rotate(12deg);box-shadow:0 7px 0 rgba(0,0,0,0.16);padding:8px 8px 22px;box-sizing:border-box"><div style="width:100%;height:100%;border-radius:7px;background:#FFC93C"></div></div><div style="position:absolute;left:34px;top:44px;width:96px;height:114px;border-radius:15px;background:#FFFFFF;transform:rotate(-7deg);box-shadow:0 8px 0 rgba(0,0,0,0.2)"><div style="position:absolute;left:9px;top:9px;right:9px;bottom:27px;border-radius:8px;background:#FF4B3E;overflow:hidden"><div style="position:absolute;left:21.15px;top:29.6px;width:9.450000000000001px;height:10.5px;border-radius:999px;background:#1D1B2E"></div><div style="position:absolute;left:47.4px;top:29.6px;width:9.450000000000001px;height:10.5px;border-radius:999px;background:#1D1B2E"></div><div style="position:absolute;left:27.45px;top:44.3px;width:23.1px;height:11.55px;border-radius:0 0 11.55px 11.55px;background:#1D1B2E"></div><div style="position:absolute;left:10.649999999999999px;top:41.15px;width:10.5px;height:7.3500000000000005px;border-radius:999px;background:#FF9EC0;opacity:0.9"></div><div style="position:absolute;left:56.85px;top:41.15px;width:10.5px;height:7.3500000000000005px;border-radius:999px;background:#FF9EC0;opacity:0.9"></div></div></div></div></div><div style="font:900 48px/1 Nunito, sans-serif;letter-spacing:-0.03em">Back Then</div></div>
+    <p style="margin:0;font:500 17px/1.5 Nunito, sans-serif;color:#55555A;text-wrap:pretty">Clickable prototype for iPhone and Android. Each phone runs on its own: go through onboarding, open the calendar, open a photo and heart it, select a few and make an album, then share the album link.</p>
+  </div>
+  <div style="display:flex;gap:56px;flex-wrap:wrap;align-items:flex-start">
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="font:800 14px Nunito, sans-serif;color:#55555A">iPhone</div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ dark }}" hint-size="402px,874px">
+        <dc-import name="OnThisDayApp" platform="ios" dark="{{ dark }}" start-screen="{{ startScreen }}" year-layout="{{ yearLayout }}" hint-size="100%,100%" style="display:block;height:100%"></dc-import>
+      </x-import>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="font:800 14px Nunito, sans-serif;color:#55555A">Android</div>
+      <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" dark="{{ dark }}" hint-size="412px,892px">
+        <dc-import name="OnThisDayApp" platform="android" dark="{{ dark }}" start-screen="{{ startScreen }}" year-layout="{{ yearLayout }}" hint-size="100%,100%" style="display:block;height:100%"></dc-import>
+      </x-import>
+    </div>
+    <div style="max-width:300px;display:flex;flex-direction:column;gap:18px;padding-top:30px">
+      <div style="font:800 18px Nunito, sans-serif">Decisions so far</div>
+      <div style="display:flex;flex-direction:column;gap:14px;font:500 15px/1.5 Nunito, sans-serif;color:#45454A">
+        <p style="margin:0">Quiet, photo-first UI. Neutral surfaces, one coral accent kept for hearts, selection and the current day.</p>
+        <p style="margin:0">The calendar picks a month and day, not a year, because every year is shown at once. Dots mark days that have photos.</p>
+        <p style="margin:0">Same app on both platforms. Chrome follows each one: floating tab bar and sheets on iPhone, navigation bar and a centered date dialog on Android. Apple Photos leads on iPhone, Google Photos on Android.</p>
+        <p style="margin:0">Photos are random stand-ins.</p>
+        <p style="margin:0">Use Tweaks to switch dark mode, skip onboarding, or try the year-by-year strip layout.</p>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;light&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;light&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;startScreen&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;onboarding&quot;,&quot;today&quot;],&quot;default&quot;:&quot;onboarding&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;yearLayout&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;stacked&quot;,&quot;strip&quot;],&quot;default&quot;:&quot;stacked&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      dark: (this.props.theme ?? 'light') === 'dark',
+      startScreen: this.props.startScreen ?? 'onboarding',
+      yearLayout: this.props.yearLayout ?? 'stacked',
+    };
+  }
+}
+</script>
+</body>
+</html>

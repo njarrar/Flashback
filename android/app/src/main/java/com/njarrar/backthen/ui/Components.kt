@@ -1,0 +1,306 @@
+package com.njarrar.backthen.ui
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.outlined.Circle
+import androidx.compose.material.icons.outlined.IosShare
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import coil3.compose.AsyncImage
+import com.njarrar.backthen.core.COLUMNS
+import com.njarrar.backthen.core.MonthDay
+import com.njarrar.backthen.core.Photo
+import com.njarrar.backthen.core.agoLabel
+import com.njarrar.backthen.core.layoutMosaic
+import com.njarrar.backthen.core.localDate
+import com.njarrar.backthen.core.plural
+import java.time.LocalDate
+import java.time.format.TextStyle
+import java.util.Locale
+
+@Composable
+fun T(
+    text: String,
+    size: Int = 16,
+    weight: FontWeight = FontWeight.Normal,
+    color: Color? = null,
+    muted: Boolean = false,
+    tight: Boolean = false,
+    maxLines: Int = Int.MAX_VALUE,
+    modifier: Modifier = Modifier,
+) {
+    val p = LocalPalette.current
+    Text(
+        text,
+        modifier = modifier,
+        color = color ?: if (muted) p.muted else p.ink,
+        fontFamily = Nunito,
+        fontWeight = weight,
+        fontSize = size.sp,
+        lineHeight = (size * if (size >= 30) 1.1 else 1.4).sp,
+        letterSpacing = if (tight) (size * -0.03).sp else 0.sp,
+        maxLines = maxLines,
+        overflow = TextOverflow.Ellipsis,
+    )
+}
+
+enum class Kind { Primary, Secondary, Ghost, Accent, Tint }
+
+@Composable
+fun Pill(
+    label: String,
+    onClick: () -> Unit,
+    kind: Kind = Kind.Primary,
+    height: Dp = 54.dp,
+    enabled: Boolean = true,
+    modifier: Modifier = Modifier,
+    icon: (@Composable (Color) -> Unit)? = null,
+) {
+    val p = LocalPalette.current
+    val (bg, fg) = when (kind) {
+        Kind.Primary -> p.ink to p.bg
+        Kind.Secondary -> p.surface to p.ink
+        Kind.Ghost -> Color.Transparent to p.ink
+        Kind.Accent -> Accent to Color.White
+        Kind.Tint -> p.accTint to p.accInk
+    }
+    Row(
+        modifier
+            .height(height)
+            .clip(RoundedCornerShape(50))
+            .background(bg)
+            .then(if (kind == Kind.Secondary) Modifier.border(1.dp, p.line, RoundedCornerShape(50)) else Modifier)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .padding(horizontal = if (height < 48.dp) 16.dp else 20.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+    ) {
+        icon?.invoke(fg.copy(alpha = if (enabled) 1f else 0.4f))
+        T(label, size = if (height < 48.dp) 15 else 16, weight = FontWeight.SemiBold, color = fg.copy(alpha = if (enabled) 1f else 0.4f))
+    }
+}
+
+/** The app icon from the design: two tilted prints on blue, the front one smiling. */
+@Composable
+fun Logo(size: Dp = 36.dp) {
+    val s = size.value / 180f
+    fun u(v: Float) = (v * s).dp
+    Box(
+        Modifier
+            .size(size)
+            .clip(RoundedCornerShape(size * 0.24f))
+            .background(Color(0xFF2E7BFF))
+            .background(Brush.radialGradient(listOf(Color.White.copy(alpha = 0.22f), Color.Transparent), radius = size.value * 1.6f)),
+    ) {
+        Box(
+            Modifier.offset(u(62f), u(30f)).size(u(86f), u(102f)).rotate(12f)
+                .background(Color.White, RoundedCornerShape(u(14f)))
+                .padding(start = u(8f), top = u(8f), end = u(8f), bottom = u(22f)),
+        ) { Box(Modifier.fillMaxSize().background(Color(0xFFFFC93C), RoundedCornerShape(u(7f)))) }
+        Box(
+            Modifier.offset(u(34f), u(44f)).size(u(96f), u(114f)).rotate(-7f)
+                .background(Color.White, RoundedCornerShape(u(15f))),
+        ) {
+            Box(Modifier.offset(u(9f), u(9f)).size(u(78f), u(78f)).background(Color(0xFFFF4B3E), RoundedCornerShape(u(8f)))) {
+                val ink = Color(0xFF1D1B2E)
+                Box(Modifier.offset(u(21f), u(29.6f)).size(u(9.5f), u(10.5f)).background(ink, RoundedCornerShape(50)))
+                Box(Modifier.offset(u(47.4f), u(29.6f)).size(u(9.5f), u(10.5f)).background(ink, RoundedCornerShape(50)))
+                Box(
+                    Modifier.offset(u(27.5f), u(44.3f)).size(u(23f), u(11.5f))
+                        .background(ink, RoundedCornerShape(bottomStart = u(11.5f), bottomEnd = u(11.5f))),
+                )
+                Box(Modifier.offset(u(10.6f), u(41f)).size(u(10.5f), u(7.4f)).background(Color(0xE6FF9EC0), RoundedCornerShape(50)))
+                Box(Modifier.offset(u(56.8f), u(41f)).size(u(10.5f), u(7.4f)).background(Color(0xE6FF9EC0), RoundedCornerShape(50)))
+            }
+        }
+    }
+}
+
+@Composable
+fun Toast(message: String?, modifier: Modifier = Modifier) {
+    val p = LocalPalette.current
+    AnimatedVisibility(visible = message != null, enter = fadeIn(), exit = fadeOut(), modifier = modifier) {
+        Row(
+            Modifier.height(44.dp).clip(RoundedCornerShape(50)).background(p.ink).padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            T("✓", size = 15, weight = FontWeight.Bold, color = Color(0xFFFF8B76))
+            T(message ?: "", size = 15, weight = FontWeight.SemiBold, color = p.bg)
+        }
+    }
+}
+
+/** Selection state shared by the photo grids. */
+class Selection(val on: Boolean, val keys: Set<String>, val toggle: (Photo) -> Unit)
+
+@Composable
+fun PhotoTile(
+    photo: Photo,
+    radius: Dp,
+    favorite: Boolean,
+    selection: Selection?,
+    onOpen: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val p = LocalPalette.current
+    val picked = selection?.keys?.contains(photo.key) == true
+    val shape = RoundedCornerShape(radius)
+    Box(
+        modifier
+            .clip(shape)
+            .background(p.fill)
+            .clickable(role = Role.Image) { if (selection?.on == true) selection.toggle(photo) else onOpen() },
+    ) {
+        AsyncImage(model = photo.uri, contentDescription = "Photo from ${localDate(photo.time)}", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        if (favorite) {
+            Icon(Icons.Filled.Favorite, null, tint = Color.White, modifier = Modifier.align(Alignment.BottomStart).padding(start = 8.dp, bottom = 7.dp).size(16.dp))
+        }
+        if (selection?.on == true) {
+            Box(
+                Modifier.fillMaxSize()
+                    .background(if (picked) Accent.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.12f))
+                    .then(if (picked) Modifier.border(3.dp, Accent, shape) else Modifier),
+            )
+            Icon(
+                if (picked) Icons.Filled.CheckCircle else Icons.Outlined.Circle,
+                contentDescription = if (picked) "Selected" else "Not selected",
+                tint = Color.White,
+                modifier = Modifier.align(Alignment.TopEnd).padding(7.dp).size(22.dp),
+            )
+        }
+    }
+}
+
+/** One year's photos for the chosen day: a big year number, then a mosaic. */
+@Composable
+fun YearSection(
+    year: Int,
+    photos: List<Photo>,
+    day: MonthDay,
+    favorites: Set<String>,
+    selection: Selection,
+    onOpen: (Int) -> Unit,
+    onShare: () -> Unit,
+) {
+    val p = LocalPalette.current
+    val weekday = runCatching {
+        LocalDate.of(year, day.month + 1, day.day).dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault())
+    }.getOrDefault("")
+    Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 28.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.Bottom) {
+            T(year.toString(), size = 56, weight = FontWeight.Black, tight = true, modifier = Modifier.weight(1f))
+            Column(horizontalAlignment = Alignment.End, modifier = Modifier.padding(bottom = 6.dp)) {
+                T(agoLabel(year), size = 14, weight = FontWeight.SemiBold)
+                T("$weekday, ${plural(photos.size, "photo")}", size = 13, muted = true)
+            }
+        }
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val gap = 4.dp
+            val row = 54.dp
+            val cell = (maxWidth - gap * (COLUMNS - 1)) / COLUMNS
+            val (tiles, rows) = layoutMosaic(photos.size)
+            Box(Modifier.fillMaxWidth().height(row * rows + gap * (rows - 1))) {
+                photos.forEachIndexed { i, photo ->
+                    val t = tiles[i]
+                    PhotoTile(
+                        photo, 10.dp, photo.key in favorites, selection, onOpen = { onOpen(i) },
+                        modifier = Modifier
+                            .offset((cell + gap) * t.col, (row + gap) * t.row)
+                            .size(cell * t.cols + gap * (t.cols - 1), row * t.rows + gap * (t.rows - 1)),
+                    )
+                }
+            }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            Row(
+                Modifier.clip(RoundedCornerShape(50)).clickable(role = Role.Button, onClick = onShare).padding(horizontal = 10.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Icon(Icons.Outlined.IosShare, null, tint = p.muted, modifier = Modifier.size(15.dp))
+                T("Share $year", size = 13, weight = FontWeight.SemiBold, muted = true)
+            }
+        }
+    }
+}
+
+/** A plain 3-column grid, used for Favorites and album pages. */
+@Composable
+fun SquareGrid(photos: List<Photo>, favorites: Set<String>, showYear: Boolean, onOpen: (Int) -> Unit) {
+    BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 3.dp)) {
+        val size = (maxWidth - 6.dp) / 3
+        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            photos.chunked(3).forEachIndexed { r, rowPhotos ->
+                Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                    rowPhotos.forEachIndexed { c, photo ->
+                        Box(Modifier.size(size)) {
+                            PhotoTile(photo, 4.dp, !showYear && photo.key in favorites, null, onOpen = { onOpen(r * 3 + c) }, modifier = Modifier.fillMaxSize())
+                            if (showYear) {
+                                Box(
+                                    Modifier.align(Alignment.BottomStart).fillMaxWidth()
+                                        .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.5f))))
+                                        .padding(start = 7.dp, end = 7.dp, top = 16.dp, bottom = 5.dp),
+                                ) { T(localDate(photo.time).year.toString(), size = 13, weight = FontWeight.Black, color = Color.White) }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** A tilted print for the welcome screen. */
+@Composable
+fun Print(year: Int, label: String, color: Color, width: Dp, angle: Float, modifier: Modifier = Modifier) {
+    val p = LocalPalette.current
+    Column(
+        modifier.width(width).rotate(angle).background(p.surface, RoundedCornerShape(10.dp)).padding(start = 8.dp, end = 8.dp, top = 8.dp),
+    ) {
+        Box(Modifier.fillMaxWidth().aspectRatio(4f / 5f).background(color.copy(alpha = 0.85f), RoundedCornerShape(6.dp)))
+        Row(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 10.dp, start = 2.dp, end = 2.dp), verticalAlignment = Alignment.Bottom) {
+            T(year.toString(), size = if (width > 160.dp) 26 else 22, weight = FontWeight.Black, tight = true, modifier = Modifier.weight(1f))
+            T(label, size = 11, weight = FontWeight.Medium, muted = true)
+        }
+    }
+}
+
+@Composable
+fun Gap(h: Dp) = Spacer(Modifier.height(h))
