@@ -28,6 +28,8 @@ class CoreTest {
         assertEquals("9:00 AM", formatTime(9, 0))
         assertEquals("12:05 AM", formatTime(0, 5))
         assertEquals("6:30 PM", formatTime(18, 30))
+        assertEquals("18:30", formatTime(18, 30, use24 = true))
+        assertEquals("00:05", formatTime(0, 5, use24 = true))
     }
 
     private val index = buildDayIndex(
@@ -75,5 +77,20 @@ class CoreTest {
             }
             assertTrue(grid.all { row -> row.all { it == 1 } }, "gap or overlap for $n")
         }
+    }
+
+    @Test fun masonryBalancesColumns() {
+        // A tall photo first, so the next three fit beside it.
+        assertEquals(listOf(listOf(0), listOf(1, 2, 3)), masonryColumns(listOf(0.6f, 1.5f, 1.5f, 1f)))
+        assertEquals(listOf(emptyList<Int>(), emptyList()), masonryColumns(emptyList()))
+        assertEquals(1f, tileAspect(0, 0))
+        assertEquals(1.8f, tileAspect(4000, 1000))
+    }
+
+    @Test fun monthDayKeysRoundTrip() {
+        assertEquals(MonthDay(9, 2), MonthDay.fromKey(MonthDay(9, 2).key))
+        assertEquals(MonthDay(1, 29), MonthDay.fromKey("1-29"))
+        assertEquals(null, MonthDay.fromKey("1-30"))
+        assertEquals(null, MonthDay.fromKey("x"))
     }
 }

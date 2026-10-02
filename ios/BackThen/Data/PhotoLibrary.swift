@@ -76,16 +76,20 @@ enum PhotoLibrary {
 
     /// Loads a device photo at roughly the given pixel size. High-quality mode calls back once.
     static func image(id: String, size: CGSize) async -> UIImage? {
+        let key = ImageCache.key(id, size)
+        if let hit = ImageCache.get(key) { return hit }
         guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [id], options: nil).firstObject else { return nil }
         let o = PHImageRequestOptions()
         o.isNetworkAccessAllowed = true
         o.deliveryMode = .highQualityFormat
         o.resizeMode = .fast
-        return await withCheckedContinuation { cont in
+        let image = await withCheckedContinuation { cont in
             imageManager.requestImage(for: asset, targetSize: size, contentMode: .aspectFill, options: o) { image, _ in
                 cont.resume(returning: image)
             }
         }
+        if let image { ImageCache.set(image, key) }
+        return image
     }
 
     /// Full image data for sharing.
@@ -99,5 +103,27 @@ enum PhotoLibrary {
                 cont.resume(returning: data)
             }
         }
+    }
+}
+
+/// Decoded thumbnails kept in memory, so scrolling back up doesn't load them again.
+/// Capped at about 50 MB; iOS also empties it when memory runs low.
+enum ImageCache {
+    private static let cache: NSCache<NSString, UIImage> = {
+        let c = NSCache<NSString, UIImage>()
+        c.countLimit = 150
+        c.totalCostLimit = 50 * 1024 * 1024
+        return c
+    }()
+
+    static func key(_ id: String, _ size: CGSize) -> NSString { "\(id)-\(Int(size.width))x\(Int(size.height))" as NSString }
+
+    static func get(_ key: NSString) -> UIImage? { cache.object(forKey: key) }
+
+    /// Full-screen images are skipped, so a few of them can't push out every thumbnail.
+    static func set(_ image: UIImage, _ key: NSString) {
+        let px = image.size.width * image.scale * image.size.height * image.scale
+        guard px <= 1200 * 1200 else { return }
+        cache.setObject(image, forKey: key, cost: Int(px * 4))
     }
 }

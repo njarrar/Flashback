@@ -12,6 +12,11 @@ struct ReminderSetting: Codable, Equatable {
     var minute = 0
 }
 
+/// How Today lays out each year: all years in mosaics, or one year at a time.
+enum YearLayout: String, Codable {
+    case mosaic, strip
+}
+
 /// Everything the app keeps between launches.
 struct SavedState: Codable {
     var onboarded = false
@@ -22,6 +27,34 @@ struct SavedState: Codable {
     var googlePhotos: [Photo] = []
     /// Cached photo counts per day for the phone's library.
     var deviceIndex: DayIndex = [:]
+    /// Days the user hid, as `MonthDay.key`. They don't come up on their own or in reminders.
+    var hiddenDates: Set<String> = []
+    var layout = YearLayout.mosaic
+
+    init() {}
+
+    // Reads each field on its own, so a file from an older version keeps what it has.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = SavedState()
+        onboarded = (try? c.decodeIfPresent(Bool.self, forKey: .onboarded)) ?? d.onboarded
+        sources = (try? c.decodeIfPresent(Sources.self, forKey: .sources)) ?? d.sources
+        reminder = (try? c.decodeIfPresent(ReminderSetting.self, forKey: .reminder)) ?? d.reminder
+        favorites = (try? c.decodeIfPresent([Photo].self, forKey: .favorites)) ?? d.favorites
+        albums = (try? c.decodeIfPresent([Album].self, forKey: .albums)) ?? d.albums
+        googlePhotos = (try? c.decodeIfPresent([Photo].self, forKey: .googlePhotos)) ?? d.googlePhotos
+        deviceIndex = (try? c.decodeIfPresent(DayIndex.self, forKey: .deviceIndex)) ?? d.deviceIndex
+        hiddenDates = (try? c.decodeIfPresent(Set<String>.self, forKey: .hiddenDates)) ?? d.hiddenDates
+        layout = (try? c.decodeIfPresent(YearLayout.self, forKey: .layout)) ?? d.layout
+    }
+
+    /// Photo counts per day across the connected sources, leaving out hidden days.
+    var visibleIndex: DayIndex {
+        mergeIndexes(
+            sources.device ? deviceIndex : [:],
+            sources.google ? buildDayIndex(googlePhotos.map(\.time)) : [:]
+        ).filter { !hiddenDates.contains($0.key) }
+    }
 }
 
 enum AppTab: Hashable {
@@ -55,6 +88,7 @@ final class AppStore {
 
     private var toastTask: Task<Void, Never>?
     private var importTask: Task<Void, Never>?
+    private var saveTask: Task<Void, Never>?
     nonisolated private static let file = URL.applicationSupportDirectory.appending(path: "state.json")
 
     init() {
@@ -62,22 +96,21 @@ final class AppStore {
         saved = data.flatMap { try? JSONDecoder().decode(SavedState.self, from: $0) } ?? SavedState()
     }
 
+    /// Each write waits for the one before it, so an older snapshot never lands after a newer one.
     private func save() {
         let snapshot = saved
         let file = Self.file
-        Task.detached(priority: .utility) {
+        let previous = saveTask
+        saveTask = Task.detached(priority: .utility) {
+            await previous?.value
             try? FileManager.default.createDirectory(at: URL.applicationSupportDirectory, withIntermediateDirectories: true)
             if let data = try? JSONEncoder().encode(snapshot) { try? data.write(to: file, options: .atomic) }
         }
     }
 
-    /// Photo counts per day across every connected source.
-    var index: DayIndex {
-        mergeIndexes(
-            saved.sources.device ? saved.deviceIndex : [:],
-            saved.sources.google ? buildDayIndex(saved.googlePhotos.map(\.time)) : [:]
-        )
-    }
+    /// Photo counts per day across every connected source. Hidden days count as empty, so
+    /// they don't show as nearby days, get calendar dots, or trigger reminders.
+    var index: DayIndex { saved.visibleIndex }
 
     var favoriteKeys: Set<String> { Set(saved.favorites.map(\.key)) }
 
@@ -176,10 +209,19 @@ final class AppStore {
         saved.albums.removeAll { $0.id == id }
     }
 
-    func saveToPhotos(_ album: Album) async {
+    func isHidden(_ md: MonthDay) -> Bool { saved.hiddenDates.contains(md.key) }
+
+    func setHidden(_ md: MonthDay, _ hidden: Bool) {
+        if hidden { saved.hiddenDates.insert(md.key) } else { saved.hiddenDates.remove(md.key) }
+        say(hidden ? "\(md.shortLabel) hidden" : "\(md.shortLabel) shown again")
+        applyReminder()
+    }
+
+    /// Saves photos into a Photos album with this name.
+    func saveToPhotos(name: String, photos: [Photo]) async {
         do {
             if !PhotoLibrary.hasAccess, !(await PhotoLibrary.requestAccess()) { return say("Allow photo access to save") }
-            try await PhotoLibrary.saveAlbum(name: album.name, photos: album.photos)
+            try await PhotoLibrary.saveAlbum(name: name, photos: photos)
             say("Saved to Photos")
         } catch {
             say("Could not save the album")

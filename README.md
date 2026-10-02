@@ -51,17 +51,38 @@ takes them from the real apps on an iPhone simulator and an Android emulator. (A
 simulator can't be given photo access without a tap, so on iPhone the samples load
 the same way Google Photos picks do.)
 
+## What's new in 1.1
+
+- **Hidden dates.** Hide a date with the "Hide date" button on Today (the eye on
+  iPhone) or from the "..." menu. It stops coming up on
+  its own: no reminder, no calendar dot, and it isn't offered as a nearby day. The
+  menu lists hidden dates so you can show any of them again.
+- **One year at a time.** A second layout from the design, picked in the "..." menu.
+  Year buttons stay at the top, each year gets a huge year number and two columns
+  of photos, and arrows step to the next or previous year.
+- **Share sheet.** Sharing a year, a selection or an album now opens a sheet with a
+  preview first. From there, send the photos through any app or save copies to an
+  album in Photos (iPhone) or under Pictures/Back Then (Android).
+- **Reminder time** shows in the phone's 12 or 24 hour style.
+- **Fixes.** Settings are saved in order, so a fast run of taps can't leave an older
+  state on disk. A failed album save on Android no longer leaves empty files in the
+  gallery. Google Photos calls time out instead of hanging, and the sign-in token is
+  only ever sent to Google. iPhone keeps recent thumbnails in memory, so scrolling
+  back up doesn't reload them.
+- **iPhone unit tests**, run in CI alongside the Android ones.
+
 ## What it does
 
 - **Today.** Every past year that has photos on this date, newest first. Each year
   gets a large year number, how long ago it was, and a mosaic of that day's photos.
-  Pull down to check the library for new photos.
+  Or switch to one year at a time. Pull down to check the library for new photos.
+  Hide a date you'd rather not see again.
 - **Pick a day.** A month-and-day calendar (no year, since every year shows at once).
   Dots mark days with photos. A day with no photos offers the closest days that have some.
 - **Photo viewer.** Swipe through a day's photos. Heart one, share it, or add it to an album.
 - **Favorites.** Every photo you've hearted, from any day.
 - **Albums.** On Today, tap Select, pick photos, then tap Album. Share an album
-  through the share sheet, or save it as a real album in Photos (iPhone) or under
+  through any app, or save it as a real album in Photos (iPhone) or under
   Pictures/Back Then (Android).
 - **Daily reminder.** One notification a day at a time you choose, and only on days
   that have photos from past years. Tapping it opens that day.
@@ -90,9 +111,9 @@ Google Photos to delete the copies.
 | Needs | Xcode 16, iOS 17 or later | Android Studio, Android 8 or later |
 | Open | `ios/BackThen.xcodeproj` | the `android/` folder |
 | Run | pick your team under Signing, then Run | Run, or `cd android && ./gradlew installDebug` |
-| Tests | built in CI | `./gradlew testDebugUnitTest` |
+| Tests | Product, Test | `./gradlew testDebugUnitTest` |
 
-GitHub Actions builds both apps on every push. The Android run also uploads a debug
+GitHub Actions builds both apps and runs their unit tests on every push. The Android run also uploads a debug
 APK you can install on a phone.
 
 ### Turning on Google Photos
@@ -119,6 +140,7 @@ ios/BackThen/
   Core/      dates, day index, mosaic layout
   Data/      PhotoKit, Google sign-in and picker, reminders, app state
   Views/     Today, calendar, viewer, Favorites, Albums, onboarding
+ios/BackThenTests/  unit tests for the iPhone core logic
 android/app/src/main/java/com/njarrar/backthen/
   core/      the same core logic, with unit tests
   data/      MediaStore, Google picker, reminders, saved state
@@ -133,5 +155,4 @@ uses it; release builds ignore it.
 ## Not built yet
 
 - **Share an album as a link.** The design shows `backthen.app/a/...` links. That
-  needs a server to host the photos, so for now albums share as files.
-- **Hidden dates** and the year-by-year "strip" layout from the design's options.
+  needs a server to host the photos, so for now photos share as files.

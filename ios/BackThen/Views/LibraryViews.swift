@@ -112,6 +112,7 @@ struct AlbumDetailView: View {
     @Environment(AppStore.self) private var store
     let album: Album
     @State private var confirmDelete = false
+    @State private var shareFor: ShareRequest?
 
     var body: some View {
         ScrollView {
@@ -120,14 +121,14 @@ struct AlbumDetailView: View {
                     Label("Albums", systemImage: "chevron.left").font(.nunito(15, .semibold)).padding(.horizontal, 12)
                 }
                 Spacer()
-                GlassButton(accessibility: "Save to Photos", action: { Task { await store.saveToPhotos(album) } }) {
+                GlassButton(accessibility: "Save to Photos", action: { Task { await store.saveToPhotos(name: album.name, photos: album.photos) } }) {
                     Image(systemName: "square.and.arrow.down").font(.system(size: 16))
                 }
                 GlassButton(accessibility: "Delete album", action: { confirmDelete = true }) {
                     Image(systemName: "trash").font(.system(size: 16))
                 }
                 Pill(label: "Share album", systemImage: "square.and.arrow.up", kind: .accent, height: 40) {
-                    Task { await Share.photos(album.photos, title: album.name) }
+                    shareFor = ShareRequest(title: album.name, photos: album.photos)
                 }
                 .fixedSize()
             }
@@ -143,6 +144,7 @@ struct AlbumDetailView: View {
             Color.clear.frame(height: 120)
         }
         .background(Palette.bg)
+        .sheet(item: $shareFor) { ShareSheetView(request: $0) }
         .confirmationDialog("Delete \"\(album.name)\"?", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Delete", role: .destructive) {
                 store.openAlbumID = nil

@@ -165,52 +165,91 @@ struct SettingsSheet: View {
 
     var body: some View {
         let s = store.saved
-        VStack(alignment: .leading, spacing: 14) {
-            Text("Photo sources").font(.nunito(13, .bold)).foregroundStyle(Palette.muted)
-            row(icon: "apple.logo", title: "Apple Photos", status: s.sources.device ? "Connected" : "Not connected", on: s.sources.device) {
-                guard !s.sources.device else { return }
-                Task {
-                    if PhotoLibrary.canAsk || PhotoLibrary.hasAccess {
-                        if await store.connectDevice() { store.say("Apple Photos connected") }
-                    } else if let url = URL(string: UIApplication.openSettingsURLString) {
-                        await UIApplication.shared.open(url)
-                    }
-                }
-            }
-            row(icon: "photo.on.rectangle.angled", title: "Google Photos",
-                status: s.sources.google ? "\(plural(s.googlePhotos.count, "photo")) picked" : "Not connected", on: s.sources.google) {
-                dismiss()
-                showGoogle = true
-            }
-            Divider()
-            HStack(spacing: 12) {
-                Image(systemName: "bell").foregroundStyle(Palette.ink)
-                Text("Daily reminder").font(.nunito(16, .semibold)).foregroundStyle(Palette.ink)
-                Spacer()
-                if s.reminder.on {
-                    Button {
-                        let i = times.firstIndex { $0.0 == s.reminder.hour && $0.1 == s.reminder.minute } ?? 0
-                        let next = times[(i + 1) % times.count]
-                        store.setReminder(hour: next.0, minute: next.1)
-                    } label: {
-                        Text(formatTime(hour: s.reminder.hour, minute: s.reminder.minute)).font(.nunito(15, .semibold)).foregroundStyle(Palette.ink)
-                            .padding(.horizontal, 12).padding(.vertical, 6).background(Palette.fill, in: Capsule())
-                    }
-                    .accessibilityLabel("Change reminder time")
-                }
-                Toggle("Daily reminder", isOn: Binding(get: { s.reminder.on }, set: { on in
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("Photo sources").font(.nunito(13, .bold)).foregroundStyle(Palette.muted)
+                row(icon: "apple.logo", title: "Apple Photos", status: s.sources.device ? "Connected" : "Not connected", on: s.sources.device) {
+                    guard !s.sources.device else { return }
                     Task {
-                        if on, !(await Reminders.requestPermission()) { return store.say("Notifications are off in Settings") }
-                        store.setReminder(on: on)
+                        if PhotoLibrary.canAsk || PhotoLibrary.hasAccess {
+                            if await store.connectDevice() { store.say("Apple Photos connected") }
+                        } else if let url = URL(string: UIApplication.openSettingsURLString) {
+                            await UIApplication.shared.open(url)
+                        }
                     }
-                }))
-                .labelsHidden()
-                .tint(Palette.accent)
+                }
+                row(icon: "photo.on.rectangle.angled", title: "Google Photos",
+                    status: s.sources.google ? "\(plural(s.googlePhotos.count, "photo")) picked" : "Not connected", on: s.sources.google) {
+                    dismiss()
+                    showGoogle = true
+                }
+                Divider()
+                HStack(spacing: 12) {
+                    Image(systemName: "bell").foregroundStyle(Palette.ink)
+                    Text("Daily reminder").font(.nunito(16, .semibold)).foregroundStyle(Palette.ink)
+                    Spacer()
+                    if s.reminder.on {
+                        Button {
+                            let i = times.firstIndex { $0.0 == s.reminder.hour && $0.1 == s.reminder.minute } ?? 0
+                            let next = times[(i + 1) % times.count]
+                            store.setReminder(hour: next.0, minute: next.1)
+                        } label: {
+                            Text(formatTime(hour: s.reminder.hour, minute: s.reminder.minute)).font(.nunito(15, .semibold)).foregroundStyle(Palette.ink)
+                                .padding(.horizontal, 12).padding(.vertical, 6).background(Palette.fill, in: Capsule())
+                        }
+                        .accessibilityLabel("Change reminder time")
+                    }
+                    Toggle("Daily reminder", isOn: Binding(get: { s.reminder.on }, set: { on in
+                        Task {
+                            if on, !(await Reminders.requestPermission()) { return store.say("Notifications are off in Settings") }
+                            store.setReminder(on: on)
+                        }
+                    }))
+                    .labelsHidden()
+                    .tint(Palette.accent)
+                }
+                Text("Only on days that have photos from past years. Tap the time to change it.").font(.nunito(13)).foregroundStyle(Palette.muted)
+                Divider()
+                Text("Layout").font(.nunito(13, .bold)).foregroundStyle(Palette.muted)
+                Picker("Layout", selection: Binding(get: { store.saved.layout }, set: { store.saved.layout = $0 })) {
+                    Text("All years").tag(YearLayout.mosaic)
+                    Text("One year at a time").tag(YearLayout.strip)
+                }
+                .pickerStyle(.segmented)
+                Divider()
+                let day = store.day
+                let hidden = store.isHidden(day)
+                Button {
+                    store.setHidden(day, !hidden)
+                    if !hidden { dismiss() }
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: hidden ? "eye" : "eye.slash").font(.system(size: 17)).frame(width: 22).foregroundStyle(Palette.ink)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(hidden ? "Show \(day.label) again" : "Hide \(day.label)").font(.nunito(16, .semibold)).foregroundStyle(Palette.ink)
+                            Text("Hidden dates don't come up on their own or in reminders.").font(.nunito(13)).foregroundStyle(Palette.muted)
+                        }
+                        Spacer()
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                let others = s.hiddenDates.compactMap { MonthDay(key: $0) }.filter { $0 != day }
+                    .sorted { ($0.month, $0.day) < ($1.month, $1.day) }
+                if !others.isEmpty {
+                    Text("Hidden dates").font(.nunito(13, .bold)).foregroundStyle(Palette.muted)
+                    ForEach(others, id: \.self) { md in
+                        HStack {
+                            Text(md.label).font(.nunito(16, .medium)).foregroundStyle(Palette.ink)
+                            Spacer()
+                            Pill(label: "Show", kind: .secondary, height: 36) { store.setHidden(md, false) }.fixedSize()
+                        }
+                    }
+                }
             }
-            Text("Only on days that have photos from past years. Tap the time to change it.").font(.nunito(13)).foregroundStyle(Palette.muted)
+            .padding(20)
         }
-        .padding(20)
-        .presentationDetents([.height(340)])
+        .presentationDetents([.medium, .large])
         .presentationCornerRadius(32)
         .presentationBackground(Palette.surface)
         .presentationDragIndicator(.visible)
@@ -279,5 +318,68 @@ struct GoogleSheet: View {
         .presentationDragIndicator(.visible)
         .interactiveDismissDisabled(store.googleImport != nil)
         .onChange(of: store.googleImport == nil) { _, idle in if idle && store.saved.sources.google { dismiss() } }
+    }
+}
+
+/// What to share: a year, a selection, or an album.
+struct ShareRequest: Identifiable {
+    let id = UUID()
+    let title: String
+    let photos: [Photo]
+}
+
+/// The design's share sheet: a preview, then send through any app or save to an album in Photos.
+struct ShareSheetView: View {
+    @Environment(AppStore.self) private var store
+    @Environment(\.dismiss) private var dismiss
+    let request: ShareRequest
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(spacing: 14) {
+                ZStack(alignment: .topLeading) {
+                    ForEach(Array(Array(request.photos.prefix(3).enumerated()).reversed()), id: \.element.key) { i, p in
+                        PhotoImage(photo: p)
+                            .frame(width: 52, height: 52)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(Palette.surface, lineWidth: 2))
+                            .shadow(color: Palette.hex(0x141416, 0.16), radius: 4, y: 2)
+                            .rotationEffect(.degrees([-6, 4, -1][i]))
+                            .offset(x: CGFloat(i * 6), y: CGFloat(i * 5))
+                    }
+                }
+                .frame(width: 64, height: 64, alignment: .topLeading)
+                .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(request.title).font(.nunito(18, .bold)).foregroundStyle(Palette.ink).lineLimit(2)
+                    Text(plural(request.photos.count, "photo")).font(.nunito(14)).foregroundStyle(Palette.muted)
+                }
+                Spacer()
+                Button { dismiss() } label: {
+                    Image(systemName: "xmark").font(.system(size: 14, weight: .bold)).foregroundStyle(Palette.muted2)
+                        .frame(width: 36, height: 36).background(Palette.fill, in: Circle())
+                }
+                .accessibilityLabel("Close")
+            }
+            Pill(label: "Share", systemImage: "square.and.arrow.up") {
+                Task { await Share.photos(request.photos, title: request.title) { dismiss() } }
+            }
+            Divider()
+            Button {
+                dismiss()
+                Task { await store.saveToPhotos(name: request.title, photos: request.photos) }
+            } label: {
+                Label("Save to an album in Photos", systemImage: "square.and.arrow.down")
+                    .font(.nunito(16, .medium)).foregroundStyle(Palette.ink)
+                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(20)
+        .presentationDetents([.height(300)])
+        .presentationCornerRadius(32)
+        .presentationBackground(Palette.surface)
+        .presentationDragIndicator(.visible)
     }
 }

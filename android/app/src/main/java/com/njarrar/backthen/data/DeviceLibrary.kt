@@ -95,6 +95,7 @@ class DeviceLibrary(private val context: Context) {
         if (Build.VERSION.SDK_INT < 29) return@withContext false
         val folder = "${Environment.DIRECTORY_PICTURES}/Back Then/${name.replace('/', '-')}"
         val resolver = context.contentResolver
+        var failed = 0
         for ((i, p) in photos.withIndex()) {
             val values = ContentValues().apply {
                 put(MediaStore.Images.Media.DISPLAY_NAME, "backthen_${p.time}_$i.jpg")
@@ -103,15 +104,22 @@ class DeviceLibrary(private val context: Context) {
                 put(MediaStore.Images.Media.DATE_TAKEN, p.time)
                 put(MediaStore.Images.Media.IS_PENDING, 1)
             }
-            val target = resolver.insert(MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY), values) ?: continue
-            resolver.openOutputStream(target)?.use { out ->
-                openPhoto(p)?.use { it.copyTo(out) }
+            val target = resolver.insert(MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY), values)
+            if (target == null) { failed++; continue }
+            val copied = runCatching {
+                resolver.openOutputStream(target)?.use { out -> openPhoto(p)?.use { it.copyTo(out) } } != null
+            }.getOrDefault(false)
+            if (!copied) {
+                // Don't leave an empty or half-written file behind in the gallery.
+                resolver.delete(target, null, null)
+                failed++
+                continue
             }
             values.clear()
             values.put(MediaStore.Images.Media.IS_PENDING, 0)
             resolver.update(target, values, null, null)
         }
-        true
+        failed == 0
     }
 
     private fun openPhoto(p: Photo) = when (p.source) {

@@ -33,6 +33,16 @@ struct MonthDay: Hashable, Codable {
     var shortLabel: String { "\(monthsShort[month]) \(day)" }
 }
 
+// In an extension, so MonthDay keeps its memberwise init.
+extension MonthDay {
+    /// Reads a `key` back, or nil if it isn't one.
+    init?(key: String) {
+        let parts = key.split(separator: "-").compactMap { Int($0) }
+        guard parts.count == 2, (0..<12).contains(parts[0]), (1...daysInMonth[parts[0]]).contains(parts[1]) else { return nil }
+        self.init(month: parts[0], day: parts[1])
+    }
+}
+
 let months = ["January", "February", "March", "April", "May", "June",
               "July", "August", "September", "October", "November", "December"]
 let monthsShort = months.map { String($0.prefix(3)) }
@@ -50,9 +60,14 @@ func agoLabel(_ year: Int, thisYear: Int = Calendar.current.component(.year, fro
     }
 }
 
-func formatTime(hour: Int, minute: Int) -> String {
-    let h = hour % 12 == 0 ? 12 : hour % 12
-    return "\(h):\(String(format: "%02d", minute)) \(hour < 12 ? "AM" : "PM")"
+/// A reminder time in the phone's 12 or 24 hour style.
+func formatTime(hour: Int, minute: Int, locale: Locale = .autoupdatingCurrent) -> String {
+    var cal = Calendar(identifier: .gregorian)
+    cal.timeZone = TimeZone(identifier: "UTC")!
+    let date = cal.date(from: DateComponents(year: 2000, month: 1, day: 1, hour: hour, minute: minute))!
+    var style = Date.FormatStyle(date: .omitted, time: .shortened, locale: locale, calendar: cal)
+    style.timeZone = cal.timeZone
+    return date.formatted(style)
 }
 
 /// Start and end (exclusive) of a local calendar day. Nil if the day doesn't exist that year.
