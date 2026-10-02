@@ -10,7 +10,8 @@ struct PhotoImage: View {
     var body: some View {
         GeometryReader { geo in
             ZStack {
-                Palette.fill
+                // Gray placeholder for grid tiles only; the viewer shows photos on black.
+                if contentMode == .fill { Palette.fill }
                 if let image {
                     Image(uiImage: image)
                         .resizable()
