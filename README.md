@@ -20,61 +20,56 @@ years, grouped by year. Built from the "On This Day" design in [`design/`](desig
 
 ## Photo sources
 
-**Phone library** (Apple Photos on iPhone, the gallery on Android) is read with
-`expo-media-library`. On Android this already includes Google Photos pictures that
-are stored on the phone.
+**Phone library**: PhotoKit on iPhone, MediaStore on Android. On Android this
+already includes Google Photos pictures stored on the phone.
 
 **Google Photos** works differently. Since March 31, 2025, Google no longer lets
-third-party apps read a user's whole Google Photos library
+other apps read a user's whole Google Photos library
 ([Google's notice](https://developers.google.com/photos/support/updates)). The
 supported way in is the **Google Photos Picker API**: the user picks photos in a
-Google screen and the app gets only those. Back Then saves a copy of each picked
-photo on the phone and folds it into the same day-by-day view, skipping shots that
-are already in the phone library. Users can pick more at any time from the "..." menu.
+Google screen and the app gets only those. Back Then keeps a copy of each picked
+photo on the phone and folds it into the same day-by-day view, skipping shots
+already in the phone library. Users can pick more at any time from the "..." menu.
+
+## Layout
+
+Two native apps that share no code but follow the same logic (day index, nearby
+days, duplicate check, mosaic patterns):
+
+- `ios/` Swift and SwiftUI, iOS 17+. Open `ios/BackThen.xcodeproj` in Xcode 16.
+  - `BackThen/Core/` dates, day index, mosaic layout
+  - `BackThen/Data/` PhotoKit, Google sign-in and picker, reminders, app state
+  - `BackThen/Views/` Today, calendar, viewer, Favorites, Albums, onboarding
+- `android/` Kotlin and Jetpack Compose, Android 8+. Open the `android/` folder in
+  Android Studio.
+  - `app/src/main/java/com/njarrar/backthen/core/` the same shared logic
+  - `.../data/` MediaStore, Google picker, reminders, saved state
+  - `.../ui/` the Compose screens
+- `design/` the source design and the Nunito font license.
 
 ## Running it
 
-This app uses native modules, so it needs a development build, not Expo Go.
+- **iPhone**: open `ios/BackThen.xcodeproj`, pick your team under Signing, and run.
+- **Android**: open `android/` in Android Studio and run, or
+  `cd android && ./gradlew installDebug`. Unit tests: `./gradlew testDebugUnitTest`.
 
-```bash
-npm install
-npx expo run:ios       # needs Xcode
-npx expo run:android   # needs Android Studio
-# or build in the cloud:
-npx eas-cli@latest build --profile development --platform all
-```
-
-Checks:
-
-```bash
-npm run typecheck
-npm run lint
-npm test
-```
+GitHub Actions builds both apps on every push (`.github/workflows/`).
 
 ## Turning on Google Photos import
 
 1. In Google Cloud Console, create a project and enable the **Photos Picker API**.
 2. Set up the OAuth consent screen and add the scope
    `https://www.googleapis.com/auth/photospicker.mediaitems.readonly`.
-3. Create OAuth client IDs: one **Web**, one **iOS** (bundle ID
-   `com.njarrar.backthen`), one **Android** (package `com.njarrar.backthen` plus your
-   signing key's SHA-1).
-4. Copy `.env.example` to `.env.local` and fill in the web client ID, the iOS client
-   ID, and the iOS URL scheme (the iOS client ID reversed, e.g.
-   `com.googleusercontent.apps.1234-abcd`). Rebuild the app.
+3. **iPhone**: create an **iOS** OAuth client (bundle ID `com.njarrar.backthen`)
+   and paste its client ID into `ios/BackThen/GoogleConfig.swift`.
+4. **Android**: create an **Android** OAuth client (package `com.njarrar.backthen`
+   plus your signing key's SHA-1). No code change is needed; Google matches the app
+   by package and key.
 
-Without these the app still runs with the phone library, and the Google screen says
-the build has no client ID.
+Without this the apps still run with the phone library.
 
 ## Not built yet
 
 - **Share as a link.** The design shows `backthen.app/a/...` album links. That needs
   a server to host the photos, so for now albums share as files through the share sheet.
 - **Hidden dates** and the year-by-year "strip" layout from the design's tweaks.
-
-## Layout
-
-- `src/app/` screens (Expo Router): onboarding, Today, Favorites, Albums.
-- `src/components/` sheets, viewer, photo grids, shared UI.
-- `src/lib/` photo library access, day index, Google import, reminders, app state.
