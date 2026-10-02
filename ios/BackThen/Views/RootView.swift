@@ -27,6 +27,11 @@ struct RootView: View {
         }
         .animation(.easeOut(duration: 0.2), value: store.toast)
         .fullScreenCover(item: $store.viewer) { PhotoViewer(viewer: $0) }
+        #if DEBUG
+        .task {
+            if let scene = AppStore.launchScene { await store.runDemo(scene) }
+        }
+        #endif
     }
 }
 

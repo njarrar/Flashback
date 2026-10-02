@@ -48,6 +48,8 @@ final class AppStore {
         didSet { if openAlbumID != nil { tab = .albums } }
     }
     var toast: String?
+    /// Debug screenshots only: opens the calendar on Today.
+    var demoCalendar = false
     /// Google import progress: nil when idle, (0, 0) while waiting for picks.
     var googleImport: (done: Int, total: Int)?
 

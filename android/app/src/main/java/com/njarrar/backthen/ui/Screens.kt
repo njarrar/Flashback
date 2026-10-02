@@ -187,6 +187,8 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, on
     val busy by vm.googleImport.collectAsStateWithLifecycle()
     var result by remember { mutableStateOf<Pair<MonthDay, List<YearGroup>>?>(null) }
     var calendar by remember { mutableStateOf(false) }
+    val demo by vm.demoScene.collectAsStateWithLifecycle()
+    LaunchedEffect(demo) { if (demo == "calendar") calendar = true }
     var settings by remember { mutableStateOf(false) }
     var google by remember { mutableStateOf(false) }
     var selecting by remember { mutableStateOf(false) }

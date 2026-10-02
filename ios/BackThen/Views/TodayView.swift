@@ -99,6 +99,7 @@ struct TodayView: View {
             AlbumSheet(photos: albumFor ?? [], created: { album in store.openAlbumID = album.id }, done: stopSelecting)
         }
         .onChange(of: store.tab) { _, _ in stopSelecting() }
+        .onChange(of: store.demoCalendar) { _, on in if on { calendar = true } }
     }
 
     private func toggleSelect() {

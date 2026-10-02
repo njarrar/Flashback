@@ -17,6 +17,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -43,6 +44,13 @@ fun BackThenApp(vm: AppViewModel) {
     var openAlbum by rememberSaveable { mutableStateOf<String?>(null) }
     var selecting by rememberSaveable { mutableStateOf(false) }
     var albumFor by rememberSaveable { mutableStateOf<List<String>?>(null) }
+    val demo by vm.demoScene.collectAsStateWithLifecycle()
+    LaunchedEffect(demo) {
+        when (demo) {
+            "favorites" -> tab = Tab.Favorites
+            "album" -> { tab = Tab.Albums; openAlbum = "demo" }
+        }
+    }
 
     Box(Modifier.fillMaxSize()) {
         if (!state.onboarded) {

@@ -49,8 +49,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val viewer = MutableStateFlow<Viewer?>(null)
     val toast = MutableStateFlow<String?>(null)
     val googleImport = MutableStateFlow<GoogleImport?>(null)
+    /** Debug screenshots only: the scene to show, see Demo.kt. */
+    val demoScene = MutableStateFlow<String?>(null)
     private var toastJob: Job? = null
     private var importJob: Job? = null
+
+    internal fun updateSaved(change: (SavedState) -> SavedState) = update(change)
 
     private fun update(change: (SavedState) -> SavedState) {
         _saved.update(change)
