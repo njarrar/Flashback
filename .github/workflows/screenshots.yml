@@ -35,6 +35,17 @@ jobs:
           APP="/tmp/dd/Build/Products/Debug-iphonesimulator/Back Then.app"
           xcrun simctl install "$DEVICE" "$APP"
           xcrun simctl privacy "$DEVICE" grant photos com.njarrar.backthen
+          # simctl's grant does not give full library access on recent iOS, so write it to TCC directly.
+          TCC=~/Library/Developer/CoreSimulator/Devices/$DEVICE/data/Library/TCC/TCC.db
+          sqlite3 "$TCC" "select service, client, auth_value from access;" || true
+          sqlite3 "$TCC" "delete from access where client='com.njarrar.backthen' and service='kTCCServicePhotos';
+            insert into access (service, client, client_type, auth_value, auth_reason, auth_version, flags, last_modified)
+            values ('kTCCServicePhotos', 'com.njarrar.backthen', 0, 2, 2, 1, 0, strftime('%s','now'));"
+          sqlite3 "$TCC" "select service, client, auth_value from access;"
+          xcrun simctl shutdown "$DEVICE"
+          xcrun simctl boot "$DEVICE"
+          xcrun simctl bootstatus "$DEVICE" -b
+          xcrun simctl status_bar "$DEVICE" override --time "9:41" --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3
           mkdir -p shots/ios
           xcrun simctl launch "$DEVICE" com.njarrar.backthen
           sleep 8
