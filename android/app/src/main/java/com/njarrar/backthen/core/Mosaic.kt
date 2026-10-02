@@ -1,0 +1,56 @@
+package com.njarrar.backthen.core
+
+// Lays out a year's photos on a 6-column grid, as in the design: one large lead photo,
+// then smaller tiles, packed so rows have no gaps.
+
+const val COLUMNS = 6
+
+data class Tile(val col: Int, val row: Int, val cols: Int, val rows: Int)
+
+// Spans (cols to rows) for 1 to 7 photos, taken from the design.
+private val PATTERNS = mapOf(
+    1 to listOf(6 to 4),
+    2 to listOf(3 to 4, 3 to 4),
+    3 to listOf(4 to 4, 2 to 2, 2 to 2),
+    4 to listOf(3 to 3, 3 to 3, 3 to 3, 3 to 3),
+    5 to listOf(4 to 4, 2 to 2, 2 to 2, 3 to 3, 3 to 3),
+    6 to listOf(4 to 4, 2 to 2, 2 to 2, 2 to 2, 2 to 2, 2 to 2),
+    7 to listOf(4 to 4, 2 to 2, 2 to 2, 2 to 2, 2 to 2, 2 to 2, 6 to 3),
+)
+
+/** Spans for any count. Past 7, the rest go in rows of three, with the last row stretched to fill. */
+fun spansFor(count: Int): List<Pair<Int, Int>> {
+    if (count <= 0) return emptyList()
+    if (count <= 7) return PATTERNS.getValue(count)
+    val spans = PATTERNS.getValue(6).toMutableList()
+    val rest = count - 6
+    val full = rest / 3 * 3
+    repeat(full) { spans += 2 to 2 }
+    when (rest - full) {
+        1 -> spans += 6 to 3
+        2 -> spans += listOf(3 to 3, 3 to 3)
+    }
+    return spans
+}
+
+/** Places tiles in reading order, each at the first free spot that fits. Returns tiles and row count. */
+fun layoutMosaic(count: Int): Pair<List<Tile>, Int> {
+    val used = HashSet<Pair<Int, Int>>()
+    val tiles = ArrayList<Tile>()
+    var rows = 0
+    for ((cols, rs) in spansFor(count)) {
+        var r = 0
+        placing@ while (true) {
+            for (c in 0..COLUMNS - cols) {
+                val cells = (0 until rs).flatMap { dr -> (0 until cols).map { dc -> (r + dr) to (c + dc) } }
+                if (cells.any { it in used }) continue
+                used += cells
+                tiles += Tile(c, r, cols, rs)
+                rows = maxOf(rows, r + rs)
+                break@placing
+            }
+            r++
+        }
+    }
+    return tiles to rows
+}

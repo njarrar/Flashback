@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/@phosphor-icons/web@2.1.1"></script>
+</helmet>
+<div style="--bg:{{ t.bg }};--surface:{{ t.surface }};--surface2:{{ t.surface2 }};--ink:{{ t.ink }};--muted:{{ t.muted }};--muted2:{{ t.muted2 }};--faint:{{ t.faint }};--fill:{{ t.fill }};--fill2:{{ t.fill2 }};--line:{{ t.line }};--glass:{{ t.glass }};--glassBar:{{ t.glassBar }};--glassBd:{{ t.glassBd }};--bgGlass:{{ t.bgGlass }};--accTint:{{ t.accTint }};--accInk:{{ t.accInk }};--navBg:{{ t.navBg }};position:relative;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font-family:Nunito, system-ui, sans-serif;-webkit-font-smoothing:antialiased;z-index:0">
+
+<sc-if value="{{ isOnb }}" hint-placeholder-val="{{ true }}">
+<div style="position:absolute;inset:0;display:flex;flex-direction:column">
+
+<sc-if value="{{ onbWelcome }}" hint-placeholder-val="{{ true }}">
+<div style="flex:1;display:flex;flex-direction:column;padding:{{ topPad }} 24px 40px;gap:24px">
+  <div style="display:flex;align-items:center;gap:10px"><div style="width:36px;height:36px;border-radius:9px;overflow:hidden;flex:none;position:relative;box-shadow:0 1px 2px rgba(20,20,22,0.12), 0 4px 12px rgba(20,20,22,0.12)"><div style="position:absolute;left:0;top:0;width:180px;height:180px;transform:scale(0.2000);transform-origin:0 0;background:#2E7BFF"><div style="position:absolute;inset:0;background:radial-gradient(circle at 30% 18%, rgba(255,255,255,0.22), transparent 55%)"></div><div style="position:absolute;left:62px;top:30px;width:86px;height:102px;border-radius:14px;background:#FFFFFF;transform:rotate(12deg);box-shadow:0 7px 0 rgba(0,0,0,0.16);padding:8px 8px 22px;box-sizing:border-box"><div style="width:100%;height:100%;border-radius:7px;background:#FFC93C"></div></div><div style="position:absolute;left:34px;top:44px;width:96px;height:114px;border-radius:15px;background:#FFFFFF;transform:rotate(-7deg);box-shadow:0 8px 0 rgba(0,0,0,0.2)"><div style="position:absolute;left:9px;top:9px;right:9px;bottom:27px;border-radius:8px;background:#FF4B3E;overflow:hidden"><div style="position:absolute;left:21.15px;top:29.6px;width:9.450000000000001px;height:10.5px;border-radius:999px;background:#1D1B2E"></div><div style="position:absolute;left:47.4px;top:29.6px;width:9.450000000000001px;height:10.5px;border-radius:999px;background:#1D1B2E"></div><div style="position:absolute;left:27.45px;top:44.3px;width:23.1px;height:11.55px;border-radius:0 0 11.55px 11.55px;background:#1D1B2E"></div><div style="position:absolute;left:10.649999999999999px;top:41.15px;width:10.5px;height:7.3500000000000005px;border-radius:999px;background:#FF9EC0;opacity:0.9"></div><div style="position:absolute;left:56.85px;top:41.15px;width:10.5px;height:7.3500000000000005px;border-radius:999px;background:#FF9EC0;opacity:0.9"></div></div></div></div></div><span style="font:900 22px/1 Nunito, sans-serif;letter-spacing:-0.02em">Back Then</span></div>
+  <div style="position:relative;flex:1;min-height:280px">
+    <div style="position:absolute;left:4%;top:36px;width:150px;padding:8px 8px 0;background:var(--surface);border-radius:10px;box-shadow:0 10px 30px rgba(20,20,22,0.12);transform:rotate(-7deg)">
+      <img src="https://picsum.photos/seed/otdwelcome1/600/760" style="width:100%;aspect-ratio:4 / 5;object-fit:cover;border-radius:6px;display:block;background:var(--fill)">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;padding:8px 2px 10px"><span style="font:900 22px/1 Nunito, sans-serif;letter-spacing:-0.03em">2016</span><span style="font:500 11px Nunito, sans-serif;color:var(--muted)">Oct 2</span></div>
+    </div>
+    <div style="position:absolute;right:2%;top:8px;width:150px;padding:8px 8px 0;background:var(--surface);border-radius:10px;box-shadow:0 10px 30px rgba(20,20,22,0.12);transform:rotate(6deg)">
+      <img src="https://picsum.photos/seed/otdwelcome2/600/760" style="width:100%;aspect-ratio:4 / 5;object-fit:cover;border-radius:6px;display:block;background:var(--fill)">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;padding:8px 2px 10px"><span style="font:900 22px/1 Nunito, sans-serif;letter-spacing:-0.03em">2021</span><span style="font:500 11px Nunito, sans-serif;color:var(--muted)">Oct 2</span></div>
+    </div>
+    <div style="position:absolute;left:50%;top:118px;margin-left:-88px;width:176px;padding:8px 8px 0;background:var(--surface);border-radius:10px;box-shadow:0 16px 40px rgba(20,20,22,0.18);transform:rotate(-1.5deg)">
+      <img src="https://picsum.photos/seed/otdwelcome3/600/760" style="width:100%;aspect-ratio:4 / 5;object-fit:cover;border-radius:6px;display:block;background:var(--fill)">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;padding:8px 2px 10px"><span style="font:900 26px/1 Nunito, sans-serif;letter-spacing:-0.03em">2025</span><span style="font:500 11px Nunito, sans-serif;color:var(--muted)">Oct 2</span></div>
+    </div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <h1 style="margin:0;font:700 32px/1.08 Nunito, sans-serif;letter-spacing:-0.03em;text-wrap:balance">See what this day looked like, every year.</h1>
+    <p style="margin:0;font:400 16px/1.45 Nunito, sans-serif;color:var(--muted);text-wrap:pretty">Each morning, Back Then finds the photos you took on today's date in past years and sorts them by year.</p>
+  </div>
+  <sc-if value="{{ denied }}" hint-placeholder-val="{{ false }}">
+    <div style="display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:14px;background:var(--accTint);color:var(--accInk);font:500 14px/1.4 Nunito, sans-serif"><i class="ph-bold ph-warning-circle" style="font-size:18px;margin-top:1px"></i><span>Without photo access there is nothing to show. You can allow it later in Settings.</span></div>
+  </sc-if>
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <sc-if value="{{ ios }}" hint-placeholder-val="{{ true }}">
+      <button onClick="{{ askPerm }}" style="height:54px;border:0;border-radius:999px;background:var(--ink);color:var(--bg);font:600 16px Nunito, sans-serif;display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer" style-active="transform:scale(0.98)"><i class="ph-fill ph-apple-logo" style="font-size:20px"></i>Use Apple Photos</button>
+      <button onClick="{{ useGoogle }}" style="height:54px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink);font:600 16px Nunito, sans-serif;display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer" style-active="transform:scale(0.98)"><i class="ph-bold ph-google-logo" style="font-size:19px"></i>Use Google Photos</button>
+    </sc-if>
+    <sc-if value="{{ android }}" hint-placeholder-val="{{ false }}">
+      <button onClick="{{ useGoogle }}" style="height:54px;border:0;border-radius:999px;background:var(--ink);color:var(--bg);font:600 16px Nunito, sans-serif;display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer" style-active="transform:scale(0.98)"><i class="ph-bold ph-google-logo" style="font-size:19px"></i>Use Google Photos</button>
+      <button onClick="{{ askPerm }}" style="height:54px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink);font:600 16px Nunito, sans-serif;display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer" style-active="transform:scale(0.98)"><i class="ph-bold ph-device-mobile" style="font-size:19px"></i>Use photos on this phone</button>
+    </sc-if>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ onbGoogle }}" hint-placeholder-val="{{ false }}">
+<div style="flex:1;display:flex;flex-direction:column;justify-content:center;padding:0 28px;gap:28px">
+  <div style="display:flex;flex-direction:column;gap:8px">
+    <div style="font:700 28px/1.1 Nunito, sans-serif;letter-spacing:-0.03em">Connecting to Google Photos</div>
+    <div style="font:400 16px/1.45 Nunito, sans-serif;color:var(--muted)">Reading the dates on your library. This only happens once.</div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px">
+    <div style="aspect-ratio:1;border-radius:10px;background:var(--fill2)"></div><div style="aspect-ratio:1;border-radius:10px;background:var(--fill)"></div><div style="aspect-ratio:1;border-radius:10px;background:var(--fill2)"></div><div style="aspect-ratio:1;border-radius:10px;background:var(--fill)"></div>
+    <div style="aspect-ratio:1;border-radius:10px;background:var(--fill)"></div><div style="aspect-ratio:1;border-radius:10px;background:var(--fill2)"></div><div style="aspect-ratio:1;border-radius:10px;background:var(--fill)"></div><div style="aspect-ratio:1;border-radius:10px;background:var(--fill2)"></div>
+  </div>
+  <div style="font:500 14px Nunito, sans-serif;color:var(--muted)">Found 14,382 photos across 13 years</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ onbRemind }}" hint-placeholder-val="{{ false }}">
+<div style="flex:1;display:flex;flex-direction:column;padding:{{ topPad }} 24px 40px;gap:28px">
+  <div style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:28px">
+    <div style="display:flex;gap:12px;padding:14px;border-radius:22px;background:var(--glass);box-shadow:0 12px 32px rgba(20,20,22,0.1);border:1px solid var(--line)">
+      <div style="width:40px;height:40px;border-radius:10px;overflow:hidden;flex:none;position:relative;box-shadow:0 1px 2px rgba(20,20,22,0.12), 0 4px 12px rgba(20,20,22,0.12)"><div style="position:absolute;left:0;top:0;width:180px;height:180px;transform:scale(0.2222);transform-origin:0 0;background:#2E7BFF"><div style="position:absolute;inset:0;background:radial-gradient(circle at 30% 18%, rgba(255,255,255,0.22), transparent 55%)"></div><div style="position:absolute;left:62px;top:30px;width:86px;height:102px;border-radius:14px;background:#FFFFFF;transform:rotate(12deg);box-shadow:0 7px 0 rgba(0,0,0,0.16);padding:8px 8px 22px;box-sizing:border-box"><div style="width:100%;height:100%;border-radius:7px;background:#FFC93C"></div></div><div style="position:absolute;left:34px;top:44px;width:96px;height:114px;border-radius:15px;background:#FFFFFF;transform:rotate(-7deg);box-shadow:0 8px 0 rgba(0,0,0,0.2)"><div style="position:absolute;left:9px;top:9px;right:9px;bottom:27px;border-radius:8px;background:#FF4B3E;overflow:hidden"><div style="position:absolute;left:21.15px;top:29.6px;width:9.450000000000001px;height:10.5px;border-radius:999px;background:#1D1B2E"></div><div style="position:absolute;left:47.4px;top:29.6px;width:9.450000000000001px;height:10.5px;border-radius:999px;background:#1D1B2E"></div><div style="position:absolute;left:27.45px;top:44.3px;width:23.1px;height:11.55px;border-radius:0 0 11.55px 11.55px;background:#1D1B2E"></div><div style="position:absolute;left:10.649999999999999px;top:41.15px;width:10.5px;height:7.3500000000000005px;border-radius:999px;background:#FF9EC0;opacity:0.9"></div><div style="position:absolute;left:56.85px;top:41.15px;width:10.5px;height:7.3500000000000005px;border-radius:999px;background:#FF9EC0;opacity:0.9"></div></div></div></div></div>
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+        <div style="display:flex;justify-content:space-between;font:600 14px Nunito, sans-serif"><span>Back Then</span><span style="font-weight:400;color:var(--muted)">9:00 AM</span></div>
+        <div style="font:600 14px/1.35 Nunito, sans-serif">October 2 has photos from 6 years</div>
+        <div style="font:400 14px/1.35 Nunito, sans-serif;color:var(--muted)">The oldest is from 2014. Tap to look back.</div>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <h1 style="margin:0;font:700 32px/1.08 Nunito, sans-serif;letter-spacing:-0.03em">One reminder a day</h1>
+      <p style="margin:0;font:400 16px/1.45 Nunito, sans-serif;color:var(--muted)">Only on days that have photos from past years. Change the time any day in Settings.</p>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-radius:14px;background:var(--surface);border:1px solid var(--line)">
+      <span style="font:500 16px Nunito, sans-serif">Remind me at</span>
+      <span style="font:600 15px Nunito, sans-serif;padding:6px 12px;border-radius:999px;background:var(--fill)">9:00 AM</span>
+    </div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <button onClick="{{ remindOn }}" style="height:54px;border:0;border-radius:999px;background:var(--ink);color:var(--bg);font:600 16px Nunito, sans-serif;cursor:pointer" style-active="transform:scale(0.98)">Turn on reminder</button>
+    <button onClick="{{ remindOff }}" style="height:48px;border:0;background:transparent;color:var(--ink);font:600 16px Nunito, sans-serif;cursor:pointer">Not now</button>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ permIos }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:0;background:rgba(20,20,22,0.28);display:flex;align-items:center;justify-content:center;z-index:30">
+  <div style="width:290px;border-radius:24px;overflow:hidden;background:var(--surface2);font-family:-apple-system, system-ui, sans-serif;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.25)">
+    <div style="padding:20px 18px 16px;display:flex;flex-direction:column;gap:6px">
+      <div style="font-weight:600;font-size:17px;line-height:22px">“Back Then” Would Like Full Access to Your Photo Library</div>
+      <div style="font-size:13px;line-height:18px;color:var(--muted)">Your photos are used to show you pictures taken on today's date in past years.</div>
+    </div>
+    <div onClick="{{ permAllow }}" style="border-top:0.5px solid rgba(60,60,67,0.29);padding:12px;font-size:17px;color:#0A7AFF;cursor:pointer">Limit Access…</div>
+    <div onClick="{{ permAllow }}" style="border-top:0.5px solid rgba(60,60,67,0.29);padding:12px;font-size:17px;font-weight:600;color:#0A7AFF;cursor:pointer">Allow Full Access</div>
+    <div onClick="{{ permDeny }}" style="border-top:0.5px solid rgba(60,60,67,0.29);padding:12px;font-size:17px;color:#0A7AFF;cursor:pointer">Don't Allow</div>
+  </div>
+</div>
+</sc-if>
+<sc-if value="{{ permAndroid }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:0;background:rgba(20,20,22,0.32);display:flex;align-items:center;justify-content:center;z-index:30">
+  <div style="width:312px;border-radius:28px;background:var(--surface2);padding:24px 20px 20px;display:flex;flex-direction:column;align-items:center;gap:16px;font-family:Roboto, system-ui, sans-serif">
+    <i class="ph ph-images" style="font-size:26px;color:var(--muted2)"></i>
+    <div style="font-size:20px;line-height:28px;text-align:center;color:var(--ink)">Allow <b>Back Then</b> to access photos and videos on this device?</div>
+    <div style="display:flex;flex-direction:column;gap:6px;width:100%">
+      <div onClick="{{ permAllow }}" style="height:48px;border-radius:999px;background:var(--fill);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:500;cursor:pointer">Allow all</div>
+      <div onClick="{{ permAllow }}" style="height:48px;border-radius:999px;background:var(--fill);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:500;cursor:pointer">Select photos and videos</div>
+      <div onClick="{{ permDeny }}" style="height:48px;border-radius:999px;background:var(--fill);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:500;cursor:pointer">Don't allow</div>
+    </div>
+  </div>
+</div>
+</sc-if>
+</div>
+</sc-if>
+
+<sc-if value="{{ isApp }}" hint-placeholder-val="{{ false }}">
+<div ref="{{ scrollRef }}" style="position:absolute;inset:0;overflow-y:auto;padding-bottom:120px;scrollbar-width:none">
+
+<sc-if value="{{ tabToday }}" hint-placeholder-val="{{ true }}">
+  <sc-if value="{{ ios }}" hint-placeholder-val="{{ true }}">
+  <div style="padding:60px 20px 4px;display:flex;flex-direction:column;gap:4px">
+    <div style="display:flex;justify-content:flex-end;gap:8px;height:40px">
+      <button onClick="{{ openMenu }}" aria-label="Options" style="width:40px;height:40px;border-radius:999px;border:1px solid var(--line);background:var(--glass);display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--ink);cursor:pointer"><i class="ph-bold ph-dots-three"></i></button>
+      <button onClick="{{ toggleSelect }}" style="height:40px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:var(--glass);font:600 15px Nunito, sans-serif;color:var(--ink);cursor:pointer">{{ selectLabel }}</button>
+      <button onClick="{{ openCal }}" aria-label="Pick a day" style="width:40px;height:40px;border-radius:999px;border:1px solid var(--line);background:var(--glass);display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--ink);cursor:pointer"><i class="ph ph-calendar-blank"></i></button>
+    </div>
+    <button onClick="{{ openCal }}" style="align-self:flex-start;display:flex;align-items:center;gap:8px;background:none;border:0;padding:0;margin-top:6px;font:700 34px/1.15 Nunito, sans-serif;letter-spacing:-0.03em;color:var(--ink);cursor:pointer">{{ dateTitle }}<i class="ph-bold ph-caret-down" style="font-size:18px;color:#E5533D"></i></button>
+    <div style="font:400 15px Nunito, sans-serif;color:var(--muted)">{{ daySummary }}</div>
+  </div>
+  </sc-if>
+  <sc-if value="{{ android }}" hint-placeholder-val="{{ false }}">
+  <div style="display:flex;align-items:center;height:64px;padding:0 4px 0 16px;gap:4px">
+    <div style="flex:1;font:600 20px Nunito, sans-serif;letter-spacing:-0.01em">Back Then</div>
+    <button onClick="{{ toggleSelect }}" style="height:40px;padding:0 14px;border-radius:999px;border:0;background:transparent;font:600 15px Nunito, sans-serif;color:var(--ink);cursor:pointer">{{ selectLabel }}</button>
+    <button onClick="{{ openCal }}" aria-label="Pick a day" style="width:48px;height:48px;border-radius:999px;border:0;background:transparent;display:flex;align-items:center;justify-content:center;font-size:24px;color:var(--ink);cursor:pointer"><i class="ph ph-calendar-blank"></i></button>
+  </div>
+  <div style="padding:4px 16px 4px;display:flex;flex-direction:column;gap:4px">
+    <button onClick="{{ openCal }}" style="align-self:flex-start;display:flex;align-items:center;gap:8px;background:none;border:0;padding:0;font:700 32px/1.15 Nunito, sans-serif;letter-spacing:-0.03em;color:var(--ink);cursor:pointer">{{ dateTitle }}<i class="ph-bold ph-caret-down" style="font-size:18px;color:#E5533D"></i></button>
+    <div style="font:400 15px Nunito, sans-serif;color:var(--muted)">{{ daySummary }}</div>
+  </div>
+  </sc-if>
+  <sc-if value="{{ notToday }}" hint-placeholder-val="{{ false }}">
+    <div style="padding:8px 20px 0;display:flex">
+      <button onClick="{{ goToday }}" style="height:34px;padding:0 14px;border-radius:999px;border:0;background:var(--accTint);color:var(--accInk);font:600 14px Nunito, sans-serif;display:flex;align-items:center;gap:6px;cursor:pointer"><i class="ph-bold ph-arrow-u-up-left"></i>Back to today</button>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ loading }}" hint-placeholder-val="{{ false }}">
+    <div style="padding:24px 16px;display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;padding:0 4px"><div style="width:128px;height:48px;border-radius:10px;background:var(--fill2)"></div><div style="width:76px;height:28px;border-radius:8px;background:var(--fill)"></div></div>
+      <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));grid-auto-rows:54px;gap:4px">
+        <div style="grid-column:span 4;grid-row:span 4;border-radius:10px;background:var(--fill2)"></div><div style="grid-column:span 2;grid-row:span 2;border-radius:10px;background:var(--fill)"></div><div style="grid-column:span 2;grid-row:span 2;border-radius:10px;background:var(--fill2)"></div>
+        <div style="grid-column:span 3;grid-row:span 3;border-radius:10px;background:var(--fill)"></div><div style="grid-column:span 3;grid-row:span 3;border-radius:10px;background:var(--fill2)"></div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ showEmpty }}" hint-placeholder-val="{{ false }}">
+    <div style="padding:64px 32px 0;display:flex;flex-direction:column;align-items:flex-start;gap:14px">
+      <div style="width:56px;height:56px;border-radius:16px;background:var(--fill);display:flex;align-items:center;justify-content:center;font-size:28px;color:var(--muted)"><i class="ph ph-camera-slash"></i></div>
+      <div style="font:700 24px/1.15 Nunito, sans-serif;letter-spacing:-0.02em">Nothing from {{ dateTitle }} yet</div>
+      <div style="font:400 15px/1.5 Nunito, sans-serif;color:var(--muted);max-width:30ch">You didn't take photos on this date in past years. These nearby days have some.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+        <sc-for list="{{ nearby }}" as="n" hint-placeholder-count="2">
+          <button onClick="{{ n.go }}" style="height:40px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font:600 15px Nunito, sans-serif;color:var(--ink);display:flex;align-items:center;gap:6px;cursor:pointer"><i class="{{ n.icon }}"></i>{{ n.label }}</button>
+        </sc-for>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ showStacked }}" hint-placeholder-val="{{ true }}">
+    <sc-for list="{{ years }}" as="yr" hint-placeholder-count="2">
+      <div style="padding:28px 16px 4px;display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding:0 4px">
+          <div style="font:900 56px/0.9 Nunito, sans-serif;letter-spacing:-0.03em">{{ yr.y }}</div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;padding-bottom:3px">
+            <span style="font:600 14px Nunito, sans-serif">{{ yr.ago }}</span>
+            <span style="font:400 13px Nunito, sans-serif;color:var(--muted)">{{ yr.meta }}</span>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));grid-auto-rows:54px;gap:4px;grid-auto-flow:dense">
+          <sc-for list="{{ yr.photos }}" as="p" hint-placeholder-count="3">
+            <div onClick="{{ p.open }}" style="grid-column:span {{ p.cs }};grid-row:span {{ p.rs }};position:relative;border-radius:10px;overflow:hidden;background:var(--fill);cursor:pointer" style-active="transform:scale(0.985)">
+              <img src="{{ p.src }}" alt="Photo from {{ p.label }}" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block">
+              <sc-if value="{{ p.fav }}" hint-placeholder-val="{{ false }}">
+                <i class="ph-fill ph-heart" style="position:absolute;left:8px;bottom:7px;font-size:16px;color:#FFFFFF;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.45))"></i>
+              </sc-if>
+              <sc-if value="{{ p.selecting }}" hint-placeholder-val="{{ false }}">
+                <div style="position:absolute;inset:0;background:{{ p.selShade }};border-radius:10px;box-shadow:{{ p.selRing }}"></div>
+                <i class="{{ p.selIcon }}" style="position:absolute;right:7px;top:7px;font-size:22px;color:{{ p.selColor }};filter:drop-shadow(0 1px 3px rgba(0,0,0,0.35))"></i>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex;justify-content:flex-end;padding:0 2px">
+          <button onClick="{{ yr.share }}" style="height:32px;padding:0 10px;border:0;border-radius:999px;background:transparent;color:var(--muted);font:600 13px Nunito, sans-serif;display:flex;align-items:center;gap:6px;cursor:pointer" style-hover="background:var(--fill);color:var(--ink)"><i class="ph-bold ph-export"></i>Share {{ yr.y }}</button>
+        </div>
+      </div>
+    </sc-for>
+  </sc-if>
+
+  <sc-if value="{{ showStrip }}" hint-placeholder-val="{{ false }}">
+    <div style="position:sticky;top:0;z-index:5;background:var(--bgGlass);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);padding:12px 0 10px">
+      <div style="display:flex;gap:6px;overflow-x:auto;padding:0 16px;scrollbar-width:none">
+        <sc-for list="{{ years }}" as="yr" hint-placeholder-count="5">
+          <button onClick="{{ yr.pick }}" style="flex:none;height:36px;padding:0 14px;border-radius:999px;border:1px solid {{ yr.pillBd }};background:{{ yr.pillBg }};color:{{ yr.pillFg }};font:600 14px Nunito, sans-serif;cursor:pointer">{{ yr.y }}</button>
+        </sc-for>
+      </div>
+    </div>
+    <sc-if value="{{ strip }}" hint-placeholder-val="{{ true }}">
+    <div style="padding:12px 20px 16px;display:flex;flex-direction:column;gap:6px">
+      <div style="font:900 96px/0.85 Nunito, sans-serif;letter-spacing:-0.035em">{{ strip.y }}</div>
+      <div style="display:flex;gap:10px;font:500 15px Nunito, sans-serif"><span>{{ strip.ago }}</span><span style="color:var(--muted)">{{ strip.meta }}</span></div>
+    </div>
+    <div style="padding:0 16px;column-count:2;column-gap:6px">
+      <sc-for list="{{ strip.photos }}" as="p" hint-placeholder-count="4">
+        <div onClick="{{ p.open }}" style="break-inside:avoid;margin-bottom:6px;position:relative;border-radius:12px;overflow:hidden;background:var(--fill);cursor:pointer">
+          <img src="{{ p.src }}" alt="Photo from {{ p.label }}" loading="lazy" style="width:100%;aspect-ratio:{{ p.ar }};object-fit:cover;display:block">
+          <sc-if value="{{ p.fav }}" hint-placeholder-val="{{ false }}">
+            <i class="ph-fill ph-heart" style="position:absolute;left:8px;bottom:7px;font-size:16px;color:#FFFFFF;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.45))"></i>
+          </sc-if>
+          <sc-if value="{{ p.selecting }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;inset:0;background:{{ p.selShade }};border-radius:12px;box-shadow:{{ p.selRing }}"></div>
+            <i class="{{ p.selIcon }}" style="position:absolute;right:7px;top:7px;font-size:22px;color:{{ p.selColor }};filter:drop-shadow(0 1px 3px rgba(0,0,0,0.35))"></i>
+          </sc-if>
+        </div>
+      </sc-for>
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:10px 16px 0">
+      <button onClick="{{ stripPrev }}" disabled="{{ stripNoPrev }}" style="height:44px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font:600 15px Nunito, sans-serif;color:var(--ink);display:flex;align-items:center;gap:6px;cursor:pointer;opacity:{{ stripPrevOp }}"><i class="ph-bold ph-arrow-left"></i>{{ stripPrevLabel }}</button>
+      <button onClick="{{ strip.share }}" style="height:44px;padding:0 16px;border-radius:999px;border:0;background:transparent;font:600 15px Nunito, sans-serif;color:var(--muted);display:flex;align-items:center;gap:6px;cursor:pointer"><i class="ph-bold ph-export"></i>Share</button>
+      <button onClick="{{ stripNext }}" disabled="{{ stripNoNext }}" style="height:44px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font:600 15px Nunito, sans-serif;color:var(--ink);display:flex;align-items:center;gap:6px;cursor:pointer;opacity:{{ stripNextOp }}">{{ stripNextLabel }}<i class="ph-bold ph-arrow-right"></i></button>
+    </div>
+    </sc-if>
+  </sc-if>
+</sc-if>
+
+<sc-if value="{{ tabFavs }}" hint-placeholder-val="{{ false }}">
+  <div style="padding:{{ headPad }} 20px 16px;display:flex;flex-direction:column;gap:4px">
+    <div style="font:700 34px/1.15 Nunito, sans-serif;letter-spacing:-0.03em">Favorites</div>
+    <div style="font:400 15px Nunito, sans-serif;color:var(--muted)">{{ favCount }}</div>
+  </div>
+  <sc-if value="{{ hasFavs }}" hint-placeholder-val="{{ true }}">
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px;padding:0 3px">
+      <sc-for list="{{ favPhotos }}" as="p" hint-placeholder-count="6">
+        <div onClick="{{ p.open }}" style="position:relative;aspect-ratio:1;overflow:hidden;background:var(--fill);cursor:pointer;border-radius:4px">
+          <img src="{{ p.src }}" alt="Photo from {{ p.label }}" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block">
+          <span style="position:absolute;left:0;right:0;bottom:0;padding:16px 7px 5px;background:linear-gradient(transparent, rgba(0,0,0,0.5));color:#FFFFFF;font:900 13px Nunito, sans-serif">{{ p.y }}</span>
+        </div>
+      </sc-for>
+    </div>
+  </sc-if>
+  <sc-if value="{{ noFavs }}" hint-placeholder-val="{{ false }}">
+    <div style="padding:48px 32px 0;display:flex;flex-direction:column;gap:12px;align-items:flex-start">
+      <div style="width:56px;height:56px;border-radius:16px;background:var(--accTint);display:flex;align-items:center;justify-content:center;font-size:28px;color:#E5533D"><i class="ph ph-heart"></i></div>
+      <div style="font:700 22px/1.2 Nunito, sans-serif;letter-spacing:-0.02em">No favorites yet</div>
+      <div style="font:400 15px/1.5 Nunito, sans-serif;color:var(--muted);max-width:30ch">Open any photo and tap the heart. It will be kept here, whatever day it's from.</div>
+    </div>
+  </sc-if>
+</sc-if>
+
+<sc-if value="{{ tabAlbums }}" hint-placeholder-val="{{ false }}">
+  <sc-if value="{{ albumList }}" hint-placeholder-val="{{ true }}">
+    <div style="padding:{{ headPad }} 20px 12px;display:flex;align-items:flex-end;justify-content:space-between;gap:12px">
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <div style="font:700 34px/1.15 Nunito, sans-serif;letter-spacing:-0.03em">Albums</div>
+        <div style="font:400 15px Nunito, sans-serif;color:var(--muted)">{{ albumCount }}</div>
+      </div>
+      <button onClick="{{ newAlbumFlow }}" style="height:40px;padding:0 16px;border-radius:999px;border:0;background:var(--ink);color:var(--bg);font:600 15px Nunito, sans-serif;display:flex;align-items:center;gap:6px;cursor:pointer"><i class="ph-bold ph-plus"></i>New</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:4px;padding:4px 12px">
+      <sc-for list="{{ albums }}" as="a" hint-placeholder-count="2">
+        <div onClick="{{ a.open }}" style="display:flex;align-items:center;gap:14px;padding:8px;border-radius:16px;cursor:pointer" style-hover="background:var(--fill)">
+          <div style="width:72px;height:72px;flex:none;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:2px;border-radius:12px;overflow:hidden;background:var(--fill)">
+            <sc-for list="{{ a.covers }}" as="c" hint-placeholder-count="4">
+              <img src="{{ c.src }}" alt="" style="width:100%;height:100%;object-fit:cover;display:block">
+            </sc-for>
+          </div>
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
+            <div style="font:600 17px Nunito, sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ a.name }}</div>
+            <div style="font:400 14px Nunito, sans-serif;color:var(--muted)">{{ a.meta }}</div>
+          </div>
+          <i class="ph-bold ph-caret-right" style="color:var(--faint);font-size:16px"></i>
+        </div>
+      </sc-for>
+    </div>
+  </sc-if>
+  <sc-if value="{{ albumDetail }}" hint-placeholder-val="{{ false }}">
+    <div style="padding:{{ headPad }} 16px 8px;display:flex;justify-content:space-between;align-items:center">
+      <button onClick="{{ closeAlbum }}" style="height:40px;padding:0 14px 0 10px;border-radius:999px;border:1px solid var(--line);background:var(--glass);font:600 15px Nunito, sans-serif;color:var(--ink);display:flex;align-items:center;gap:4px;cursor:pointer"><i class="ph-bold ph-caret-left"></i>Albums</button>
+      <button onClick="{{ shareAlbum }}" style="height:40px;padding:0 16px;border-radius:999px;border:0;background:#E5533D;color:#FFFFFF;font:600 15px Nunito, sans-serif;display:flex;align-items:center;gap:6px;cursor:pointer"><i class="ph-bold ph-link"></i>Share album</button>
+    </div>
+    <div style="padding:12px 20px 16px;display:flex;flex-direction:column;gap:4px">
+      <div style="font:700 30px/1.15 Nunito, sans-serif;letter-spacing:-0.03em">{{ album.name }}</div>
+      <div style="font:400 15px Nunito, sans-serif;color:var(--muted)">{{ album.meta }}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px;padding:0 3px">
+      <sc-for list="{{ album.photos }}" as="p" hint-placeholder-count="6">
+        <div onClick="{{ p.open }}" style="position:relative;aspect-ratio:1;overflow:hidden;background:var(--fill);cursor:pointer;border-radius:4px">
+          <img src="{{ p.src }}" alt="Photo from {{ p.label }}" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block">
+        </div>
+      </sc-for>
+    </div>
+  </sc-if>
+</sc-if>
+</div>
+
+<sc-if value="{{ showTabs }}" hint-placeholder-val="{{ true }}">
+  <sc-if value="{{ ios }}" hint-placeholder-val="{{ true }}">
+    <div style="position:absolute;left:24px;right:24px;bottom:26px;height:62px;border-radius:999px;background:var(--glassBar);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--glassBd);box-shadow:0 8px 28px rgba(20,20,22,0.14);display:flex;padding:4px;z-index:8">
+      <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="3">
+        <button onClick="{{ t.go }}" style="flex:1;border:0;border-radius:999px;background:{{ t.bg }};color:{{ t.c }};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;font:600 11px Nunito, sans-serif"><i class="{{ t.icon }}" style="font-size:23px"></i>{{ t.label }}</button>
+      </sc-for>
+    </div>
+  </sc-if>
+  <sc-if value="{{ android }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:0;right:0;bottom:0;height:80px;background:var(--navBg);display:flex;z-index:8">
+      <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="3">
+        <button onClick="{{ t.go }}" style="flex:1;border:0;background:transparent;color:{{ t.ac }};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;font:600 12px Nunito, sans-serif"><span style="width:64px;height:32px;border-radius:999px;background:{{ t.abg }};display:flex;align-items:center;justify-content:center;font-size:22px;color:{{ t.c }}"><i class="{{ t.icon }}"></i></span>{{ t.label }}</button>
+      </sc-for>
+    </div>
+  </sc-if>
+</sc-if>
+
+<sc-if value="{{ selecting }}" hint-placeholder-val="{{ false }}">
+  <div style="position:absolute;left:{{ barInset }};right:{{ barInset }};bottom:{{ barBottom }};height:62px;border-radius:{{ barRadius }};background:var(--ink);color:var(--bg);display:flex;align-items:center;padding:0 8px 0 20px;gap:4px;z-index:9;box-shadow:0 10px 30px rgba(20,20,22,0.25)">
+    <div style="flex:1;font:600 15px Nunito, sans-serif">{{ selLabel }}</div>
+    <button onClick="{{ shareSelected }}" disabled="{{ noSel }}" style="height:44px;padding:0 14px;border-radius:999px;border:0;background:transparent;color:var(--bg);font:600 15px Nunito, sans-serif;display:flex;align-items:center;gap:6px;cursor:pointer;opacity:{{ selOp }}"><i class="ph-bold ph-export"></i>Share</button>
+    <button onClick="{{ openAlbumSheet }}" disabled="{{ noSel }}" style="height:44px;padding:0 16px;border-radius:999px;border:0;background:#E5533D;color:#FFFFFF;font:600 15px Nunito, sans-serif;display:flex;align-items:center;gap:6px;cursor:pointer;opacity:{{ selOp }}"><i class="ph-bold ph-plus"></i>Album</button>
+  </div>
+</sc-if>
+
+<sc-if value="{{ viewerOpen }}" hint-placeholder-val="{{ false }}">
+  <div style="position:absolute;inset:0;z-index:20;background:#0D0D0E;color:#F4F4F2;display:flex;flex-direction:column">
+    <div style="padding:{{ viewerTop }} 12px 8px;display:flex;align-items:center;gap:8px">
+      <button onClick="{{ closeViewer }}" aria-label="Close" style="width:44px;height:44px;border-radius:999px;border:0;background:rgba(255,255,255,0.12);color:#F4F4F2;font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer"><i class="ph-bold ph-x"></i></button>
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:1px">
+        <span style="font:600 15px Nunito, sans-serif">{{ vLabel }}</span>
+        <span style="font:400 13px Nunito, sans-serif;color:rgba(244,244,242,0.62)">{{ vSub }}</span>
+      </div>
+      <div style="width:44px"></div>
+    </div>
+    <div style="flex:1;position:relative;display:flex;align-items:center;justify-content:center;min-height:0">
+      <img src="{{ vSrc }}" alt="Photo from {{ vLabel }}" style="max-width:100%;max-height:100%;object-fit:contain;display:block">
+      <div onClick="{{ vPrev }}" style="position:absolute;left:0;top:0;bottom:0;width:35%;cursor:{{ vPrevCursor }}"></div>
+      <div onClick="{{ vNext }}" style="position:absolute;right:0;top:0;bottom:0;width:35%;cursor:{{ vNextCursor }}"></div>
+    </div>
+    <div style="display:flex;justify-content:center;gap:5px;padding:14px 0 4px">
+      <sc-for list="{{ vDots }}" as="dot" hint-placeholder-count="4">
+        <span style="width:6px;height:6px;border-radius:999px;background:{{ dot.c }}"></span>
+      </sc-for>
+    </div>
+    <div style="display:flex;justify-content:space-around;padding:8px 24px {{ viewerBottom }}">
+      <button onClick="{{ vFav }}" aria-label="Favorite" style="width:56px;height:56px;border-radius:999px;border:0;background:transparent;color:{{ vFavColor }};font-size:28px;display:flex;align-items:center;justify-content:center;cursor:pointer" style-active="transform:scale(0.9)"><i class="{{ vFavIcon }}"></i></button>
+      <button onClick="{{ vShare }}" aria-label="Share" style="width:56px;height:56px;border-radius:999px;border:0;background:transparent;color:#F4F4F2;font-size:28px;display:flex;align-items:center;justify-content:center;cursor:pointer"><i class="ph ph-export"></i></button>
+      <button onClick="{{ vAlbum }}" aria-label="Add to album" style="width:56px;height:56px;border-radius:999px;border:0;background:transparent;color:#F4F4F2;font-size:28px;display:flex;align-items:center;justify-content:center;cursor:pointer"><i class="ph ph-plus-square"></i></button>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ calOpen }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ closeCal }}" style="position:absolute;inset:0;z-index:30;background:rgba(20,20,22,0.32)"></div>
+  <sc-if value="{{ ios }}" hint-placeholder-val="{{ true }}">
+    <div style="position:absolute;left:8px;right:8px;bottom:8px;z-index:31;background:var(--surface);border-radius:36px;padding:10px 20px 30px;display:flex;flex-direction:column;gap:14px;box-shadow:0 -10px 40px rgba(20,20,22,0.12)">
+      <div style="width:36px;height:5px;border-radius:999px;background:var(--faint);align-self:center"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <button onClick="{{ calPrev }}" aria-label="Previous month" style="width:44px;height:44px;border-radius:999px;border:0;background:var(--fill);font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink)"><i class="ph-bold ph-caret-left"></i></button>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:2px"><span style="font:700 20px Nunito, sans-serif;letter-spacing:-0.02em">{{ calMonth }}</span><span style="font:400 13px Nunito, sans-serif;color:var(--muted)">Every year at once</span></div>
+        <button onClick="{{ calNext }}" aria-label="Next month" style="width:44px;height:44px;border-radius:999px;border:0;background:var(--fill);font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink)"><i class="ph-bold ph-caret-right"></i></button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px">
+        <sc-for list="{{ calDays }}" as="c" hint-placeholder-count="31">
+          <button onClick="{{ c.pick }}" style="height:46px;border-radius:999px;border:0;box-shadow:{{ c.ring }};background:{{ c.bg }};color:{{ c.fg }};font:600 16px Nunito, sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer">{{ c.d }}<span style="width:5px;height:5px;border-radius:999px;background:{{ c.dot }}"></span></button>
+        </sc-for>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <span style="display:flex;align-items:center;gap:6px;font:400 13px Nunito, sans-serif;color:var(--muted)"><span style="width:5px;height:5px;border-radius:999px;background:#E5533D"></span>Has photos</span>
+        <button onClick="{{ goToday }}" style="height:40px;padding:0 16px;border-radius:999px;border:0;background:var(--fill);font:600 15px Nunito, sans-serif;color:var(--ink);cursor:pointer">Today</button>
+      </div>
+    </div>
+  </sc-if>
+  <sc-if value="{{ android }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;left:24px;right:24px;top:50%;transform:translateY(-50%);z-index:31;background:var(--surface2);border-radius:28px;padding:20px 12px 12px;display:flex;flex-direction:column;gap:10px;box-shadow:0 12px 40px rgba(20,20,22,0.2)">
+      <div style="padding:0 12px;display:flex;flex-direction:column;gap:4px">
+        <span style="font:500 14px Nunito, sans-serif;color:var(--muted)">Pick a day</span>
+        <span style="font:700 32px/1.1 Nunito, sans-serif;letter-spacing:-0.03em">{{ calSelLabel }}</span>
+      </div>
+      <div style="height:1px;background:var(--line);margin:4px 0"></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:0 4px">
+        <span style="font:600 15px Nunito, sans-serif;padding-left:8px">{{ calMonth }}</span>
+        <div style="display:flex">
+          <button onClick="{{ calPrev }}" aria-label="Previous month" style="width:44px;height:44px;border-radius:999px;border:0;background:transparent;font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink)"><i class="ph-bold ph-caret-left"></i></button>
+          <button onClick="{{ calNext }}" aria-label="Next month" style="width:44px;height:44px;border-radius:999px;border:0;background:transparent;font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink)"><i class="ph-bold ph-caret-right"></i></button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px">
+        <sc-for list="{{ calDays }}" as="c" hint-placeholder-count="31">
+          <button onClick="{{ c.pick }}" style="height:44px;border-radius:999px;border:0;box-shadow:{{ c.ring }};background:{{ c.bg }};color:{{ c.fg }};font:500 15px Nunito, sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer">{{ c.d }}<span style="width:4px;height:4px;border-radius:999px;background:{{ c.dot }}"></span></button>
+        </sc-for>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 4px 0">
+        <button onClick="{{ goToday }}" style="height:40px;padding:0 12px;border-radius:999px;border:0;background:transparent;font:600 14px Nunito, sans-serif;color:var(--accInk);cursor:pointer">Today</button>
+        <div style="display:flex;gap:4px">
+          <button onClick="{{ closeCal }}" style="height:40px;padding:0 12px;border-radius:999px;border:0;background:transparent;font:600 14px Nunito, sans-serif;color:var(--accInk);cursor:pointer">Cancel</button>
+          <button onClick="{{ calOk }}" style="height:40px;padding:0 12px;border-radius:999px;border:0;background:transparent;font:600 14px Nunito, sans-serif;color:var(--accInk);cursor:pointer">OK</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</sc-if>
+
+<sc-if value="{{ menuOpen }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ closeMenu }}" style="position:absolute;inset:0;z-index:34;background:rgba(20,20,22,0.12)"></div>
+  <div style="position:absolute;right:16px;top:108px;width:262px;z-index:35;border-radius:22px;overflow:hidden;background:var(--glassBar);backdrop-filter:blur(30px) saturate(180%);-webkit-backdrop-filter:blur(30px) saturate(180%);border:1px solid var(--glassBd);box-shadow:0 16px 48px rgba(20,20,22,0.22);display:flex;flex-direction:column">
+    <div style="padding:12px 16px 6px;font:700 13px Nunito, sans-serif;color:var(--muted)">Photo sources</div>
+    <sc-for list="{{ sources }}" as="src" hint-placeholder-count="2">
+      <div onClick="{{ src.go }}" style="display:flex;align-items:center;gap:12px;padding:11px 16px;cursor:pointer" style-hover="background:var(--fill)">
+        <i class="{{ src.icon }}" style="font-size:20px;width:22px;text-align:center"></i>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+          <span style="font:600 16px Nunito, sans-serif">{{ src.name }}</span>
+          <span style="font:500 13px Nunito, sans-serif;color:{{ src.statusColor }}">{{ src.status }}</span>
+        </div>
+        <i class="{{ src.trail }}" style="font-size:18px;color:{{ src.trailColor }}"></i>
+      </div>
+    </sc-for>
+    <div style="height:1px;background:var(--line);margin:4px 0"></div>
+    <div onClick="{{ menuReminder }}" style="display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer" style-hover="background:var(--fill)">
+      <i class="ph ph-bell" style="font-size:20px;width:22px;text-align:center"></i>
+      <span style="flex:1;font:600 16px Nunito, sans-serif">Daily reminder</span>
+      <span style="font:500 14px Nunito, sans-serif;color:var(--muted)">9:00 AM</span>
+    </div>
+    <div onClick="{{ menuHidden }}" style="display:flex;align-items:center;gap:12px;padding:12px 16px 14px;cursor:pointer" style-hover="background:var(--fill)">
+      <i class="ph ph-eye-slash" style="font-size:20px;width:22px;text-align:center"></i>
+      <span style="flex:1;font:600 16px Nunito, sans-serif">Hidden dates</span>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ gSheet }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ closeG }}" style="position:absolute;inset:0;z-index:44;background:rgba(20,20,22,0.36)"></div>
+  <div style="position:absolute;left:8px;right:8px;bottom:8px;z-index:45;background:var(--surface);border-radius:32px;padding:10px 20px 28px;display:flex;flex-direction:column;gap:18px">
+    <div style="width:36px;height:5px;border-radius:999px;background:var(--faint);align-self:center"></div>
+    <div style="width:56px;height:56px;border-radius:16px;background:var(--fill);display:flex;align-items:center;justify-content:center;font-size:28px"><i class="ph-bold ph-google-logo"></i></div>
+    <sc-if value="{{ gIntro }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="font:800 24px/1.15 Nunito, sans-serif;letter-spacing:-0.02em">Add Google Photos</div>
+        <div style="font:500 15px/1.5 Nunito, sans-serif;color:var(--muted)">Photos backed up to Google will show up next to your Apple Photos. Duplicates of the same shot are shown once.</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <button onClick="{{ gContinue }}" style="height:54px;border:0;border-radius:999px;background:var(--ink);color:var(--bg);font:700 16px Nunito, sans-serif;display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer" style-active="transform:scale(0.98)"><i class="ph-bold ph-google-logo" style="font-size:19px"></i>Continue with Google</button>
+        <button onClick="{{ closeG }}" style="height:48px;border:0;background:transparent;color:var(--ink);font:700 16px Nunito, sans-serif;cursor:pointer">Not now</button>
+      </div>
+    </sc-if>
+    <sc-if value="{{ gBusy }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="font:800 24px/1.15 Nunito, sans-serif;letter-spacing:-0.02em">Connecting to Google Photos</div>
+        <div style="font:500 15px/1.5 Nunito, sans-serif;color:var(--muted)">Reading the dates on your library. You can keep browsing.</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px">
+        <div style="aspect-ratio:1;border-radius:10px;background:var(--fill2)"></div><div style="aspect-ratio:1;border-radius:10px;background:var(--fill)"></div><div style="aspect-ratio:1;border-radius:10px;background:var(--fill2)"></div><div style="aspect-ratio:1;border-radius:10px;background:var(--fill)"></div><div style="aspect-ratio:1;border-radius:10px;background:var(--fill2)"></div>
+      </div>
+    </sc-if>
+    <sc-if value="{{ gManage }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="font:800 24px/1.15 Nunito, sans-serif;letter-spacing:-0.02em">Google Photos is connected</div>
+        <div style="font:500 15px/1.5 Nunito, sans-serif;color:var(--muted)">Signed in as mara.lindqvist@gmail.com</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <button onClick="{{ gDisconnect }}" style="height:54px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--accInk);font:700 16px Nunito, sans-serif;cursor:pointer">Disconnect</button>
+        <button onClick="{{ closeG }}" style="height:48px;border:0;background:transparent;color:var(--ink);font:700 16px Nunito, sans-serif;cursor:pointer">Done</button>
+      </div>
+    </sc-if>
+  </div>
+</sc-if>
+
+<sc-if value="{{ albumSheet }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ closeAlbumSheet }}" style="position:absolute;inset:0;z-index:40;background:rgba(20,20,22,0.36)"></div>
+  <div style="position:absolute;left:8px;right:8px;bottom:8px;z-index:41;background:var(--surface);border-radius:32px;padding:10px 20px 28px;display:flex;flex-direction:column;gap:16px">
+    <div style="width:36px;height:5px;border-radius:999px;background:var(--faint);align-self:center"></div>
+    <div style="display:flex;flex-direction:column;gap:2px">
+      <span style="font:700 22px Nunito, sans-serif;letter-spacing:-0.02em">Add to album</span>
+      <span style="font:400 14px Nunito, sans-serif;color:var(--muted)">{{ selLabel }}</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <label for="otd-album-name-{{ platformKey }}" style="font:600 13px Nunito, sans-serif;color:var(--muted2)">New album name</label>
+      <div style="display:flex;gap:8px">
+        <input id="otd-album-name-{{ platformKey }}" value="{{ newName }}" onChange="{{ setName }}" placeholder="e.g. Fall in the city" style="flex:1;min-width:0;height:48px;padding:0 14px;border-radius:14px;border:1px solid var(--line);background:var(--bg);font:500 16px Nunito, sans-serif;color:var(--ink);outline:none" style-focus="border-color:#E5533D;box-shadow:0 0 0 3px var(--accTint)">
+        <button onClick="{{ createAlbum }}" disabled="{{ noName }}" style="height:48px;padding:0 18px;border-radius:999px;border:0;background:var(--ink);color:var(--bg);font:600 15px Nunito, sans-serif;cursor:pointer;opacity:{{ nameOp }}">Create</button>
+      </div>
+    </div>
+    <sc-if value="{{ hasAlbums }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;flex-direction:column;gap:2px">
+        <span style="font:600 13px Nunito, sans-serif;color:var(--muted2);padding-bottom:4px">Or add to an existing album</span>
+        <sc-for list="{{ albums }}" as="a" hint-placeholder-count="1">
+          <div onClick="{{ a.add }}" style="display:flex;align-items:center;gap:12px;padding:6px;margin:0 -6px;border-radius:14px;cursor:pointer" style-hover="background:var(--fill)">
+            <img src="{{ a.cover }}" alt="" style="width:48px;height:48px;border-radius:10px;object-fit:cover;display:block;background:var(--fill)">
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><span style="font:600 16px Nunito, sans-serif">{{ a.name }}</span><span style="font:400 13px Nunito, sans-serif;color:var(--muted)">{{ a.meta }}</span></div>
+            <i class="ph-bold ph-plus-circle" style="font-size:22px;color:#E5533D"></i>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+  </div>
+</sc-if>
+
+<sc-if value="{{ shareOpen }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ closeShare }}" style="position:absolute;inset:0;z-index:50;background:rgba(20,20,22,0.36)"></div>
+  <div style="position:absolute;left:8px;right:8px;bottom:8px;z-index:51;background:var(--surface);border-radius:32px;padding:10px 20px 28px;display:flex;flex-direction:column;gap:18px">
+    <div style="width:36px;height:5px;border-radius:999px;background:var(--faint);align-self:center"></div>
+    <div style="display:flex;align-items:center;gap:14px">
+      <div style="position:relative;width:64px;height:64px;flex:none">
+        <sc-for list="{{ shareThumbs }}" as="th" hint-placeholder-count="2">
+          <img src="{{ th.src }}" alt="" style="position:absolute;width:52px;height:52px;border-radius:10px;object-fit:cover;border:2px solid var(--surface);box-shadow:0 2px 8px rgba(20,20,22,0.16);left:{{ th.x }};top:{{ th.y }};transform:rotate({{ th.r }});background:var(--fill)">
+        </sc-for>
+      </div>
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+        <span style="font:700 18px Nunito, sans-serif;letter-spacing:-0.01em">{{ shareTitle }}</span>
+        <span style="font:400 14px Nunito, sans-serif;color:var(--muted)">{{ shareSub }}</span>
+      </div>
+      <button onClick="{{ closeShare }}" aria-label="Close" style="width:36px;height:36px;border-radius:999px;border:0;background:var(--fill);color:var(--muted2);font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer"><i class="ph-bold ph-x"></i></button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px">
+      <sc-for list="{{ shareTargets }}" as="t" hint-placeholder-count="4">
+        <button onClick="{{ t.go }}" style="border:0;background:transparent;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;font:500 12px Nunito, sans-serif;color:var(--ink)"><span style="width:56px;height:56px;border-radius:16px;background:var(--fill);display:flex;align-items:center;justify-content:center;font-size:26px"><i class="{{ t.icon }}"></i></span>{{ t.label }}</button>
+      </sc-for>
+    </div>
+    <sc-if value="{{ hasLink }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 6px 6px 14px;border-radius:16px;background:var(--bg);border:1px solid var(--line)">
+        <i class="ph-bold ph-link" style="color:var(--muted)"></i>
+        <span style="flex:1;min-width:0;font:500 14px Nunito, sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ shareLink }}</span>
+        <button onClick="{{ copyLink }}" style="height:40px;padding:0 16px;border-radius:999px;border:0;background:#E5533D;color:#FFFFFF;font:600 14px Nunito, sans-serif;cursor:pointer">Copy link</button>
+      </div>
+      <span style="font:400 13px/1.4 Nunito, sans-serif;color:var(--muted);margin-top:-8px">Anyone with the link can view. New photos you add will show up for them too.</span>
+    </sc-if>
+    <sc-if value="{{ noLink }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;flex-direction:column">
+        <button onClick="{{ saveShare }}" style="height:52px;border:0;border-top:1px solid var(--line);background:transparent;display:flex;align-items:center;gap:12px;font:500 16px Nunito, sans-serif;color:var(--ink);cursor:pointer;padding:0 4px"><i class="ph ph-download-simple" style="font-size:22px"></i>Save copies</button>
+        <button onClick="{{ linkShare }}" style="height:52px;border:0;border-top:1px solid var(--line);background:transparent;display:flex;align-items:center;gap:12px;font:500 16px Nunito, sans-serif;color:var(--ink);cursor:pointer;padding:0 4px"><i class="ph ph-link" style="font-size:22px"></i>Share as a link instead</button>
+      </div>
+    </sc-if>
+  </div>
+</sc-if>
+
+<sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+  <div style="position:absolute;left:24px;right:24px;bottom:{{ toastBottom }};z-index:60;display:flex;justify-content:center;pointer-events:none">
+    <div style="padding:12px 18px;border-radius:999px;background:var(--ink);color:var(--bg);font:500 14px Nunito, sans-serif;display:flex;align-items:center;gap:8px;box-shadow:0 10px 30px rgba(20,20,22,0.25)"><i class="ph-bold ph-check" style="color:#FF8B76"></i>{{ toast }}</div>
+  </div>
+</sc-if>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:402,&quot;height&quot;:874},&quot;platform&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;ios&quot;,&quot;android&quot;],&quot;default&quot;:&quot;ios&quot;,&quot;tsType&quot;:&quot;'ios'|'android'&quot;},&quot;dark&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;startScreen&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;onboarding&quot;,&quot;today&quot;],&quot;default&quot;:&quot;onboarding&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;yearLayout&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;stacked&quot;,&quot;strip&quot;],&quot;default&quot;:&quot;stacked&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const WD=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const DIM=[31,29,31,30,31,30,31,31,30,31,30,31];
+const TODAY={y:2026,m:9,d:2};
+const ACC='#E5533D', INK='var(--ink)', MUTED='var(--muted)';
+const hash=(...a)=>{let x=2166136261;for(const v of a){x=Math.imul(x^(v+40503),16777619)>>>0;x^=x>>>15;x=Math.imul(x,2246822519)>>>0;x^=x>>>13;}return x>>>0;};
+const leap=y=>(y%4===0&&y%100!==0)||y%400===0;
+const CURATED={'9-2':{2025:4,2023:6,2021:3,2019:5,2016:2,2014:1}};
+function countFor(y,m,d){
+  const c=CURATED[m+'-'+d]; if(c) return c[y]||0;
+  if(m===1&&d===29&&!leap(y)) return 0;
+  const act=hash(m,d)%100; if(act<14) return 0;
+  return hash(y,m,d)%100<(18+act%34) ? 1+hash(y,m,d,3)%7 : 0;
+}
+function yearsFor(m,d){
+  const past=m<TODAY.m||(m===TODAY.m&&d<TODAY.d);
+  const out=[]; for(let y=past?2026:2025;y>=2012;y--){const n=countFor(y,m,d); if(n) out.push({y,n});}
+  return out;
+}
+function shift(m,d,delta){d+=delta; while(d<1){m=(m+11)%12;d+=DIM[m];} while(d>DIM[m]){d-=DIM[m];m=(m+1)%12;} return {m,d};}
+const PAT={1:[[6,4]],2:[[3,4],[3,4]],3:[[4,4],[2,2],[2,2]],4:[[3,3],[3,3],[3,3],[3,3]],5:[[4,4],[2,2],[2,2],[3,3],[3,3]],6:[[4,4],[2,2],[2,2],[2,2],[2,2],[2,2]],7:[[4,4],[2,2],[2,2],[2,2],[2,2],[2,2],[6,3]]};
+const AR=[['3 / 4',600,800],['4 / 3',800,600],['1 / 1',700,700],['4 / 5',640,800]];
+function photo(id){
+  const [y,m,d,i]=id.split('-').map(Number);
+  const a=AR[hash(y,m,d,i,9)%4];
+  return {id,y,m,d,i,ar:a[0],src:`https://picsum.photos/seed/otd${y}${m+1}${d}n${i}/${a[1]}/${a[2]}`,label:`${MONTHS[m]} ${d}, ${y}`};
+}
+const agoLabel=y=>y===TODAY.y?'Earlier this year':(TODAY.y-y)===1?'1 year ago':`${TODAY.y-y} years ago`;
+const plural=(n,w)=>`${n} ${w}${n===1?'':'s'}`;
+
+class Component extends DCLogic {
+  scrollRef = React.createRef();
+  state = {
+    screen: (this.props && this.props.startScreen==='today') ? 'app' : 'onb',
+    onb:'welcome', perm:false, denied:false,
+    tab:'today', m:TODAY.m, d:TODAY.d, loading:false,
+    cal:false, calM:TODAY.m, calSel:{m:TODAY.m,d:TODAY.d},
+    viewer:null, favs:['2023-9-2-0','2019-9-2-2','2021-9-2-1','2016-9-2-0'],
+    selecting:false, sel:[],
+    albums:[{id:'a1',name:'Summer at the lake',slug:'k3f9q2',ids:['2023-6-14-0','2023-6-14-1','2021-6-14-2','2019-7-3-0','2019-7-3-1','2019-7-3-2'],created:'Aug 21'}],
+    sources:{apple:true,google:false}, menu:false, gSheet:null,
+    albumSheet:false, newName:'', albumOpen:null, share:null, toast:null, stripY:null,
+  };
+  componentDidUpdate(prev){
+    if(prev.startScreen!==this.props.startScreen){
+      this.setState({screen:this.props.startScreen==='today'?'app':'onb',onb:'welcome',denied:false,perm:false,viewer:null,cal:false,share:null,albumSheet:false});
+    }
+  }
+  componentWillUnmount(){clearTimeout(this.tt);clearTimeout(this.lt);clearTimeout(this.gt);}
+  say(t){clearTimeout(this.tt);this.setState({toast:t});this.tt=setTimeout(()=>this.setState({toast:null}),2200);}
+  top(){const el=this.scrollRef.current; if(el) el.scrollTop=0;}
+  enterApp(msg){this.setState({screen:'app',loading:true,tab:'today'});clearTimeout(this.lt);this.lt=setTimeout(()=>{this.setState({loading:false}); if(msg) this.say(msg);},900);}
+  goDate(m,d){
+    this.setState({m,d,stripY:null,loading:true,cal:false,selecting:false,sel:[],tab:'today',albumOpen:null});
+    this.top(); clearTimeout(this.lt); this.lt=setTimeout(()=>this.setState({loading:false}),450);
+  }
+  tapPhoto(id,ids){
+    const s=this.state;
+    if(s.selecting){this.setState({sel:s.sel.includes(id)?s.sel.filter(x=>x!==id):[...s.sel,id]});return;}
+    this.setState({viewer:{ids,idx:ids.indexOf(id)}});
+  }
+  toggleFav(id){
+    const f=this.state.favs, on=!f.includes(id);
+    this.setState({favs:on?[...f,id]:f.filter(x=>x!==id)});
+    this.say(on?'Added to Favorites':'Removed from Favorites');
+  }
+  openShare(ids,title,link){this.setState({share:{ids,title,link:link||null}});}
+  addTo(aid){
+    const s=this.state, ids=s.sel;
+    const albums=s.albums.map(a=>a.id===aid?{...a,ids:[...a.ids,...ids.filter(x=>!a.ids.includes(x))]}:a);
+    const name=s.albums.find(a=>a.id===aid).name;
+    this.setState({albums,albumSheet:false,selecting:false,sel:[]});
+    this.say(`Added to ${name}`);
+  }
+  createAlbum(){
+    const s=this.state, name=s.newName.trim(); if(!name) return;
+    const id='a'+Date.now(), slug=Math.random().toString(36).slice(2,8);
+    this.setState({albums:[{id,name,slug,ids:[...s.sel],created:`${MS[TODAY.m]} ${TODAY.d}`},...s.albums],albumSheet:false,newName:'',selecting:false,sel:[],viewer:null,tab:'albums',albumOpen:id});
+    this.top(); this.say('Album created');
+  }
+
+  renderVals(){
+    const s=this.state, ios=(this.props.platform??'ios')!=='android', layout=this.props.yearLayout??'stacked';
+    const {m,d}=s;
+    const raw=yearsFor(m,d);
+    const total=raw.reduce((a,b)=>a+b.n,0);
+    const isTodayDate=m===TODAY.m&&d===TODAY.d;
+    const mkP=(id,ids,extra)=>{const p=photo(id), sel=s.sel.includes(id);return {...p,...extra,fav:s.favs.includes(id),open:()=>this.tapPhoto(id,ids),selecting:s.selecting,
+      selShade:sel?'rgba(229,83,61,0.18)':'rgba(255,255,255,0.12)',selRing:sel?'inset 0 0 0 3px '+ACC:'none',selIcon:sel?'ph-fill ph-check-circle':'ph ph-circle',selColor:sel?'#FFFFFF':'#FFFFFF'};};
+    const stripY=s.stripY??(raw[0]&&raw[0].y);
+    const years=raw.map(({y,n})=>{
+      const pat=PAT[n]; const ids=[...Array(n)].map((_,i)=>`${y}-${m}-${d}-${i}`);
+      const on=y===stripY;
+      return {y,ago:agoLabel(y),meta:`${WD[new Date(y,m,d).getDay()]}, ${plural(n,'photo')}`,
+        photos:ids.map((id,i)=>mkP(id,ids,{cs:pat[i][0],rs:pat[i][1]})),
+        share:()=>this.openShare(ids,`${MONTHS[m]} ${d}, ${y}`),
+        pick:()=>this.setState({stripY:y}),
+        pillBg:on?INK:'var(--surface)',pillFg:on?'var(--bg)':INK,pillBd:on?INK:'rgba(20,20,22,0.12)'};
+    });
+    const si=years.findIndex(x=>x.y===stripY), strip=years[si]||null;
+    const prevY=years[si-1], nextY=years[si+1];
+    const nearby=[];
+    if(!raw.length){
+      for(let k=1;k<40&&nearby.length<1;k++){const t=shift(m,d,-k); if(yearsFor(t.m,t.d).length) nearby.push({label:`${MS[t.m]} ${t.d}`,icon:'ph-bold ph-arrow-left',go:()=>this.goDate(t.m,t.d)});}
+      for(let k=1;k<40;k++){const t=shift(m,d,k); if(yearsFor(t.m,t.d).length){nearby.push({label:`${MS[t.m]} ${t.d}`,icon:'ph-bold ph-arrow-right',go:()=>this.goDate(t.m,t.d)});break;}}
+    }
+    const favIds=[...s.favs].reverse();
+    const favPhotos=favIds.map(id=>mkP(id,favIds));
+    const albumRows=s.albums.map(a=>{const cov=a.ids.slice(0,4).map(id=>({src:photo(id).src}));
+      return {name:a.name,meta:`${plural(a.ids.length,'photo')}, made ${a.created}`,covers:cov,cover:cov[0]?cov[0].src:'',open:()=>{this.setState({albumOpen:a.id});this.top();},add:()=>this.addTo(a.id)};});
+    const ao=s.albums.find(a=>a.id===s.albumOpen);
+    const album=ao?{name:ao.name,meta:`${plural(ao.ids.length,'photo')}, made ${ao.created}`,photos:ao.ids.map(id=>({...photo(id),open:()=>this.setState({viewer:{ids:ao.ids,idx:ao.ids.indexOf(id)}})}))}:null;
+    const v=s.viewer, vp=v?photo(v.ids[v.idx]):null, vFav=vp&&s.favs.includes(vp.id);
+    const calDays=[...Array(DIM[s.calM])].map((_,i)=>{
+      const dd=i+1, has=yearsFor(s.calM,dd).length>0;
+      const sel=ios?(s.calM===m&&dd===d):(s.calM===s.calSel.m&&dd===s.calSel.d);
+      const tdy=s.calM===TODAY.m&&dd===TODAY.d;
+      return {d:dd,bg:sel?ACC:'transparent',fg:sel?'#FFFFFF':has?INK:'var(--faint)',dot:has?(sel?'#FFFFFF':ACC):'transparent',ring:tdy&&!sel?'inset 0 0 0 1.5px '+INK:'none',
+        pick:()=>ios?this.goDate(s.calM,dd):this.setState({calSel:{m:s.calM,d:dd}})};
+    });
+    const tabDefs=[['today','Today','clock-counter-clockwise'],['favs','Favorites','heart'],['albums','Albums','images-square']];
+    const tabs=tabDefs.map(([k,label,ic])=>{const on=s.tab===k;return {label,icon:(on?'ph-fill ph-':'ph ph-')+ic,
+      c:on?ACC:(ios?INK:'var(--muted2)'),bg:on?'rgba(229,83,61,0.1)':'transparent',abg:on?'var(--accTint)':'transparent',ac:on?INK:'var(--muted2)',
+      go:()=>{this.setState({tab:k,albumOpen:k==='albums'?null:s.albumOpen,selecting:false,sel:[]});this.top();}};});
+    const sh=s.share;
+    const shareIds=sh?sh.ids:[];
+    const linkFor=sh&&sh.link;
+    const targetsBase=[['Messages','ph ph-chat-circle-text'],['Mail','ph ph-envelope-simple'],['WhatsApp','ph ph-whatsapp-logo'],['Instagram','ph ph-instagram-logo']];
+    const shareTargets=targetsBase.map(([label,icon])=>({label,icon,go:()=>{this.setState({share:null});this.say(`Sent to ${label}`);}}));
+    const selN=s.sel.length;
+    const isApp=s.screen==='app';
+    const dk=!!this.props.dark;
+    const t=dk?{bg:'#121213',surface:'#1C1C1E',surface2:'#242426',ink:'#F2F2EF',muted:'#9A9A9F',muted2:'#B4B4B8',faint:'#5E5E63',fill:'#2A2A2C',fill2:'#232325',line:'rgba(255,255,255,0.12)',glass:'rgba(44,44,46,0.88)',glassBar:'rgba(36,36,38,0.8)',glassBd:'rgba(255,255,255,0.08)',bgGlass:'rgba(18,18,19,0.92)',accTint:'#3A211C',accInk:'#FF9C8A',navBg:'#1A1A1C'}
+      :{bg:'#F6F6F3',surface:'#FFFFFF',surface2:'#F3F2EE',ink:'#141416',muted:'#6E6E73',muted2:'#45454A',faint:'#A3A3A8',fill:'#ECECE8',fill2:'#E6E6E2',line:'rgba(20,20,22,0.1)',glass:'rgba(255,255,255,0.9)',glassBar:'rgba(255,255,255,0.78)',glassBd:'rgba(255,255,255,0.7)',bgGlass:'rgba(246,246,243,0.94)',accTint:'#FBE4DF',accInk:'#9A2E1E',navBg:'#EDEDE9'};
+    return {
+      t, ios, android:!ios, platformKey:ios?'ios':'android',
+      topPad:ios?'72px':'24px', headPad:ios?'60px':'16px',
+      isOnb:s.screen==='onb', isApp,
+      onbWelcome:s.onb==='welcome', onbGoogle:s.onb==='google', onbRemind:s.onb==='remind',
+      denied:s.denied, permIos:s.perm&&ios, permAndroid:s.perm&&!ios,
+      askPerm:()=>this.setState({perm:true}),
+      permAllow:()=>this.setState({perm:false,denied:false,onb:'remind',sources:{apple:ios,google:!ios}}),
+      permDeny:()=>this.setState({perm:false,denied:true}),
+      useGoogle:()=>{this.setState({onb:'google',denied:false,sources:{apple:false,google:true}});clearTimeout(this.gt);this.gt=setTimeout(()=>this.setState({onb:'remind'}),1600);},
+      remindOn:()=>this.enterApp('Daily reminder set for 9:00 AM'),
+      remindOff:()=>this.enterApp(),
+      scrollRef:this.scrollRef,
+      tabToday:s.tab==='today', tabFavs:s.tab==='favs', tabAlbums:s.tab==='albums',
+      dateTitle:`${MONTHS[m]} ${d}`,
+      daySummary:s.loading?'Looking through your library…':raw.length?`${plural(total,'photo')} from ${plural(raw.length,'year')}`:'No photos on this date',
+      notToday:!isTodayDate, goToday:()=>this.goDate(TODAY.m,TODAY.d),
+      selectLabel:s.selecting?'Cancel':'Select',
+      toggleSelect:()=>this.setState({selecting:!s.selecting,sel:[]}),
+      openCal:()=>this.setState({cal:true,calM:m,calSel:{m,d}}),
+      loading:s.loading,
+      showEmpty:!s.loading&&!raw.length, nearby,
+      showStacked:!s.loading&&raw.length>0&&layout!=='strip',
+      showStrip:!s.loading&&raw.length>0&&layout==='strip',
+      years, strip,
+      stripPrev:()=>prevY&&this.setState({stripY:prevY.y}), stripNext:()=>nextY&&this.setState({stripY:nextY.y}),
+      stripNoPrev:!prevY, stripNoNext:!nextY, stripPrevOp:prevY?1:0.35, stripNextOp:nextY?1:0.35,
+      stripPrevLabel:prevY?String(prevY.y):'Newest', stripNextLabel:nextY?String(nextY.y):'Oldest',
+      favCount:s.favs.length?plural(s.favs.length,'photo'):'Nothing saved yet',
+      hasFavs:s.favs.length>0, noFavs:s.favs.length===0, favPhotos,
+      albumList:!ao, albumDetail:!!ao, album, albums:albumRows, hasAlbums:albumRows.length>0,
+      albumCount:plural(s.albums.length,'album'),
+      closeAlbum:()=>this.setState({albumOpen:null}),
+      shareAlbum:()=>ao&&this.openShare(ao.ids,ao.name,`backthen.app/a/${ao.slug}`),
+      newAlbumFlow:()=>{this.setState({tab:'today',selecting:true,sel:[],albumOpen:null});this.top();this.say('Pick photos, then tap Album');},
+      showTabs:isApp&&!s.selecting,
+      tabs, selecting:isApp&&s.selecting,
+      selLabel:selN?`${plural(selN,'photo')} selected`:'Tap photos to select',
+      noSel:selN===0, selOp:selN?1:0.4,
+      barInset:ios?'16px':'12px', barBottom:ios?'26px':'12px', barRadius:ios?'999px':'20px',
+      shareSelected:()=>selN&&this.openShare(s.sel,plural(selN,'photo')),
+      openAlbumSheet:()=>selN&&this.setState({albumSheet:true}),
+      viewerOpen:!!v,
+      viewerTop:ios?'58px':'8px', viewerBottom:ios?'40px':'16px',
+      vSrc:vp?vp.src:'', vLabel:vp?vp.label:'', vSub:vp?`${agoLabel(vp.y)}  ·  ${v.idx+1} of ${v.ids.length}`:'',
+      vDots:v?v.ids.map((_,i)=>({c:i===v.idx?'#F4F4F2':'rgba(244,244,242,0.3)'})):[],
+      vPrev:()=>v&&v.idx>0&&this.setState({viewer:{...v,idx:v.idx-1}}),
+      vNext:()=>v&&v.idx<v.ids.length-1&&this.setState({viewer:{...v,idx:v.idx+1}}),
+      vPrevCursor:v&&v.idx>0?'w-resize':'default', vNextCursor:v&&v.idx<v.ids.length-1?'e-resize':'default',
+      closeViewer:()=>this.setState({viewer:null}),
+      vFav:()=>vp&&this.toggleFav(vp.id), vFavIcon:vFav?'ph-fill ph-heart':'ph ph-heart', vFavColor:vFav?'#FF6A52':'#F4F4F2',
+      vShare:()=>vp&&this.openShare([vp.id],vp.label),
+      vAlbum:()=>vp&&this.setState({sel:[vp.id],albumSheet:true}),
+      calOpen:s.cal, closeCal:()=>this.setState({cal:false}),
+      calMonth:MONTHS[s.calM], calDays,
+      calPrev:()=>this.setState({calM:(s.calM+11)%12}), calNext:()=>this.setState({calM:(s.calM+1)%12}),
+      calSelLabel:`${MS[s.calSel.m]} ${s.calSel.d}`, calOk:()=>this.goDate(s.calSel.m,s.calSel.d),
+      albumSheet:s.albumSheet, closeAlbumSheet:()=>this.setState({albumSheet:false}),
+      newName:s.newName, setName:e=>this.setState({newName:e.target.value}),
+      noName:!s.newName.trim(), nameOp:s.newName.trim()?1:0.35, createAlbum:()=>this.createAlbum(),
+      shareOpen:!!sh, closeShare:()=>this.setState({share:null}),
+      shareTitle:sh?sh.title:'', shareSub:sh?(linkFor?`Shared album, ${plural(shareIds.length,'photo')}`:plural(shareIds.length,'photo')):'',
+      shareThumbs:shareIds.slice(0,3).map((id,i)=>({src:photo(id).src,x:`${i*6}px`,y:`${i*5}px`,r:`${[-6,4,-1][i]}deg`})).reverse(),
+      shareTargets, hasLink:!!linkFor, noLink:!linkFor, shareLink:linkFor||'',
+      copyLink:()=>{this.setState({share:null});this.say('Link copied');},
+      saveShare:()=>{this.setState({share:null});this.say(`Saved ${plural(shareIds.length,'photo')}`);},
+      linkShare:()=>sh&&this.setState({share:{...sh,link:`backthen.app/s/${hash(shareIds.length,...shareIds.map(x=>x.length)).toString(36).slice(0,6)}`}}),
+      menuOpen:s.menu, openMenu:()=>this.setState({menu:true}), closeMenu:()=>this.setState({menu:false}),
+      sources:[
+        {key:'apple',name:'Apple Photos',icon:'ph-fill ph-apple-logo'},
+        {key:'google',name:'Google Photos',icon:'ph-bold ph-google-logo'},
+      ].map(x=>{const on=s.sources[x.key];return {...x,status:on?'Connected':'Not connected',statusColor:on?'var(--muted)':ACC,
+        trail:on?'ph-bold ph-check':'ph-bold ph-plus-circle',trailColor:on?'var(--muted)':ACC,
+        go:()=>{
+          if(x.key==='google') this.setState({menu:false,gSheet:on?'manage':'intro'});
+          else if(!on){this.setState({menu:false,sources:{...s.sources,apple:true}});this.say('Apple Photos connected');}
+          else this.setState({menu:false});
+        }};}),
+      menuReminder:()=>{this.setState({menu:false});this.say('Reminder set for 9:00 AM');},
+      menuHidden:()=>{this.setState({menu:false});this.say('No hidden dates yet');},
+      gSheet:!!s.gSheet, gIntro:s.gSheet==='intro', gBusy:s.gSheet==='busy', gManage:s.gSheet==='manage',
+      closeG:()=>this.setState({gSheet:null}),
+      gContinue:()=>{this.setState({gSheet:'busy'});clearTimeout(this.gt);this.gt=setTimeout(()=>{this.setState(st=>({gSheet:null,sources:{...st.sources,google:true}}));this.say('Google Photos connected');},1600);},
+      gDisconnect:()=>{this.setState(st=>({gSheet:null,sources:{...st.sources,google:false}}));this.say('Google Photos disconnected');},
+      toast:s.toast, toastBottom:ios?'104px':'96px',
+    };
+  }
+}
+</script>
+</body>
+</html>

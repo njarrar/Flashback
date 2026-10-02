@@ -1,0 +1,60 @@
+import CoreText
+import SwiftUI
+
+// Tokens from the design. One coral accent, kept for hearts, selection and the current day.
+
+private func ui(_ hex: UInt32, _ alpha: CGFloat = 1) -> UIColor {
+    UIColor(red: CGFloat((hex >> 16) & 0xFF) / 255, green: CGFloat((hex >> 8) & 0xFF) / 255, blue: CGFloat(hex & 0xFF) / 255, alpha: alpha)
+}
+
+private func dynamic(_ light: UIColor, _ dark: UIColor) -> Color {
+    Color(uiColor: UIColor { $0.userInterfaceStyle == .dark ? dark : light })
+}
+
+enum Palette {
+    static let accent = Color(uiColor: ui(0xE5533D))
+    static let bg = dynamic(ui(0xF6F6F3), ui(0x121213))
+    static let surface = dynamic(ui(0xFFFFFF), ui(0x1C1C1E))
+    static let surface2 = dynamic(ui(0xF3F2EE), ui(0x242426))
+    static let ink = dynamic(ui(0x141416), ui(0xF2F2EF))
+    static let muted = dynamic(ui(0x6E6E73), ui(0x9A9A9F))
+    static let muted2 = dynamic(ui(0x45454A), ui(0xB4B4B8))
+    static let faint = dynamic(ui(0xA3A3A8), ui(0x5E5E63))
+    static let fill = dynamic(ui(0xECECE8), ui(0x2A2A2C))
+    static let fill2 = dynamic(ui(0xE6E6E2), ui(0x232325))
+    static let line = dynamic(ui(0x141416, 0.1), ui(0xFFFFFF, 0.12))
+    static let glass = dynamic(ui(0xFFFFFF, 0.9), ui(0x2C2C2E, 0.88))
+    static let accTint = dynamic(ui(0xFBE4DF), ui(0x3A211C))
+    static let accInk = dynamic(ui(0x9A2E1E), ui(0xFF9C8A))
+
+    static func hex(_ hex: UInt32, _ alpha: Double = 1) -> Color { Color(uiColor: ui(hex, alpha)) }
+}
+
+enum Nunito {
+    /// Registers the bundled Nunito files once, so `Font.custom` can find them without Info.plist entries.
+    static func register() {
+        let urls = (Bundle.main.urls(forResourcesWithExtension: "ttf", subdirectory: nil) ?? [])
+            + (Bundle.main.urls(forResourcesWithExtension: "ttf", subdirectory: "Fonts") ?? [])
+        for url in urls { CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil) }
+    }
+}
+
+extension Font {
+    static func nunito(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
+        let name: String
+        switch weight {
+        case .medium: name = "Nunito-Medium"
+        case .semibold: name = "Nunito-SemiBold"
+        case .bold: name = "Nunito-Bold"
+        case .heavy: name = "Nunito-ExtraBold"
+        case .black: name = "Nunito-Black"
+        default: name = "Nunito-Regular"
+        }
+        return .custom(name, size: size)
+    }
+}
+
+extension View {
+    /// Tight tracking used for big titles and year numbers in the design.
+    func tight(_ size: CGFloat) -> some View { tracking(-0.03 * size) }
+}
