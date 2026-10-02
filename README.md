@@ -53,7 +53,8 @@ the same way Google Photos picks do.)
 
 ## What's new in 1.1
 
-- **Hidden dates.** Hide a date from the "..." menu on Today. It stops coming up on
+- **Hidden dates.** Hide a date with the "Hide date" button on Today (the eye on
+  iPhone) or from the "..." menu. It stops coming up on
   its own: no reminder, no calendar dot, and it isn't offered as a nearby day. The
   menu lists hidden dates so you can show any of them again.
 - **One year at a time.** A second layout from the design, picked in the "..." menu.

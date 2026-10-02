@@ -31,6 +31,11 @@ struct TodayView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 8) {
                         Spacer()
+                        if !hidden {
+                            GlassButton(accessibility: "Hide this date", action: { store.setHidden(day, true) }) {
+                                Image(systemName: "eye.slash").font(.system(size: 16, weight: .semibold))
+                            }
+                        }
                         GlassButton(accessibility: "Options", action: { settings = true }) {
                             Image(systemName: "ellipsis").font(.system(size: 17, weight: .bold))
                         }

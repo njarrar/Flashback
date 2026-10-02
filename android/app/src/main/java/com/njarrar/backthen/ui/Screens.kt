@@ -254,7 +254,16 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, on
                         T(day.label(), size = 32, weight = FontWeight.Bold, tight = true, modifier = Modifier.semantics { heading() })
                         Icon(Icons.Filled.ArrowDropDown, "Pick another day", tint = Accent)
                     }
-                    T(summary, size = 15, muted = true)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        T(summary, size = 15, muted = true, modifier = Modifier.weight(1f))
+                        if (!hidden) {
+                            TextButton(onClick = { vm.setHidden(day, true) }) {
+                                Icon(Icons.Outlined.VisibilityOff, null, tint = p.muted, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.size(6.dp))
+                                T("Hide date", size = 14, weight = FontWeight.SemiBold, muted = true)
+                            }
+                        }
+                    }
                 }
                 if (day != today) {
                     Row(Modifier.padding(start = 16.dp, top = 8.dp)) {
