@@ -173,7 +173,7 @@ struct AlbumSheet: View {
                                 .padding(6)
                                 .contentShape(Rectangle())
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(RowPressStyle())
                             .accessibilityLabel("Add to \(a.name)")
                         }
                     }

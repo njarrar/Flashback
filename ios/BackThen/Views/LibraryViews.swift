@@ -112,7 +112,7 @@ struct AlbumsView: View {
                         .padding(8)
                         .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(RowPressStyle())
                 }
             }
             .padding(.horizontal, 12)

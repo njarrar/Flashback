@@ -84,6 +84,19 @@ struct PressStyle: ButtonStyle {
     }
 }
 
+/// List rows: a soft fill behind the row while it is pressed, no scaling.
+struct RowPressStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(Palette.fill)
+                    .opacity(configuration.isPressed ? 1 : 0)
+            )
+            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
+    }
+}
+
 /// Round glass button used in the iPhone header.
 struct GlassButton<Label: View>: View {
     let accessibility: String
