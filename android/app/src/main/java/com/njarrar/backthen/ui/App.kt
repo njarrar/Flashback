@@ -20,7 +20,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,8 +32,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.njarrar.backthen.AppViewModel
 import com.njarrar.backthen.core.Photo
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.filter
 
-private enum class Tab(val label: String) { Today("Today"), Favorites("Favorites"), Albums("Albums") }
+enum class Tab(val label: String) { Today("Today"), Favorites("Favorites"), Albums("Albums") }
 
 @Composable
 fun BackThenApp(vm: AppViewModel) {
@@ -45,6 +50,9 @@ fun BackThenApp(vm: AppViewModel) {
     var selecting by rememberSaveable { mutableStateOf(false) }
     var albumFor by rememberSaveable { mutableStateOf<List<String>?>(null) }
     val demo by vm.demoScene.collectAsStateWithLifecycle()
+    // Each tab keeps its saved state (scroll place, open album) while another tab shows.
+    val tabs = rememberSaveableStateHolder()
+    val reselect = remember { MutableSharedFlow<Tab>(extraBufferCapacity = 1) }
     LaunchedEffect(demo) {
         when (demo) {
             "favorites" -> tab = Tab.Favorites
@@ -65,7 +73,7 @@ fun BackThenApp(vm: AppViewModel) {
                                 val on = tab == t
                                 NavigationBarItem(
                                     selected = on,
-                                    onClick = { tab = t; if (t != Tab.Albums) openAlbum = null },
+                                    onClick = { if (tab == t) reselect.tryEmit(t) else tab = t },
                                     icon = {
                                         Icon(
                                             when (t) {
@@ -89,16 +97,21 @@ fun BackThenApp(vm: AppViewModel) {
                 },
             ) { inner ->
                 val bottom = inner.calculateBottomPadding()
-                when (tab) {
-                    Tab.Today -> TodayScreen(vm, bottom) { selecting = it }
-                    Tab.Favorites -> FavoritesScreen(vm, bottom)
-                    Tab.Albums -> {
-                        val album = state.albums.firstOrNull { it.id == openAlbum }
-                        if (album != null) AlbumScreen(vm, album, bottom) { openAlbum = null }
-                        else AlbumsScreen(vm, bottom, onOpen = { openAlbum = it.id }, onNew = {
-                            tab = Tab.Today
-                            vm.say("Tap Select, pick photos, then tap Album")
-                        })
+                tabs.SaveableStateProvider(tab.name) {
+                    when (tab) {
+                        Tab.Today -> TodayScreen(vm, bottom, reselect.on(Tab.Today)) { selecting = it }
+                        Tab.Favorites -> FavoritesScreen(vm, bottom, reselect.on(Tab.Favorites))
+                        Tab.Albums -> {
+                            val album = state.albums.firstOrNull { it.id == openAlbum }
+                            // The album list and each album page keep their own scroll place.
+                            tabs.SaveableStateProvider(album?.id ?: "albums") {
+                                if (album != null) AlbumScreen(vm, album, bottom, reselect.on(Tab.Albums)) { openAlbum = null }
+                                else AlbumsScreen(vm, bottom, reselect.on(Tab.Albums), onOpen = { openAlbum = it.id }, onNew = {
+                                    tab = Tab.Today
+                                    vm.say("Tap Select, pick photos, then tap Album")
+                                })
+                            }
+                        }
                     }
                 }
             }
@@ -134,3 +147,6 @@ fun BackThenApp(vm: AppViewModel) {
         Toast(toast, Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 96.dp))
     }
 }
+
+/** Taps on the tab that is already showing, for that tab to scroll back to the top. */
+private fun SharedFlow<Tab>.on(tab: Tab) = filter { it == tab }

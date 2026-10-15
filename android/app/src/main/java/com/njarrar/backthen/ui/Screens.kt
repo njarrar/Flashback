@@ -76,6 +76,7 @@ import com.njarrar.backthen.core.nearbyDays
 import com.njarrar.backthen.core.plural
 import com.njarrar.backthen.core.shortLabel
 import com.njarrar.backthen.core.yearsForDay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
 /** Asks for photo access, then notification access, as each step needs it. */
@@ -178,14 +179,15 @@ fun OnboardingScreen(vm: AppViewModel) {
 }
 
 @Composable
-fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, onSelectingChange: (Boolean) -> Unit) {
+fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, scrollTop: Flow<Tab>, onSelectingChange: (Boolean) -> Unit) {
     val p = LocalPalette.current
     val context = LocalContext.current
     val state by vm.saved.collectAsStateWithLifecycle()
     val day by vm.day.collectAsStateWithLifecycle()
     val indexing by vm.indexing.collectAsStateWithLifecycle()
     val busy by vm.googleImport.collectAsStateWithLifecycle()
-    var result by remember { mutableStateOf<Pair<MonthDay, List<YearGroup>>?>(null) }
+    // Start from the last result so the list keeps its place when this tab comes back.
+    var result by remember { mutableStateOf(vm.lastDay) }
     var calendar by remember { mutableStateOf(false) }
     val demo by vm.demoScene.collectAsStateWithLifecycle()
     LaunchedEffect(demo) { if (demo == "calendar") calendar = true }
@@ -203,7 +205,8 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, on
         if (ok) vm.setReminder { it.copy(on = true) } else vm.say("Notifications are off in Settings")
     }
 
-    LaunchedEffect(day, index) { result = day to vm.photosFor(day) }
+    LaunchedEffect(day, index) { result = (day to vm.photosFor(day)).also { vm.lastDay = it } }
+    LaunchedEffect(Unit) { scrollTop.collect { list.animateScrollToItem(0) } }
     val groups = result?.takeIf { it.first == day }?.second
 
     fun stopSelecting() { selecting = false; picked = emptyList(); onSelectingChange(false) }
@@ -376,10 +379,12 @@ private fun EmptyNote(icon: androidx.compose.ui.graphics.vector.ImageVector, tit
 }
 
 @Composable
-fun FavoritesScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp) {
+fun FavoritesScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, scrollTop: Flow<Tab>) {
     val state by vm.saved.collectAsStateWithLifecycle()
     val favs = state.favorites
-    LazyColumn(Modifier.fillMaxSize().background(LocalPalette.current.bg).statusBarsPadding(), contentPadding = PaddingValues(bottom = bottomPadding + 24.dp)) {
+    val list = rememberLazyListState()
+    LaunchedEffect(Unit) { scrollTop.collect { list.animateScrollToItem(0) } }
+    LazyColumn(state = list, modifier = Modifier.fillMaxSize().background(LocalPalette.current.bg).statusBarsPadding(), contentPadding = PaddingValues(bottom = bottomPadding + 24.dp)) {
         item { Header("Favorites", if (favs.isEmpty()) "Nothing saved yet" else plural(favs.size, "photo")) }
         item {
             if (favs.isEmpty()) EmptyNote(Icons.Outlined.FavoriteBorder, "No favorites yet", "Open any photo and tap the heart. It will be kept here, whatever day it's from.")
@@ -389,10 +394,12 @@ fun FavoritesScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp
 }
 
 @Composable
-fun AlbumsScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, onOpen: (Album) -> Unit, onNew: () -> Unit) {
+fun AlbumsScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, scrollTop: Flow<Tab>, onOpen: (Album) -> Unit, onNew: () -> Unit) {
     val p = LocalPalette.current
     val state by vm.saved.collectAsStateWithLifecycle()
-    LazyColumn(Modifier.fillMaxSize().background(p.bg).statusBarsPadding(), contentPadding = PaddingValues(bottom = bottomPadding + 24.dp)) {
+    val list = rememberLazyListState()
+    LaunchedEffect(Unit) { scrollTop.collect { list.animateScrollToItem(0) } }
+    LazyColumn(state = list, modifier = Modifier.fillMaxSize().background(p.bg).statusBarsPadding(), contentPadding = PaddingValues(bottom = bottomPadding + 24.dp)) {
         item {
             Header("Albums", plural(state.albums.size, "album")) { Pill("+ New", onNew, height = 40.dp) }
             if (state.albums.isEmpty()) EmptyNote(Icons.Outlined.PhotoLibrary, "No albums yet", "On Today, tap Select, pick a few photos, then tap Album.")
@@ -422,13 +429,15 @@ fun AlbumsScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, o
 }
 
 @Composable
-fun AlbumScreen(vm: AppViewModel, album: Album, bottomPadding: androidx.compose.ui.unit.Dp, onBack: () -> Unit) {
+fun AlbumScreen(vm: AppViewModel, album: Album, bottomPadding: androidx.compose.ui.unit.Dp, scrollTop: Flow<Tab>, onBack: () -> Unit) {
     val p = LocalPalette.current
     val context = LocalContext.current
     var confirmDelete by remember { mutableStateOf(false) }
     val made = localDate(album.createdAt)
+    val list = rememberLazyListState()
+    LaunchedEffect(Unit) { scrollTop.collect { list.animateScrollToItem(0) } }
     BackHandler(onBack = onBack)
-    LazyColumn(Modifier.fillMaxSize().background(p.bg).statusBarsPadding(), contentPadding = PaddingValues(bottom = bottomPadding + 24.dp)) {
+    LazyColumn(state = list, modifier = Modifier.fillMaxSize().background(p.bg).statusBarsPadding(), contentPadding = PaddingValues(bottom = bottomPadding + 24.dp)) {
         item {
             Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Albums", tint = p.ink) }

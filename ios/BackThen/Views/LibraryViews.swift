@@ -55,12 +55,23 @@ struct FavoritesView: View {
 
 struct AlbumsView: View {
     @Environment(AppStore.self) private var store
+    @State private var path: [String] = []
 
     var body: some View {
-        if let id = store.openAlbumID, let album = store.saved.albums.first(where: { $0.id == id }) {
-            AlbumDetailView(album: album)
-        } else {
+        NavigationStack(path: $path) {
             list
+                .toolbar(.hidden, for: .navigationBar)
+                .navigationDestination(for: String.self) { id in
+                    if let album = store.saved.albums.first(where: { $0.id == id }) {
+                        AlbumDetailView(album: album)
+                    }
+                }
+        }
+        // Other screens ask for an album by setting openAlbumID; turn that into a push.
+        .task(id: store.openAlbumID) {
+            guard let id = store.openAlbumID else { return }
+            path = [id]
+            store.openAlbumID = nil
         }
     }
 
@@ -79,7 +90,7 @@ struct AlbumsView: View {
             }
             VStack(spacing: 4) {
                 ForEach(albums) { a in
-                    Button { store.openAlbumID = a.id } label: {
+                    Button { path.append(a.id) } label: {
                         HStack(spacing: 14) {
                             LazyVGrid(columns: [GridItem(.fixed(35), spacing: 2), GridItem(.fixed(35), spacing: 2)], spacing: 2) {
                                 ForEach(a.photos.prefix(4)) { p in PhotoImage(photo: p).frame(width: 35, height: 35) }
@@ -110,15 +121,13 @@ struct AlbumsView: View {
 
 struct AlbumDetailView: View {
     @Environment(AppStore.self) private var store
+    @Environment(\.dismiss) private var dismiss
     let album: Album
     @State private var confirmDelete = false
 
     var body: some View {
         ScrollView {
             HStack(spacing: 8) {
-                GlassButton(accessibility: "Albums", action: { store.openAlbumID = nil }) {
-                    Label("Albums", systemImage: "chevron.left").font(.nunito(15, .semibold)).padding(.horizontal, 12)
-                }
                 Spacer()
                 GlassButton(accessibility: "Save to Photos", action: { Task { await store.saveToPhotos(album) } }) {
                     Image(systemName: "square.and.arrow.down").font(.system(size: 16))
@@ -143,9 +152,11 @@ struct AlbumDetailView: View {
             Color.clear.frame(height: 120)
         }
         .background(Palette.bg)
+        .navigationTitle("")
+        .navigationBarTitleDisplayMode(.inline)
         .confirmationDialog("Delete \"\(album.name)\"?", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Delete", role: .destructive) {
-                store.openAlbumID = nil
+                dismiss()
                 store.deleteAlbum(album.id)
             }
         } message: {

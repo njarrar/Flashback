@@ -51,6 +51,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val googleImport = MutableStateFlow<GoogleImport?>(null)
     /** Debug screenshots only: the scene to show, see Demo.kt. */
     val demoScene = MutableStateFlow<String?>(null)
+    /** The last day Today showed, so it can come back with photos in place. */
+    var lastDay: Pair<MonthDay, List<YearGroup>>? = null
     private var toastJob: Job? = null
     private var importJob: Job? = null
 

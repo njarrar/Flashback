@@ -9,7 +9,6 @@ struct TodayView: View {
     @State private var selecting = false
     @State private var picked: [Photo] = []
     @State private var albumFor: [Photo]?
-    @Binding var hideTabs: Bool
 
     var body: some View {
         let day = store.day
@@ -98,18 +97,18 @@ struct TodayView: View {
         .sheet(isPresented: Binding(get: { albumFor != nil }, set: { if !$0 { albumFor = nil } })) {
             AlbumSheet(photos: albumFor ?? [], created: { album in store.openAlbumID = album.id }, done: stopSelecting)
         }
+        .toolbar(selecting ? .hidden : .visible, for: .tabBar)
         .onChange(of: store.tab) { _, _ in stopSelecting() }
         .onChange(of: store.demoCalendar) { _, on in if on { calendar = true } }
     }
 
     private func toggleSelect() {
-        if selecting { stopSelecting() } else { selecting = true; hideTabs = true }
+        if selecting { stopSelecting() } else { selecting = true }
     }
 
     private func stopSelecting() {
         selecting = false
         picked = []
-        hideTabs = false
     }
 
     private func go(_ md: MonthDay) {
