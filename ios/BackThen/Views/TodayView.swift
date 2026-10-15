@@ -9,6 +9,11 @@ struct TodayView: View {
     @State private var selecting = false
     @State private var picked: [Photo] = []
     @State private var albumFor: [Photo]?
+    /// Bottom edge of the top bar and of the big date title, in screen points.
+    @State private var barBottom: CGFloat = 0
+    @State private var titleBottom: CGFloat = .infinity
+    /// Years whose header is pinned under the top bar right now.
+    @State private var pinnedYears: Set<Int> = []
 
     var body: some View {
         let day = store.day
@@ -25,28 +30,15 @@ struct TodayView: View {
         ScrollViewReader { scroll in
             ScrollView {
                 VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 8) {
-                        Spacer()
-                        GlassButton(accessibility: "Options", action: { settings = true }) {
-                            Image(systemName: "ellipsis").font(.system(size: 17, weight: .bold))
-                        }
-                        GlassButton(accessibility: selecting ? "Cancel" : "Select", action: toggleSelect) {
-                            Text(selecting ? "Cancel" : "Select").font(.nunito(15, .semibold))
-                        }
-                        GlassButton(accessibility: "Pick a day", action: { calendar = true }) {
-                            Image(systemName: "calendar").font(.system(size: 17))
-                        }
-                    }
-                    .id("top")
                     Button { calendar = true } label: {
                         HStack(spacing: 8) {
                             Text(day.label).font(.nunito(34, .bold)).tight(34).foregroundStyle(Palette.ink)
                             Image(systemName: "chevron.down").font(.system(size: 16, weight: .bold)).foregroundStyle(Palette.accent)
                         }
                     }
-                    .padding(.top, 6)
                     .accessibilityAddTraits(.isHeader)
                     .accessibilityHint("Pick another day")
+                    .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).maxY } action: { titleBottom = $0 }
                     Text(summary).font(.nunito(15)).foregroundStyle(Palette.muted)
                     if day != today {
                         Pill(label: "Back to today", systemImage: "arrow.uturn.left", kind: .tint, height: 34) { go(today) }
@@ -54,16 +46,26 @@ struct TodayView: View {
                     }
                 }
                 .padding(.horizontal, 20)
+                .padding(.top, 4)
+                .padding(.bottom, 12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .id("top")
 
                 if let groups {
                     if groups.isEmpty {
                         EmptyDay(day: day, noSources: !store.saved.sources.device && !store.saved.sources.google,
                                  near: nearbyDays(store.index, day), go: go, connect: { settings = true })
                     } else {
-                        LazyVStack(spacing: 0) {
+                        LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
                             ForEach(groups) { g in
-                                YearSection(group: g, day: day, selection: selection) {
-                                    Task { await Share.photos(g.photos, title: "\(day.label), \(g.year)") }
+                                Section {
+                                    YearSection(group: g, day: day, selection: selection) {
+                                        Task { await Share.photos(g.photos, title: "\(day.label), \(g.year)") }
+                                    }
+                                } header: {
+                                    PinnedYear(group: g, day: day, barBottom: barBottom, pinned: $pinnedYears) {
+                                        Task { await Share.photos(g.photos, title: "\(day.label), \(g.year)") }
+                                    }
                                 }
                             }
                         }
@@ -75,6 +77,7 @@ struct TodayView: View {
             }
             .refreshable { await store.refreshIndex() }
             .onChange(of: store.day) { _, _ in scroll.scrollTo("top") }
+            .safeAreaInset(edge: .top, spacing: 0) { topBar(day) }
         }
         .background(Palette.bg)
         .task(id: "\(day.key)-\(store.index.count)-\(store.saved.googlePhotos.count)-\(store.saved.sources.device)") {
@@ -100,6 +103,52 @@ struct TodayView: View {
         .toolbar(selecting ? .hidden : .visible, for: .tabBar)
         .onChange(of: store.tab) { _, _ in stopSelecting() }
         .onChange(of: store.demoCalendar) { _, on in if on { calendar = true } }
+    }
+
+    /// How far the big title has gone under the top bar: 0 at rest, 1 once it is hidden.
+    private var scrolled: CGFloat {
+        min(max((barBottom + 20 - titleBottom) / 20, 0), 1)
+    }
+
+    /// The bar at the top of Today. Clear at rest; once the date title scrolls under it,
+    /// it blurs what passes beneath and shows a small date title of its own.
+    private func topBar(_ day: MonthDay) -> some View {
+        let p = scrolled
+        let size: CGFloat = p > 0.5 ? 36 : 40
+        return HStack(spacing: 8) {
+            Button { calendar = true } label: {
+                HStack(spacing: 6) {
+                    Text(day.label).font(.nunito(17, .bold)).foregroundStyle(Palette.ink)
+                    Image(systemName: "chevron.down").font(.system(size: 13, weight: .bold)).foregroundStyle(Palette.accent)
+                }
+            }
+            .opacity(p)
+            .allowsHitTesting(p > 0.5)
+            .accessibilityHidden(p < 0.5)
+            .accessibilityLabel(day.label)
+            .accessibilityHint("Pick another day")
+            Spacer()
+            GlassButton(accessibility: selecting ? "Cancel" : "Select", size: size, action: toggleSelect) {
+                Text(selecting ? "Cancel" : "Select").font(.nunito(15, .semibold))
+            }
+            GlassButton(accessibility: "Pick a day", size: size, action: { calendar = true }) {
+                Image(systemName: "calendar").font(.system(size: 17))
+            }
+            GlassButton(accessibility: "Options", size: size, action: { settings = true }) {
+                Image(systemName: "ellipsis").font(.system(size: 17, weight: .bold))
+            }
+        }
+        .animation(.easeOut(duration: 0.15), value: size)
+        .padding(.leading, 20).padding(.trailing, 16)
+        .padding(.vertical, 8)
+        .background {
+            Rectangle().fill(.bar).opacity(p).ignoresSafeArea(edges: .top)
+        }
+        .overlay(alignment: .bottom) {
+            // One hairline only: a pinned year header draws its own.
+            Palette.line.frame(height: 1 / 3).opacity(pinnedYears.isEmpty ? p : 0)
+        }
+        .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).maxY } action: { barBottom = $0 }
     }
 
     private func toggleSelect() {

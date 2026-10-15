@@ -51,6 +51,11 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.LargeTopAppBar
+import androidx.compose.material3.Text
+import androidx.compose.material3.rememberTopAppBarState
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.sp
@@ -189,6 +194,7 @@ fun OnboardingScreen(vm: AppViewModel) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, scrollTop: Flow<Tab>, onSelectingChange: (Boolean) -> Unit) {
     val p = LocalPalette.current
@@ -208,6 +214,7 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
     var picked by remember { mutableStateOf(listOf<Photo>()) }
     var albumFor by remember { mutableStateOf<List<Photo>?>(null) }
     val list = rememberLazyListState()
+    val topBar = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
     val scope = rememberCoroutineScope()
     val index = vm.index(state)
     val startGoogle = rememberGoogleImport(vm)
@@ -217,7 +224,12 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
     }
 
     LaunchedEffect(day, index) { result = (day to vm.photosFor(day)).also { vm.lastDay = it } }
-    LaunchedEffect(Unit) { scrollTop.collect { list.animateScrollToItem(0) } }
+    LaunchedEffect(Unit) {
+        scrollTop.collect {
+            list.animateScrollToItem(0)
+            topBar.state.heightOffset = 0f
+        }
+    }
     val groups = result?.takeIf { it.first == day }?.second
 
     fun stopSelecting() { selecting = false; picked = emptyList(); onSelectingChange(false) }
@@ -225,7 +237,7 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
         calendar = false
         stopSelecting()
         vm.day.value = md
-        scope.launch { list.scrollToItem(0) }
+        scope.launch { list.scrollToItem(0); topBar.state.heightOffset = 0f }
     }
     BackHandler(enabled = selecting) { stopSelecting() }
 
@@ -242,44 +254,73 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
     val favorites = state.favorites.map { it.key }.toSet()
 
     Box(Modifier.fillMaxSize().background(p.bg)) {
-        LazyColumn(state = list, contentPadding = PaddingValues(bottom = bottomPadding + 24.dp), modifier = Modifier.statusBarsPadding()) {
-            item {
-                Row(Modifier.fillMaxWidth().height(64.dp).padding(start = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    T("Back Then", size = 20, weight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                    TextButton(onClick = { if (selecting) stopSelecting() else { selecting = true; onSelectingChange(true) } }) {
-                        T(if (selecting) "Cancel" else "Select", size = 15, weight = FontWeight.SemiBold)
-                    }
-                    IconButton(onClick = { calendar = true }) { Icon(Icons.Outlined.CalendarMonth, "Pick a day", tint = p.ink) }
-                    IconButton(onClick = { settings = true }) { Icon(Icons.Outlined.MoreVert, "Options", tint = p.ink) }
-                }
-                Column(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
-                    Row(
-                        Modifier.clip(RoundedCornerShape(8.dp)).clickable(role = Role.Button) { calendar = true },
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        T(day.label(), size = 32, weight = FontWeight.Bold, tight = true, modifier = Modifier.semantics { heading() })
-                        Icon(Icons.Filled.ArrowDropDown, "Pick another day", tint = Accent)
-                    }
-                    T(summary, size = 15, muted = true)
-                }
-                if (day != today) {
-                    Row(Modifier.padding(start = 16.dp, top = 8.dp)) {
-                        Pill("Back to today", { go(today) }, kind = Kind.Tint, height = 34.dp, icon = { Icon(Icons.AutoMirrored.Filled.Undo, null, tint = it, modifier = Modifier.size(14.dp)) })
-                    }
-                }
+        Column(Modifier.fillMaxSize().nestedScroll(topBar.nestedScrollConnection)) {
+            // The date is the title: large at rest, title size once the list scrolls.
+            MaterialTheme(
+                typography = MaterialTheme.typography.copy(
+                    headlineMedium = TextStyle(fontFamily = Nunito, fontWeight = FontWeight.Bold, fontSize = 32.sp, lineHeight = 36.sp, letterSpacing = (-0.96).sp),
+                    titleLarge = TextStyle(fontFamily = Nunito, fontWeight = FontWeight.Bold, fontSize = 20.sp, lineHeight = 26.sp),
+                ),
+            ) {
+                LargeTopAppBar(
+                    title = {
+                        Row(
+                            Modifier.clip(RoundedCornerShape(8.dp)).clickable(role = Role.Button) { calendar = true }.semantics { heading() },
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(day.label(), color = p.ink)
+                            Icon(Icons.Filled.ArrowDropDown, "Pick another day", tint = Accent)
+                        }
+                    },
+                    actions = {
+                        TextButton(onClick = { if (selecting) stopSelecting() else { selecting = true; onSelectingChange(true) } }) {
+                            T(if (selecting) "Cancel" else "Select", size = 15, weight = FontWeight.SemiBold)
+                        }
+                        IconButton(onClick = { calendar = true }) { Icon(Icons.Outlined.CalendarMonth, "Pick a day", tint = p.ink) }
+                        IconButton(onClick = { settings = true }) { Icon(Icons.Outlined.MoreVert, "Options", tint = p.ink) }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = p.bg, scrolledContainerColor = p.bg.copy(alpha = 0.92f)),
+                    scrollBehavior = topBar,
+                )
             }
-            when {
-                groups == null -> item { Skeleton() }
-                groups.isEmpty() -> item {
-                    val noSources = !state.sources.device && !state.sources.google
-                    EmptyDay(day, noSources, nearbyDays(index, day), onGo = ::go, onConnect = { settings = true })
+            LazyColumn(state = list, contentPadding = PaddingValues(bottom = bottomPadding + 24.dp), modifier = Modifier.fillMaxSize()) {
+                item(key = "summary") {
+                    Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp)) {
+                        T(summary, size = 15, muted = true)
+                        if (day != today) {
+                            Row(Modifier.padding(top = 8.dp)) {
+                                Pill("Back to today", { go(today) }, kind = Kind.Tint, height = 34.dp, icon = { Icon(Icons.AutoMirrored.Filled.Undo, null, tint = it, modifier = Modifier.size(14.dp)) })
+                            }
+                        }
+                    }
                 }
-                else -> items(groups, key = { it.year }) { g ->
-                    YearSection(
-                        g.year, g.photos, day, favorites, selection,
-                        onOpen = { i -> vm.viewer.value = com.njarrar.backthen.Viewer(g.photos, i) },
-                        onShare = { sharePhotos(context, g.photos, "${day.label()}, ${g.year}") },
-                    )
+                when {
+                    groups == null -> item { Skeleton() }
+                    groups.isEmpty() -> item {
+                        val noSources = !state.sources.device && !state.sources.google
+                        EmptyDay(day, noSources, nearbyDays(index, day), onGo = ::go, onConnect = { settings = true })
+                    }
+                    else -> groups.forEach { g ->
+                        val share = { sharePhotos(context, g.photos, "${day.label()}, ${g.year}") }
+                        val pinKey = "pin-${g.year}"
+                        stickyHeader(key = pinKey) {
+                            // Shown only while pinned to the top of the list; the big header covers this space otherwise.
+                            val pinned by remember {
+                                derivedStateOf {
+                                    list.layoutInfo.visibleItemsInfo.firstOrNull { it.key == pinKey }
+                                        ?.let { it.offset <= list.layoutInfo.viewportStartOffset } == true
+                                }
+                            }
+                            YearBar(g.year, g.photos.size, day, pinned, onShare = share)
+                        }
+                        item(key = "head-${g.year}") { YearHeader(g.year, g.photos.size, day, onShare = share) }
+                        item(key = "photos-${g.year}") {
+                            YearMosaic(
+                                g.photos, favorites, selection,
+                                onOpen = { i -> vm.viewer.value = com.njarrar.backthen.Viewer(g.photos, i) },
+                            )
+                        }
+                    }
                 }
             }
         }

@@ -82,6 +82,7 @@ struct PressStyle: ButtonStyle {
 /// Round glass button used in the iPhone header.
 struct GlassButton<Label: View>: View {
     let accessibility: String
+    var size: CGFloat = 40
     let action: () -> Void
     @ViewBuilder let label: () -> Label
 
@@ -89,7 +90,7 @@ struct GlassButton<Label: View>: View {
         Button(action: action) {
             label()
                 .foregroundStyle(Palette.ink)
-                .frame(minWidth: 40, minHeight: 40)
+                .frame(minWidth: size, minHeight: size)
                 .padding(.horizontal, Label.self == Text.self ? 16 : 0)
                 .background(Palette.glass, in: Capsule())
                 .overlay(Capsule().stroke(Palette.line, lineWidth: 1))
@@ -206,7 +207,8 @@ struct PhotoTile: View {
     }
 }
 
-/// One year's photos for the chosen day: a big year number, then a mosaic.
+/// One year's photos for the chosen day: a big year header, then a mosaic.
+/// Sits under its `PinnedYear` header, drawn over the header's space while that is hidden.
 struct YearSection: View {
     @Environment(AppStore.self) private var store
     let group: YearGroup
@@ -216,13 +218,23 @@ struct YearSection: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            HStack(alignment: .bottom) {
+            HStack(alignment: .bottom, spacing: 10) {
                 Text(String(group.year)).font(.nunito(56, .black)).tight(56).foregroundStyle(Palette.ink)
                     .accessibilityAddTraits(.isHeader)
-                Spacer()
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text(agoLabel(group.year)).font(.nunito(14, .semibold)).foregroundStyle(Palette.ink)
-                    Text("\(weekday(year: group.year, day)), \(plural(group.photos.count, "photo"))").font(.nunito(13)).foregroundStyle(Palette.muted)
+                Spacer(minLength: 0)
+                HStack(spacing: 10) {
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text(agoLabel(group.year)).font(.nunito(14, .semibold)).foregroundStyle(Palette.ink)
+                        Text("\(weekday(year: group.year, day)), \(plural(group.photos.count, "photo"))").font(.nunito(13)).foregroundStyle(Palette.muted)
+                    }
+                    Button(action: share) {
+                        Image(systemName: "square.and.arrow.up").font(.system(size: 18)).foregroundStyle(Palette.ink)
+                            .frame(width: 36, height: 36)
+                            .background(Palette.glass, in: Circle())
+                            .overlay(Circle().stroke(Palette.line, lineWidth: 1))
+                    }
+                    .buttonStyle(PressStyle())
+                    .accessibilityLabel("Share \(String(group.year))")
                 }
                 .padding(.bottom, 8)
             }
@@ -235,7 +247,7 @@ struct YearSection: View {
                 ZStack(alignment: .topLeading) {
                     ForEach(Array(group.photos.enumerated()), id: \.element.key) { i, photo in
                         let t = layout.tiles[i]
-                        PhotoTile(photo: photo, radius: 10, selection: selection) {
+                        PhotoTile(photo: photo, radius: 12, selection: selection) {
                             store.viewer = Viewer(photos: group.photos, start: i)
                         }
                         .frame(width: cell * CGFloat(t.cols) + gap * CGFloat(t.cols - 1), height: row * CGFloat(t.rows) + gap * CGFloat(t.rows - 1))
@@ -247,18 +259,53 @@ struct YearSection: View {
                 let rows = CGFloat(layoutMosaic(group.photos.count).rows)
                 return rows * 54 + (rows - 1) * 4
             }())
-
-            HStack {
-                Spacer()
-                Button(action: share) {
-                    Label("Share \(String(group.year))", systemImage: "square.and.arrow.up")
-                        .font(.nunito(13, .semibold)).foregroundStyle(Palette.muted)
-                        .padding(.horizontal, 10).frame(height: 32)
-                }
-            }
         }
         .padding(.horizontal, 16)
-        .padding(.top, 28)
+        // Start where the pinned header sits; that header stays hidden until it pins.
+        .padding(.top, -PinnedYear.height)
+        // Space before the next year.
+        .padding(.bottom, 28)
+    }
+}
+
+/// Compact year bar that pins under Today's top bar while that year scrolls past.
+/// Hidden while the year's big header is in its place.
+struct PinnedYear: View {
+    static let height: CGFloat = 44
+    let group: YearGroup
+    let day: MonthDay
+    let barBottom: CGFloat
+    @Binding var pinned: Set<Int>
+    let share: () -> Void
+    @State private var top: CGFloat = .infinity
+    @Environment(\.displayScale) private var scale
+
+    var body: some View {
+        let on = top <= barBottom + 0.5
+        HStack(spacing: 8) {
+            Text(String(group.year)).font(.nunito(26, .black)).tight(26).foregroundStyle(Palette.ink)
+            Text("\(agoLabel(group.year)) · \(weekday(year: group.year, day)), \(plural(group.photos.count, "photo"))")
+                .font(.nunito(14, .medium)).foregroundStyle(Palette.muted).lineLimit(1)
+            Spacer(minLength: 0)
+            Button(action: share) {
+                Image(systemName: "square.and.arrow.up").font(.system(size: 17, weight: .medium)).foregroundStyle(Palette.ink)
+                    .frame(width: 44, height: Self.height)
+            }
+            .accessibilityLabel("Share \(String(group.year))")
+        }
+        .padding(.leading, 20).padding(.trailing, 6)
+        .frame(height: Self.height)
+        .background(.bar)
+        .overlay(alignment: .bottom) { Palette.line.frame(height: 1 / scale) }
+        .opacity(on ? 1 : 0)
+        .allowsHitTesting(on)
+        .accessibilityHidden(!on)
+        .animation(.easeInOut(duration: 0.15), value: on)
+        .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).minY } action: { top = $0 }
+        .onChange(of: on) { _, now in
+            if now { pinned.insert(group.year) } else { pinned.remove(group.year) }
+        }
+        .onDisappear { pinned.remove(group.year) }
     }
 }
 

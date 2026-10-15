@@ -1,6 +1,8 @@
 package com.njarrar.backthen.ui
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
@@ -20,6 +22,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
@@ -27,12 +30,20 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material.icons.outlined.IosShare
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -208,54 +219,88 @@ fun PhotoTile(
     }
 }
 
-/** One year's photos for the chosen day: a big year number, then a mosaic. */
+private val PinnedBarHeight = 44.dp
+
+private fun weekdayOf(year: Int, day: MonthDay) = runCatching {
+    LocalDate.of(year, day.month + 1, day.day).dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault())
+}.getOrDefault("")
+
+/**
+ * The big year header: year number, how long ago, and a share button. It draws itself over
+ * the space of the [YearBar] above it, which stays hidden until that year pins to the top.
+ */
 @Composable
-fun YearSection(
-    year: Int,
-    photos: List<Photo>,
-    day: MonthDay,
-    favorites: Set<String>,
-    selection: Selection,
-    onOpen: (Int) -> Unit,
-    onShare: () -> Unit,
-) {
+fun YearHeader(year: Int, count: Int, day: MonthDay, onShare: () -> Unit) {
     val p = LocalPalette.current
-    val weekday = runCatching {
-        LocalDate.of(year, day.month + 1, day.day).dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault())
-    }.getOrDefault("")
-    Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 28.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.Bottom) {
-            T(year.toString(), size = 56, weight = FontWeight.Black, tight = true, modifier = Modifier.weight(1f))
-            Column(horizontalAlignment = Alignment.End, modifier = Modifier.padding(bottom = 6.dp)) {
+    Row(
+        Modifier
+            .layout { measurable, constraints ->
+                val placeable = measurable.measure(constraints)
+                val up = PinnedBarHeight.roundToPx()
+                layout(placeable.width, (placeable.height - up).coerceAtLeast(0)) { placeable.place(0, -up) }
+            }
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp),
+        verticalAlignment = Alignment.Bottom,
+    ) {
+        T(year.toString(), size = 56, weight = FontWeight.Black, tight = true, modifier = Modifier.weight(1f).semantics { heading() })
+        Row(Modifier.padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(horizontalAlignment = Alignment.End) {
                 T(agoLabel(year), size = 14, weight = FontWeight.SemiBold)
-                T("$weekday, ${plural(photos.size, "photo")}", size = 13, muted = true)
+                T("${weekdayOf(year, day)}, ${plural(count, "photo")}", size = 13, muted = true)
+            }
+            Box(
+                Modifier.size(36.dp).clip(CircleShape).background(p.surface).border(1.dp, p.line, CircleShape)
+                    .clickable(role = Role.Button, onClick = onShare),
+                contentAlignment = Alignment.Center,
+            ) { Icon(Icons.Outlined.IosShare, "Share $year", tint = p.ink, modifier = Modifier.size(18.dp)) }
+        }
+    }
+}
+
+/** Compact year bar that shows while its year is pinned to the top of Today's list. */
+@Composable
+fun YearBar(year: Int, count: Int, day: MonthDay, pinned: Boolean, onShare: () -> Unit) {
+    val p = LocalPalette.current
+    val alpha by animateFloatAsState(if (pinned) 1f else 0f, tween(150), label = "yearBar")
+    Box(
+        Modifier.zIndex(1f).fillMaxWidth().height(PinnedBarHeight)
+            .graphicsLayer { this.alpha = alpha }
+            .background(p.bg.copy(alpha = 0.92f))
+            .then(if (pinned) Modifier else Modifier.clearAndSetSemantics {}),
+    ) {
+        Row(
+            Modifier.fillMaxSize().padding(start = 20.dp, end = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            T(year.toString(), size = 26, weight = FontWeight.Black, tight = true)
+            T("${agoLabel(year)} · ${weekdayOf(year, day)}, ${plural(count, "photo")}", size = 14, weight = FontWeight.Medium, muted = true, maxLines = 1, modifier = Modifier.weight(1f))
+            IconButton(onClick = onShare, enabled = pinned, modifier = Modifier.size(44.dp)) {
+                Icon(Icons.Outlined.IosShare, "Share $year", tint = p.ink, modifier = Modifier.size(20.dp))
             }
         }
-        BoxWithConstraints(Modifier.fillMaxWidth()) {
-            val gap = 4.dp
-            val row = 54.dp
-            val cell = (maxWidth - gap * (COLUMNS - 1)) / COLUMNS
-            val (tiles, rows) = layoutMosaic(photos.size)
-            Box(Modifier.fillMaxWidth().height(row * rows + gap * (rows - 1))) {
-                photos.forEachIndexed { i, photo ->
-                    val t = tiles[i]
-                    PhotoTile(
-                        photo, 10.dp, photo.key in favorites, selection, onOpen = { onOpen(i) },
-                        modifier = Modifier
-                            .offset((cell + gap) * t.col, (row + gap) * t.row)
-                            .size(cell * t.cols + gap * (t.cols - 1), row * t.rows + gap * (t.rows - 1)),
-                    )
-                }
-            }
-        }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            Row(
-                Modifier.clip(RoundedCornerShape(50)).clickable(role = Role.Button, onClick = onShare).padding(horizontal = 10.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Icon(Icons.Outlined.IosShare, null, tint = p.muted, modifier = Modifier.size(15.dp))
-                T("Share $year", size = 13, weight = FontWeight.SemiBold, muted = true)
+        Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().height(1.dp).background(p.line))
+    }
+}
+
+/** One year's photos for the chosen day, as a mosaic of rounded tiles. */
+@Composable
+fun YearMosaic(photos: List<Photo>, favorites: Set<String>, selection: Selection, onOpen: (Int) -> Unit) {
+    BoxWithConstraints(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 28.dp)) {
+        val gap = 4.dp
+        val row = 54.dp
+        val cell = (maxWidth - gap * (COLUMNS - 1)) / COLUMNS
+        val (tiles, rows) = layoutMosaic(photos.size)
+        Box(Modifier.fillMaxWidth().height(row * rows + gap * (rows - 1))) {
+            photos.forEachIndexed { i, photo ->
+                val t = tiles[i]
+                PhotoTile(
+                    photo, 12.dp, photo.key in favorites, selection, onOpen = { onOpen(i) },
+                    modifier = Modifier
+                        .offset((cell + gap) * t.col, (row + gap) * t.row)
+                        .size(cell * t.cols + gap * (t.cols - 1), row * t.rows + gap * (t.rows - 1)),
+                )
             }
         }
     }
