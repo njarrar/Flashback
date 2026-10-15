@@ -172,6 +172,12 @@ final class AppStore {
         say("Added to \(saved.albums[i].name)")
     }
 
+    func renameAlbum(id: String, name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty, let i = saved.albums.firstIndex(where: { $0.id == id }) else { return }
+        saved.albums[i].name = trimmed
+    }
+
     func deleteAlbum(_ id: String) {
         saved.albums.removeAll { $0.id == id }
     }

@@ -32,17 +32,28 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.HideImage
+import androidx.compose.material.icons.outlined.IosShare
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -428,37 +439,93 @@ fun AlbumsScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, s
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlbumScreen(vm: AppViewModel, album: Album, bottomPadding: androidx.compose.ui.unit.Dp, scrollTop: Flow<Tab>, onBack: () -> Unit) {
     val p = LocalPalette.current
     val context = LocalContext.current
+    val state by vm.saved.collectAsStateWithLifecycle()
     var confirmDelete by remember { mutableStateOf(false) }
+    var menu by remember { mutableStateOf(false) }
+    var renaming by remember { mutableStateOf(false) }
     val made = localDate(album.createdAt)
     val list = rememberLazyListState()
     LaunchedEffect(Unit) { scrollTop.collect { list.animateScrollToItem(0) } }
     BackHandler(onBack = onBack)
-    LazyColumn(state = list, modifier = Modifier.fillMaxSize().background(p.bg).statusBarsPadding(), contentPadding = PaddingValues(bottom = bottomPadding + 24.dp)) {
-        item {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+    Column(Modifier.fillMaxSize().background(p.bg)) {
+        TopAppBar(
+            title = {},
+            navigationIcon = {
                 IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Albums", tint = p.ink) }
-                Spacer(Modifier.weight(1f))
-                IconButton(onClick = { vm.saveAlbumToGallery(album) }) { Icon(Icons.Outlined.Download, "Save to gallery", tint = p.ink) }
-                IconButton(onClick = { confirmDelete = true }) { Icon(Icons.Outlined.Delete, "Delete album", tint = p.ink) }
-                Pill("Share album", { sharePhotos(context, album.photos, album.name) }, kind = Kind.Accent, height = 40.dp, modifier = Modifier.padding(end = 12.dp))
+            },
+            actions = {
+                Box {
+                    IconButton(onClick = { menu = true }) { Icon(Icons.Outlined.MoreVert, "More", tint = p.ink) }
+                    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }, containerColor = p.surface) {
+                        DropdownMenuItem(text = { T("Rename") }, onClick = { menu = false; renaming = true })
+                        HorizontalDivider(color = p.line)
+                        DropdownMenuItem(
+                            text = { T("Delete album", color = MaterialTheme.colorScheme.error) },
+                            onClick = { menu = false; confirmDelete = true },
+                        )
+                    }
+                }
+            },
+            colors = TopAppBarDefaults.topAppBarColors(containerColor = p.bg, scrolledContainerColor = p.bg),
+        )
+        LazyColumn(state = list, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = bottomPadding + 24.dp)) {
+            item {
+                Column(Modifier.padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 16.dp)) {
+                    T(album.name, size = 30, weight = FontWeight.Bold, tight = true, modifier = Modifier.semantics { heading() })
+                    T("${plural(album.photos.size, "photo")} · made ${MONTHS_SHORT[made.monthValue - 1]} ${made.dayOfMonth}", size = 15, muted = true)
+                }
+                Row(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Pill(
+                        "Share album", { sharePhotos(context, album.photos, album.name) }, height = 46.dp, modifier = Modifier.weight(1f),
+                        icon = { Icon(Icons.Outlined.IosShare, null, tint = it, modifier = Modifier.size(18.dp)) },
+                    )
+                    Pill(
+                        "Save to gallery", { vm.saveAlbumToGallery(album) }, kind = Kind.Secondary, height = 46.dp, modifier = Modifier.weight(1f),
+                        icon = { Icon(Icons.Outlined.Download, null, tint = it, modifier = Modifier.size(18.dp)) },
+                    )
+                }
+                SquareGrid(album.photos, state.favorites.map { it.key }.toSet(), showYear = false) { i -> vm.viewer.value = com.njarrar.backthen.Viewer(album.photos, i) }
             }
-            Column(Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 16.dp)) {
-                T(album.name, size = 30, weight = FontWeight.Bold, tight = true, modifier = Modifier.semantics { heading() })
-                T("${plural(album.photos.size, "photo")}, made ${MONTHS_SHORT[made.monthValue - 1]} ${made.dayOfMonth}", size = 15, muted = true)
-            }
-            SquareGrid(album.photos, emptySet(), showYear = false) { i -> vm.viewer.value = com.njarrar.backthen.Viewer(album.photos, i) }
         }
+    }
+    if (renaming) {
+        var name by remember { mutableStateOf(album.name) }
+        AlertDialog(
+            onDismissRequest = { renaming = false },
+            containerColor = p.surface,
+            title = { T("Rename album", size = 20, weight = FontWeight.Bold) },
+            text = {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    singleLine = true,
+                    textStyle = TextStyle(fontFamily = Nunito, fontWeight = FontWeight.Medium, fontSize = 16.sp, color = p.ink),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = p.ink, unfocusedBorderColor = p.line, cursorColor = p.ink),
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { vm.renameAlbum(album.id, name); renaming = false }, enabled = name.isNotBlank()) { T("Save", weight = FontWeight.SemiBold) }
+            },
+            dismissButton = { TextButton(onClick = { renaming = false }) { T("Cancel", weight = FontWeight.SemiBold) } },
+        )
     }
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
+            containerColor = p.surface,
             title = { T("Delete \"${album.name}\"?", size = 20, weight = FontWeight.Bold) },
             text = { T("The photos stay in your library.", muted = true) },
-            confirmButton = { TextButton(onClick = { confirmDelete = false; onBack(); vm.deleteAlbum(album.id) }) { T("Delete", weight = FontWeight.SemiBold, color = Accent) } },
+            confirmButton = {
+                TextButton(onClick = { confirmDelete = false; onBack(); vm.deleteAlbum(album.id) }) {
+                    T("Delete album", weight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.error)
+                }
+            },
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { T("Cancel", weight = FontWeight.SemiBold) } },
         )
     }

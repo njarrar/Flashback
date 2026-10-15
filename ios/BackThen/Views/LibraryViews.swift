@@ -67,6 +67,8 @@ struct AlbumsView: View {
                     }
                 }
         }
+        // Back button and menu stay ink; coral is kept for the active tab.
+        .tint(Palette.ink)
         // Other screens ask for an album by setting openAlbumID; turn that into a push.
         .task(id: store.openAlbumID) {
             guard let id = store.openAlbumID else { return }
@@ -124,38 +126,56 @@ struct AlbumDetailView: View {
     @Environment(\.dismiss) private var dismiss
     let album: Album
     @State private var confirmDelete = false
+    @State private var renaming = false
+    @State private var newName = ""
 
     var body: some View {
         ScrollView {
-            HStack(spacing: 8) {
-                Spacer()
-                GlassButton(accessibility: "Save to Photos", action: { Task { await store.saveToPhotos(album) } }) {
-                    Image(systemName: "square.and.arrow.down").font(.system(size: 16))
-                }
-                GlassButton(accessibility: "Delete album", action: { confirmDelete = true }) {
-                    Image(systemName: "trash").font(.system(size: 16))
-                }
-                Pill(label: "Share album", systemImage: "square.and.arrow.up", kind: .accent, height: 40) {
-                    Task { await Share.photos(album.photos, title: album.name) }
-                }
-                .fixedSize()
-            }
-            .padding(.horizontal, 16).padding(.top, 8)
             VStack(alignment: .leading, spacing: 4) {
                 Text(album.name).font(.nunito(30, .bold)).tight(30).foregroundStyle(Palette.ink).accessibilityAddTraits(.isHeader)
-                Text("\(plural(album.photos.count, "photo")), made \(album.createdAt.formatted(.dateTime.month(.abbreviated).day()))")
+                Text("\(plural(album.photos.count, "photo")) · made \(album.createdAt.formatted(.dateTime.month(.abbreviated).day()))")
                     .font(.nunito(15)).foregroundStyle(Palette.muted)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 20).padding(.top, 12).padding(.bottom, 16)
+            .padding(.horizontal, 20).padding(.top, 4).padding(.bottom, 16)
+            HStack(spacing: 10) {
+                Pill(label: "Share album", systemImage: "square.and.arrow.up", height: 46, wide: true) {
+                    Task { await Share.photos(album.photos, title: album.name) }
+                }
+                Pill(label: "Save to Photos", systemImage: "square.and.arrow.down", kind: .secondary, height: 46, wide: true) {
+                    Task { await store.saveToPhotos(album) }
+                }
+            }
+            .padding(.horizontal, 16).padding(.bottom, 16)
             SquareGrid(photos: album.photos)
             Color.clear.frame(height: 120)
         }
         .background(Palette.bg)
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Button("Rename", systemImage: "pencil") {
+                        newName = album.name
+                        renaming = true
+                    }
+                    Divider()
+                    Button("Delete album", systemImage: "trash", role: .destructive) { confirmDelete = true }
+                } label: {
+                    Image(systemName: "ellipsis").font(.system(size: 17, weight: .bold))
+                }
+                .accessibilityLabel("More")
+            }
+        }
+        .alert("Rename album", isPresented: $renaming) {
+            TextField("Album name", text: $newName)
+            Button("Cancel", role: .cancel) {}
+            Button("Save") { store.renameAlbum(id: album.id, name: newName) }
+                .disabled(newName.trimmingCharacters(in: .whitespaces).isEmpty)
+        }
         .confirmationDialog("Delete \"\(album.name)\"?", isPresented: $confirmDelete, titleVisibility: .visible) {
-            Button("Delete", role: .destructive) {
+            Button("Delete album", role: .destructive) {
                 dismiss()
                 store.deleteAlbum(album.id)
             }

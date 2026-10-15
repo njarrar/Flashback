@@ -42,6 +42,8 @@ struct Pill: View {
     var systemImage: String?
     var kind: PillKind = .primary
     var height: CGFloat = 54
+    /// Stretch to the full width given. Defaults to ghost pills and tall pills.
+    var wide: Bool?
     var action: () -> Void
 
     @Environment(\.isEnabled) private var enabled
@@ -62,7 +64,7 @@ struct Pill: View {
             .foregroundStyle(fg)
             .padding(.horizontal, height < 48 ? 16 : 20)
             .frame(height: height)
-            .frame(maxWidth: kind == .ghost || height >= 54 ? .infinity : nil)
+            .frame(maxWidth: wide ?? (kind == .ghost || height >= 54) ? .infinity : nil)
             .background(bg, in: Capsule())
             .overlay(Capsule().stroke(kind == .secondary ? Palette.line : .clear, lineWidth: 1))
             .opacity(enabled ? 1 : 0.4)

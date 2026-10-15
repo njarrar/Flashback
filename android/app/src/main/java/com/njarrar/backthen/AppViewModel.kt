@@ -150,6 +150,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         say("Added to ${_saved.value.albums.firstOrNull { it.id == id }?.name ?: "album"}")
     }
 
+    fun renameAlbum(id: String, name: String) {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return
+        update { s -> s.copy(albums = s.albums.map { if (it.id == id) it.copy(name = trimmed) else it }) }
+    }
+
     fun deleteAlbum(id: String) = update { s -> s.copy(albums = s.albums.filterNot { it.id == id }) }
 
     fun saveAlbumToGallery(album: Album) = viewModelScope.launch {
