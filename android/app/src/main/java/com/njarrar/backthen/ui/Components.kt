@@ -1,10 +1,12 @@
 package com.njarrar.backthen.ui
 
+import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -47,6 +49,7 @@ import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -340,12 +343,15 @@ fun YearChip(year: Int, modifier: Modifier = Modifier) {
 
 /** A tilted print for the welcome screen. */
 @Composable
-fun Print(year: Int, label: String, color: Color, width: Dp, angle: Float, modifier: Modifier = Modifier) {
+fun Print(year: Int, label: String, @DrawableRes drawing: Int, width: Dp, angle: Float, modifier: Modifier = Modifier) {
     val p = LocalPalette.current
     Column(
         modifier.width(width).rotate(angle).background(p.surface, RoundedCornerShape(10.dp)).padding(start = 8.dp, end = 8.dp, top = 8.dp),
     ) {
-        Box(Modifier.fillMaxWidth().aspectRatio(4f / 5f).background(color.copy(alpha = 0.85f), RoundedCornerShape(6.dp)))
+        Image(
+            painterResource(drawing), null, contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxWidth().aspectRatio(4f / 5f).clip(RoundedCornerShape(6.dp)),
+        )
         Row(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 10.dp, start = 2.dp, end = 2.dp), verticalAlignment = Alignment.Bottom) {
             T(year.toString(), size = if (width > 160.dp) 26 else 22, weight = FontWeight.Black, tight = true, modifier = Modifier.weight(1f))
             T(label, size = 11, weight = FontWeight.Medium, muted = true)

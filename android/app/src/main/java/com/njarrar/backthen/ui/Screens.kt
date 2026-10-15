@@ -35,6 +35,7 @@ import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.HideImage
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.IosShare
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.PhotoLibrary
@@ -58,6 +59,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -80,6 +82,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.njarrar.backthen.AppViewModel
+import com.njarrar.backthen.R
 import com.njarrar.backthen.core.Album
 import com.njarrar.backthen.core.MONTHS_SHORT
 import com.njarrar.backthen.core.MonthDay
@@ -165,9 +168,9 @@ fun OnboardingScreen(vm: AppViewModel) {
         }
         Box(Modifier.weight(1f).fillMaxWidth().heightIn(min = 260.dp)) {
             val label = today.shortLabel()
-            Print(2016, label, Color(0xFFFFC93C), 150.dp, -7f, Modifier.offset(8.dp, 36.dp))
-            Print(2021, label, Color(0xFF2E7BFF), 150.dp, 6f, Modifier.align(Alignment.TopEnd).offset((-4).dp, 8.dp))
-            Print(2025, label, Color(0xFFFF4B3E), 176.dp, -1.5f, Modifier.align(Alignment.TopCenter).offset(y = 118.dp))
+            Print(2016, label, R.drawable.welcome_2016_hills, 150.dp, -7f, Modifier.offset(8.dp, 36.dp))
+            Print(2021, label, R.drawable.welcome_2021_sail, 150.dp, 6f, Modifier.align(Alignment.TopEnd).offset((-4).dp, 8.dp))
+            Print(2025, label, R.drawable.welcome_2025_cake, 176.dp, -1.5f, Modifier.align(Alignment.TopCenter).offset(y = 118.dp))
         }
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             T("See what this day looked like, every year.", size = 32, weight = FontWeight.Bold, tight = true, modifier = Modifier.semantics { heading() })
@@ -183,6 +186,17 @@ fun OnboardingScreen(vm: AppViewModel) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Pill("Use Google Photos", { google = true }, modifier = Modifier.fillMaxWidth())
             Pill("Use photos on this phone", askPhotos, kind = Kind.Secondary, modifier = Modifier.fillMaxWidth())
+            Row(
+                Modifier.fillMaxWidth().padding(top = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Outlined.Lock, null, tint = p.muted, modifier = Modifier.size(13.dp))
+                Text(
+                    "Your photos stay on this phone. Nothing is uploaded.", color = p.muted, textAlign = TextAlign.Center,
+                    style = TextStyle(fontFamily = Nunito, fontWeight = FontWeight.Medium, fontSize = 13.sp, lineHeight = 18.sp),
+                )
+            }
         }
     }
     if (google) {

@@ -384,13 +384,15 @@ struct SelectBar: View {
 struct Print: View {
     let year: Int
     let label: String
-    let color: Color
+    /// A 4:5 drawing from the asset catalog.
+    let image: String
     let width: CGFloat
     let angle: Double
 
     var body: some View {
         VStack(spacing: 0) {
-            RoundedRectangle(cornerRadius: 6).fill(color.opacity(0.85)).aspectRatio(4 / 5, contentMode: .fit)
+            Image(image).resizable().aspectRatio(4 / 5, contentMode: .fit)
+                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
             HStack(alignment: .lastTextBaseline) {
                 Text(String(year)).font(.nunito(width > 160 ? 26 : 22, .black)).tight(22).foregroundStyle(Palette.ink)
                 Spacer()
