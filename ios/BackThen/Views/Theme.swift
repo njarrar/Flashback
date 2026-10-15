@@ -29,6 +29,10 @@ enum Palette {
     /// Year chip on browse grid tiles: white text on a dark capsule, the same in both themes.
     static let chip = Color(uiColor: ui(0x000000, 0.36))
     static let chipInk = Color.white
+    /// Photo viewer: photos on near-black, light text and controls, a brighter heart.
+    static let viewerBg = Color(uiColor: ui(0x0D0D0E))
+    static let viewerInk = Color(uiColor: ui(0xF4F4F2))
+    static let viewerHeart = Color(uiColor: ui(0xFF6A52))
 
     static func hex(_ hex: UInt32, _ alpha: Double = 1) -> Color { Color(uiColor: ui(hex, alpha)) }
 }

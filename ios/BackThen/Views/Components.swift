@@ -22,16 +22,21 @@ struct PhotoImage: View {
             }
             .task(id: "\(photo.key)-\(Int(geo.size.width))") {
                 let px = CGSize(width: geo.size.width * scale, height: geo.size.height * scale)
-                switch photo.source {
-                case .device:
-                    image = await PhotoLibrary.image(id: photo.ref, size: contentMode == .fit ? CGSize(width: 2048, height: 2048) : px)
-                case .google:
-                    let url = GooglePhotos.fileURL(photo.ref)
-                    image = await Task.detached { UIImage(contentsOfFile: url.path)?.preparingThumbnail(of: px) ?? UIImage(contentsOfFile: url.path) }.value
-                }
+                image = await loadImage(photo, size: contentMode == .fit ? CGSize(width: 2048, height: 2048) : px)
             }
         }
         .accessibilityLabel("Photo from \(photo.time.formatted(date: .long, time: .omitted))")
+    }
+}
+
+/// Loads a photo from PhotoKit or app storage at about the given pixel size.
+func loadImage(_ photo: Photo, size px: CGSize) async -> UIImage? {
+    switch photo.source {
+    case .device:
+        return await PhotoLibrary.image(id: photo.ref, size: px)
+    case .google:
+        let url = GooglePhotos.fileURL(photo.ref)
+        return await Task.detached { UIImage(contentsOfFile: url.path)?.preparingThumbnail(of: px) ?? UIImage(contentsOfFile: url.path) }.value
     }
 }
 
