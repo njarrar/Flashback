@@ -234,28 +234,41 @@ struct YearSection: View {
     let selection: Selection
     let share: () -> Void
 
+    private var year: some View {
+        Text(String(group.year)).font(.nunito(56, .black)).tight(56).foregroundStyle(Palette.ink)
+            .accessibilityAddTraits(.isHeader)
+    }
+
+    private var details: some View {
+        HStack(spacing: 10) {
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(agoLabel(group.year)).font(.nunito(14, .semibold)).foregroundStyle(Palette.ink)
+                Text("\(weekday(year: group.year, day)), \(plural(group.photos.count, "photo"))").font(.nunito(13)).foregroundStyle(Palette.muted)
+            }
+            Button(action: share) {
+                Image(systemName: "square.and.arrow.up").font(.system(size: 18)).foregroundStyle(Palette.ink)
+                    .frame(width: 36, height: 36)
+                    .background(Palette.glass, in: Circle())
+                    .overlay(Circle().stroke(Palette.line, lineWidth: 1))
+            }
+            .buttonStyle(PressStyle())
+            .accessibilityLabel("Share \(String(group.year))")
+        }
+    }
+
     var body: some View {
         VStack(spacing: 12) {
-            HStack(alignment: .bottom, spacing: 10) {
-                Text(String(group.year)).font(.nunito(56, .black)).tight(56).foregroundStyle(Palette.ink)
-                    .accessibilityAddTraits(.isHeader)
-                Spacer(minLength: 0)
-                HStack(spacing: 10) {
-                    VStack(alignment: .trailing, spacing: 2) {
-                        Text(agoLabel(group.year)).font(.nunito(14, .semibold)).foregroundStyle(Palette.ink)
-                        Text("\(weekday(year: group.year, day)), \(plural(group.photos.count, "photo"))").font(.nunito(13)).foregroundStyle(Palette.muted)
-                    }
-                    Button(action: share) {
-                        Image(systemName: "square.and.arrow.up").font(.system(size: 18)).foregroundStyle(Palette.ink)
-                            .frame(width: 36, height: 36)
-                            .background(Palette.glass, in: Circle())
-                            .overlay(Circle().stroke(Palette.line, lineWidth: 1))
-                    }
-                    .buttonStyle(PressStyle())
-                    .accessibilityLabel("Share \(String(group.year))")
+            // One row when it fits; with large text the details drop under the year.
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .bottom, spacing: 10) {
+                    year
+                    Spacer(minLength: 0)
+                    details.fixedSize().padding(.bottom, 8)
                 }
-                .layoutPriority(1)
-                .padding(.bottom, 8)
+                VStack(alignment: .leading, spacing: 4) {
+                    year
+                    details
+                }
             }
             .padding(.horizontal, 4)
 
