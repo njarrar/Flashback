@@ -1,34 +1,66 @@
 package com.njarrar.backthen.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.outlined.AddBox
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.IosShare
+import androidx.compose.material.icons.outlined.LibraryAdd
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
@@ -36,10 +68,27 @@ import com.njarrar.backthen.core.MONTHS
 import com.njarrar.backthen.core.Photo
 import com.njarrar.backthen.core.agoLabel
 import com.njarrar.backthen.core.localDate
+import kotlinx.coroutines.launch
+import me.saket.telephoto.zoomable.DoubleClickToZoomListener
+import me.saket.telephoto.zoomable.ZoomSpec
+import me.saket.telephoto.zoomable.ZoomableState
+import me.saket.telephoto.zoomable.coil3.ZoomableAsyncImage
+import me.saket.telephoto.zoomable.rememberZoomableImageState
+import me.saket.telephoto.zoomable.rememberZoomableState
+import java.time.format.TextStyle
+import java.util.Locale
 
-private val Ink = Color(0xFFF4F4F2)
+/** Double tap goes to 2.5x at the tap, or back to fit from any zoom. */
+private val ToggleZoom = object : DoubleClickToZoomListener {
+    override suspend fun onDoubleClick(state: ZoomableState, centroid: Offset) {
+        if ((state.zoomFraction ?: 0f) > 0.01f) state.resetZoom() else state.zoomTo(2.5f, centroid)
+    }
+}
 
-/** Full-screen photo viewer: swipe between photos, heart, share, add to album. */
+/**
+ * Full-screen photo viewer: swipe between photos, pinch or double tap to zoom, swipe down
+ * to close, tap to hide the controls. Heart, share and add to album at the bottom.
+ */
 @Composable
 fun ViewerScreen(
     photos: List<Photo>,
@@ -55,42 +104,143 @@ fun ViewerScreen(
     val photo = photos.getOrNull(pager.currentPage) ?: return
     val date = localDate(photo.time)
     val fav = photo.key in favorites
+    val scope = rememberCoroutineScope()
+    val density = LocalDensity.current
+    var chrome by remember { mutableStateOf(true) }
+    var zoomed by remember { mutableStateOf(false) }
+    // How far the photo has been pulled down, in pixels.
+    val drag = remember { Animatable(0f) }
+    val fullPull = with(density) { 300.dp.toPx() }
+    val closeAt = with(density) { 120.dp.toPx() }
+    val flick = with(density) { 800.dp.toPx() }
+    val pull = (drag.value.coerceAtLeast(0f) / fullPull).coerceIn(0f, 1f)
+    val view = LocalView.current
+    var shown by remember { mutableStateOf(pager.currentPage) }
+    LaunchedEffect(pager.currentPage) {
+        if (pager.currentPage != shown) { shown = pager.currentPage; Haptics.tick(view) }
+    }
+    val chromeAlpha by animateFloatAsState(if (chrome) 1f else 0f, tween(200), label = "chrome")
 
-    Column(Modifier.fillMaxSize().background(Color(0xFF0D0D0E)).systemBarsPadding()) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onClose, modifier = Modifier.size(44.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.12f))) {
-                Icon(Icons.Filled.Close, "Close", tint = Ink)
-            }
-            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                T("${MONTHS[date.monthValue - 1]} ${date.dayOfMonth}, ${date.year}", size = 15, weight = FontWeight.SemiBold, color = Ink)
-                T("${agoLabel(date.year)}  ·  ${pager.currentPage + 1} of ${photos.size}", size = 13, color = Ink.copy(alpha = 0.62f))
-            }
-            Spacer(Modifier.size(44.dp))
+    Box(Modifier.fillMaxSize()) {
+        Box(Modifier.fillMaxSize().background(ViewerBg.copy(alpha = 1f - pull)))
+        HorizontalPager(
+            state = pager,
+            key = { photos[it].key },
+            userScrollEnabled = !zoomed && drag.value == 0f,
+            modifier = Modifier.fillMaxSize().draggable(
+                orientation = Orientation.Vertical,
+                enabled = !zoomed,
+                state = rememberDraggableState { d -> scope.launch { drag.snapTo(drag.value + d) } },
+                onDragStopped = { velocity ->
+                    if (drag.value > closeAt || velocity > flick) onClose()
+                    else drag.animateTo(0f, spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow))
+                },
+            ),
+        ) { i ->
+            val current = i == pager.currentPage
+            val zoom = rememberZoomableImageState(rememberZoomableState(zoomSpec = ZoomSpec(maxZoomFactor = 4f)))
+            val fraction = zoom.zoomableState.zoomFraction ?: 0f
+            LaunchedEffect(current, fraction) { if (current) zoomed = fraction > 0.01f }
+            // A page that is swiped away goes back to fit.
+            LaunchedEffect(current) { if (!current) zoom.zoomableState.resetZoom(snap()) }
+            ZoomableAsyncImage(
+                model = photos[i].uri,
+                contentDescription = "Photo from ${localDate(photos[i].time)}",
+                state = zoom,
+                contentScale = ContentScale.Fit,
+                onClick = { chrome = !chrome },
+                onDoubleClick = ToggleZoom,
+                modifier = Modifier.fillMaxSize().graphicsLayer {
+                    if (current) {
+                        translationY = drag.value
+                        val s = 1f - 0.15f * (drag.value.coerceAtLeast(0f) / fullPull).coerceIn(0f, 1f)
+                        scaleX = s
+                        scaleY = s
+                    }
+                },
+            )
         }
-        HorizontalPager(state = pager, modifier = Modifier.weight(1f), key = { photos[it].key }) { i ->
-            AsyncImage(photos[i].uri, "Photo", contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
-        }
-        if (photos.size in 2..20) {
-            Row(Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 4.dp), horizontalArrangement = Arrangement.spacedBy(5.dp, Alignment.CenterHorizontally)) {
-                photos.indices.forEach { i ->
-                    Box(Modifier.size(6.dp).clip(CircleShape).background(if (i == pager.currentPage) Ink else Ink.copy(alpha = 0.3f)))
+
+        if (chromeAlpha > 0.01f) {
+            Column(Modifier.fillMaxSize().systemBarsPadding().graphicsLayer { alpha = chromeAlpha * (1f - pull) }) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onClose, enabled = chrome, modifier = Modifier.size(44.dp).clip(CircleShape).background(ViewerInk.copy(alpha = 0.14f))) {
+                        Icon(Icons.Filled.Close, "Close", tint = ViewerInk)
+                    }
+                    Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                        T("${MONTHS[date.monthValue - 1]} ${date.dayOfMonth}, ${date.year}", size = 16, weight = FontWeight.Bold, color = ViewerInk)
+                        val weekday = date.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault())
+                        T("${agoLabel(date.year)} · $weekday", size = 13, color = ViewerInk.copy(alpha = 0.62f))
+                    }
+                    Spacer(Modifier.size(44.dp))
+                }
+                Spacer(Modifier.weight(1f))
+                if (photos.size > 1) {
+                    Filmstrip(photos, pager.currentPage, enabled = chrome) { i -> scope.launch { pager.scrollToPage(i) } }
+                    Spacer(Modifier.height(24.dp))
+                }
+                Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp), horizontalArrangement = Arrangement.SpaceAround) {
+                    IconButton(onClick = { if (!fav) Haptics.confirm(view); onFavorite(photo) }, enabled = chrome, modifier = Modifier.size(56.dp)) {
+                        Icon(
+                            if (fav) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                            if (fav) "Remove from favorites" else "Favorite",
+                            tint = if (fav) ViewerHeart else ViewerInk,
+                            modifier = Modifier.size(28.dp),
+                        )
+                    }
+                    IconButton(onClick = { onShare(photo) }, enabled = chrome, modifier = Modifier.size(56.dp)) {
+                        Icon(Icons.Outlined.IosShare, "Share", tint = ViewerInk, modifier = Modifier.size(28.dp))
+                    }
+                    IconButton(onClick = { onAlbum(photo) }, enabled = chrome, modifier = Modifier.size(56.dp)) {
+                        Icon(Icons.Outlined.LibraryAdd, "Add to album", tint = ViewerInk, modifier = Modifier.size(28.dp))
+                    }
                 }
             }
         }
-        Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp), horizontalArrangement = Arrangement.SpaceAround) {
-            IconButton(onClick = { onFavorite(photo) }, modifier = Modifier.size(56.dp)) {
-                Icon(
-                    if (fav) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                    if (fav) "Remove from favorites" else "Favorite",
-                    tint = if (fav) Color(0xFFFF6A52) else Ink,
-                    modifier = Modifier.size(28.dp),
+    }
+}
+
+/** Small thumbnails of every photo, with the current one wider and outlined. */
+@Composable
+private fun Filmstrip(photos: List<Photo>, index: Int, enabled: Boolean, onPick: (Int) -> Unit) {
+    val strip = rememberLazyListState(initialFirstVisibleItemIndex = index)
+    LaunchedEffect(index) { strip.animateScrollToItem(index) }
+    BoxWithConstraints(Modifier.fillMaxWidth().height(52.dp)) {
+        // Padding on both sides so the current photo, scrolled to the start, sits in the middle.
+        val side = (maxWidth / 2 - 34.dp).coerceAtLeast(0.dp)
+        LazyRow(
+            state = strip,
+            contentPadding = PaddingValues(horizontal = side),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            itemsIndexed(photos, key = { _, p -> p.key }) { i, p ->
+                val on = i == index
+                AsyncImage(
+                    p.uri, null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .padding(horizontal = if (on) 4.dp else 0.dp)
+                        .size(if (on) 60.dp else 30.dp, 44.dp)
+                        .drawWithContent {
+                            drawContent()
+                            if (on) {
+                                // 2 dp outline, 1 dp outside the photo.
+                                val o = 2.dp.toPx()
+                                drawRoundRect(
+                                    ViewerInk, topLeft = Offset(-o, -o), size = Size(size.width + 2 * o, size.height + 2 * o),
+                                    cornerRadius = CornerRadius(4.dp.toPx()), style = Stroke(2.dp.toPx()),
+                                )
+                            }
+                        }
+                        .graphicsLayer { alpha = if (on) 1f else 0.7f }
+                        .clickable(enabled = enabled) { onPick(i) }
+                        .semantics {
+                            contentDescription = "Photo ${i + 1} of ${photos.size}"
+                            selected = on
+                        },
                 )
-            }
-            IconButton(onClick = { onShare(photo) }, modifier = Modifier.size(56.dp)) {
-                Icon(Icons.Outlined.IosShare, "Share", tint = Ink, modifier = Modifier.size(28.dp))
-            }
-            IconButton(onClick = { onAlbum(photo) }, modifier = Modifier.size(56.dp)) {
-                Icon(Icons.Outlined.AddBox, "Add to album", tint = Ink, modifier = Modifier.size(28.dp))
             }
         }
     }

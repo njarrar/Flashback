@@ -16,6 +16,15 @@ import com.njarrar.backthen.R
 // Tokens from the design. One coral accent, kept for hearts, selection and the current day.
 val Accent = Color(0xFFE5533D)
 
+/** Year chip on browse grid tiles: white text on a dark capsule, the same in both themes. */
+val Chip = Color(0x73000000)
+val ChipInk = Color.White
+
+/** Photo viewer: photos on near-black, light text and controls, a brighter heart. */
+val ViewerBg = Color(0xFF0D0D0E)
+val ViewerInk = Color(0xFFF4F4F2)
+val ViewerHeart = Color(0xFFFF6A52)
+
 data class Palette(
     val bg: Color,
     val surface: Color,
@@ -30,6 +39,13 @@ data class Palette(
     val accTint: Color,
     val accInk: Color,
     val navBg: Color,
+    /** Calendar shading: stronger for days with photos from more past years (1, 2 to 3, 4+). */
+    val cal1: Color,
+    val cal2: Color,
+    val cal3: Color,
+    val cal1Ink: Color,
+    val cal2Ink: Color,
+    val cal3Ink: Color,
 )
 
 private val Light = Palette(
@@ -37,6 +53,8 @@ private val Light = Palette(
     muted = Color(0xFF6E6E73), muted2 = Color(0xFF45454A), faint = Color(0xFFA3A3A8), fill = Color(0xFFECECE8),
     fill2 = Color(0xFFE6E6E2), line = Color(0x1A141416), accTint = Color(0xFFFBE4DF), accInk = Color(0xFF9A2E1E),
     navBg = Color(0xFFEDEDE9),
+    cal1 = Color(0xFFFBE4DF), cal2 = Color(0xFFF5B9AC), cal3 = Color(0xFFEC8B77),
+    cal1Ink = Color(0xFF9A2E1E), cal2Ink = Color(0xFF6E1E12), cal3Ink = Color(0xFF4A120A),
 )
 
 private val Dark = Palette(
@@ -44,6 +62,8 @@ private val Dark = Palette(
     muted = Color(0xFF9A9A9F), muted2 = Color(0xFFB4B4B8), faint = Color(0xFF5E5E63), fill = Color(0xFF2A2A2C),
     fill2 = Color(0xFF232325), line = Color(0x1FFFFFFF), accTint = Color(0xFF3A211C), accInk = Color(0xFFFF9C8A),
     navBg = Color(0xFF1A1A1C),
+    cal1 = Color(0xFF3A211C), cal2 = Color(0xFF5A2A21), cal3 = Color(0xFF8A3A2C),
+    cal1Ink = Color(0xFFFF9C8A), cal2Ink = Color(0xFFFFB9AB), cal3Ink = Color(0xFFFFE1DA),
 )
 
 val Nunito = FontFamily(

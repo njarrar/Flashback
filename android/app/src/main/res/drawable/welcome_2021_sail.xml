@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Welcome screen print drawing. Same colors in light and dark mode. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="100dp"
+    android:height="125dp"
+    android:viewportWidth="100"
+    android:viewportHeight="125">
+    <path
+        android:pathData="M0,0h100v125h-100z"
+        android:fillColor="#A9D2FF" />
+    <path
+        android:pathData="M15,34a11,11 0 1 0 22,0a11,11 0 1 0 -22,0z"
+        android:fillColor="#FFC93C" />
+    <path
+        android:pathData="M0,84h100v41h-100z"
+        android:fillColor="#2E7BFF" />
+    <path
+        android:pathData="M0 92 q12.5 -5 25 0 t25 0 t25 0 t25 0"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2"
+        android:strokeAlpha="0.6" />
+    <path
+        android:pathData="M58 40 L58 78 L80 78z"
+        android:fillColor="#FFFFFF" />
+    <path
+        android:pathData="M55 48 L55 78 L40 78z"
+        android:fillColor="#FF4B3E" />
+    <path
+        android:pathData="M38 81 H82 L76 89 H44z"
+        android:fillColor="#1D1B2E" />
+</vector>

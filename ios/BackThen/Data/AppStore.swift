@@ -48,6 +48,8 @@ final class AppStore {
         didSet { if openAlbumID != nil { tab = .albums } }
     }
     var toast: String?
+    /// Counts album creations and additions, for the success haptic.
+    var albumSaves = 0
     /// Debug screenshots only: opens the calendar on Today.
     var demoCalendar = false
     /// Google import progress: nil when idle, (0, 0) while waiting for picks.
@@ -161,6 +163,7 @@ final class AppStore {
     func createAlbum(_ name: String, photos: [Photo]) -> Album {
         let album = Album(id: UUID().uuidString, name: name, photos: photos, createdAt: Date())
         saved.albums.insert(album, at: 0)
+        albumSaves += 1
         say("Album created")
         return album
     }
@@ -169,7 +172,14 @@ final class AppStore {
         guard let i = saved.albums.firstIndex(where: { $0.id == albumID }) else { return }
         let known = Set(saved.albums[i].photos.map(\.key))
         saved.albums[i].photos += photos.filter { !known.contains($0.key) }
+        albumSaves += 1
         say("Added to \(saved.albums[i].name)")
+    }
+
+    func renameAlbum(id: String, name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty, let i = saved.albums.firstIndex(where: { $0.id == id }) else { return }
+        saved.albums[i].name = trimmed
     }
 
     func deleteAlbum(_ id: String) {

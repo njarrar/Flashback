@@ -42,6 +42,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -78,8 +79,9 @@ fun AlbumSheet(
     onDismiss: () -> Unit,
 ) {
     val p = LocalPalette.current
+    val view = LocalView.current
     var name by remember { mutableStateOf("") }
-    val create = { if (name.isNotBlank()) onCreate(name.trim()) }
+    val create = { if (name.isNotBlank()) { Haptics.confirm(view); onCreate(name.trim()) } }
     BottomSheet(onDismiss) {
         Column {
             T("Add to album", size = 22, weight = FontWeight.Bold)
@@ -109,7 +111,7 @@ fun AlbumSheet(
                 LazyColumn(Modifier.heightIn(max = 240.dp)) {
                     items(albums, key = { it.id }) { a ->
                         Row(
-                            Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).clickable(role = Role.Button) { onAdd(a) }.padding(6.dp),
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).clickable(role = Role.Button) { Haptics.confirm(view); onAdd(a) }.padding(6.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
@@ -251,6 +253,3 @@ fun SelectBar(count: Int, onShare: () -> Unit, onAlbum: () -> Unit, modifier: Mo
         Pill("+ Album", onAlbum, kind = Kind.Accent, height = 44.dp, enabled = !none)
     }
 }
-
-@Composable
-fun Dot(color: Color) = Box(Modifier.size(5.dp).clip(RoundedCornerShape(50)).background(color))

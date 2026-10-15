@@ -22,16 +22,21 @@ struct PhotoImage: View {
             }
             .task(id: "\(photo.key)-\(Int(geo.size.width))") {
                 let px = CGSize(width: geo.size.width * scale, height: geo.size.height * scale)
-                switch photo.source {
-                case .device:
-                    image = await PhotoLibrary.image(id: photo.ref, size: contentMode == .fit ? CGSize(width: 2048, height: 2048) : px)
-                case .google:
-                    let url = GooglePhotos.fileURL(photo.ref)
-                    image = await Task.detached { UIImage(contentsOfFile: url.path)?.preparingThumbnail(of: px) ?? UIImage(contentsOfFile: url.path) }.value
-                }
+                image = await loadImage(photo, size: contentMode == .fit ? CGSize(width: 2048, height: 2048) : px)
             }
         }
         .accessibilityLabel("Photo from \(photo.time.formatted(date: .long, time: .omitted))")
+    }
+}
+
+/// Loads a photo from PhotoKit or app storage at about the given pixel size.
+func loadImage(_ photo: Photo, size px: CGSize) async -> UIImage? {
+    switch photo.source {
+    case .device:
+        return await PhotoLibrary.image(id: photo.ref, size: px)
+    case .google:
+        let url = GooglePhotos.fileURL(photo.ref)
+        return await Task.detached { UIImage(contentsOfFile: url.path)?.preparingThumbnail(of: px) ?? UIImage(contentsOfFile: url.path) }.value
     }
 }
 
@@ -42,6 +47,8 @@ struct Pill: View {
     var systemImage: String?
     var kind: PillKind = .primary
     var height: CGFloat = 54
+    /// Stretch to the full width given. Defaults to ghost pills and tall pills.
+    var wide: Bool?
     var action: () -> Void
 
     @Environment(\.isEnabled) private var enabled
@@ -62,7 +69,7 @@ struct Pill: View {
             .foregroundStyle(fg)
             .padding(.horizontal, height < 48 ? 16 : 20)
             .frame(height: height)
-            .frame(maxWidth: kind == .ghost || height >= 54 ? .infinity : nil)
+            .frame(maxWidth: wide ?? (kind == .ghost || height >= 54) ? .infinity : nil)
             .background(bg, in: Capsule())
             .overlay(Capsule().stroke(kind == .secondary ? Palette.line : .clear, lineWidth: 1))
             .opacity(enabled ? 1 : 0.4)
@@ -77,9 +84,23 @@ struct PressStyle: ButtonStyle {
     }
 }
 
+/// List rows: a soft fill behind the row while it is pressed, no scaling.
+struct RowPressStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(Palette.fill)
+                    .opacity(configuration.isPressed ? 1 : 0)
+            )
+            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
+    }
+}
+
 /// Round glass button used in the iPhone header.
 struct GlassButton<Label: View>: View {
     let accessibility: String
+    var size: CGFloat = 40
     let action: () -> Void
     @ViewBuilder let label: () -> Label
 
@@ -87,7 +108,7 @@ struct GlassButton<Label: View>: View {
         Button(action: action) {
             label()
                 .foregroundStyle(Palette.ink)
-                .frame(minWidth: 40, minHeight: 40)
+                .frame(minWidth: size, minHeight: size)
                 .padding(.horizontal, Label.self == Text.self ? 16 : 0)
                 .background(Palette.glass, in: Capsule())
                 .overlay(Capsule().stroke(Palette.line, lineWidth: 1))
@@ -106,24 +127,24 @@ struct Logo: View {
         ZStack(alignment: .topLeading) {
             Palette.hex(0x2E7BFF)
             RadialGradient(colors: [.white.opacity(0.22), .clear], center: UnitPoint(x: 0.3, y: 0.18), startRadius: 0, endRadius: 100 * s)
-            RoundedRectangle(cornerRadius: 14 * s)
+            RoundedRectangle(cornerRadius: 14 * s, style: .continuous)
                 .fill(.white)
                 .frame(width: 86 * s, height: 102 * s)
                 .overlay(alignment: .top) {
-                    RoundedRectangle(cornerRadius: 7 * s).fill(Palette.hex(0xFFC93C))
+                    RoundedRectangle(cornerRadius: 7 * s, style: .continuous).fill(Palette.hex(0xFFC93C))
                         .padding(EdgeInsets(top: 8 * s, leading: 8 * s, bottom: 22 * s, trailing: 8 * s))
                 }
                 .rotationEffect(.degrees(12))
                 .offset(x: 62 * s, y: 30 * s)
-            RoundedRectangle(cornerRadius: 15 * s)
+            RoundedRectangle(cornerRadius: 15 * s, style: .continuous)
                 .fill(.white)
                 .frame(width: 96 * s, height: 114 * s)
                 .overlay(alignment: .topLeading) {
                     ZStack(alignment: .topLeading) {
-                        RoundedRectangle(cornerRadius: 8 * s).fill(Palette.hex(0xFF4B3E))
+                        RoundedRectangle(cornerRadius: 8 * s, style: .continuous).fill(Palette.hex(0xFF4B3E))
                         dot(21, 29.6, 9.5, 10.5, Palette.hex(0x1D1B2E), s)
                         dot(47.4, 29.6, 9.5, 10.5, Palette.hex(0x1D1B2E), s)
-                        UnevenRoundedRectangle(bottomLeadingRadius: 11.5 * s, bottomTrailingRadius: 11.5 * s)
+                        UnevenRoundedRectangle(bottomLeadingRadius: 11.5 * s, bottomTrailingRadius: 11.5 * s, style: .continuous)
                             .fill(Palette.hex(0x1D1B2E)).frame(width: 23 * s, height: 11.5 * s).offset(x: 27.5 * s, y: 44.3 * s)
                         dot(10.6, 41, 10.5, 7.4, Palette.hex(0xFF9EC0, 0.9), s)
                         dot(56.8, 41, 10.5, 7.4, Palette.hex(0xFF9EC0, 0.9), s)
@@ -189,9 +210,9 @@ struct PhotoTile: View {
                 .overlay {
                     if selection?.on == true {
                         ZStack(alignment: .topTrailing) {
-                            RoundedRectangle(cornerRadius: radius)
+                            RoundedRectangle(cornerRadius: radius, style: .continuous)
                                 .fill(picked ? Palette.accent.opacity(0.18) : Color.white.opacity(0.12))
-                                .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(picked ? Palette.accent : .clear, lineWidth: 3))
+                                .overlay(RoundedRectangle(cornerRadius: radius, style: .continuous).strokeBorder(picked ? Palette.accent : .clear, lineWidth: 3))
                             Image(systemName: picked ? "checkmark.circle.fill" : "circle")
                                 .font(.system(size: 21)).foregroundStyle(.white).shadow(color: .black.opacity(0.35), radius: 2).padding(7)
                         }
@@ -204,7 +225,8 @@ struct PhotoTile: View {
     }
 }
 
-/// One year's photos for the chosen day: a big year number, then a mosaic.
+/// One year's photos for the chosen day: a big year header, then a mosaic.
+/// Sits under its `PinnedYear` header, drawn over the header's space while that is hidden.
 struct YearSection: View {
     @Environment(AppStore.self) private var store
     let group: YearGroup
@@ -212,17 +234,41 @@ struct YearSection: View {
     let selection: Selection
     let share: () -> Void
 
+    private var year: some View {
+        Text(String(group.year)).font(.nunito(56, .black)).tight(56).foregroundStyle(Palette.ink)
+            .accessibilityAddTraits(.isHeader)
+    }
+
+    private var details: some View {
+        HStack(spacing: 10) {
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(agoLabel(group.year)).font(.nunito(14, .semibold)).foregroundStyle(Palette.ink)
+                Text("\(weekday(year: group.year, day)), \(plural(group.photos.count, "photo"))").font(.nunito(13)).foregroundStyle(Palette.muted)
+            }
+            Button(action: share) {
+                Image(systemName: "square.and.arrow.up").font(.system(size: 18)).foregroundStyle(Palette.ink)
+                    .frame(width: 36, height: 36)
+                    .background(Palette.glass, in: Circle())
+                    .overlay(Circle().stroke(Palette.line, lineWidth: 1))
+            }
+            .buttonStyle(PressStyle())
+            .accessibilityLabel("Share \(String(group.year))")
+        }
+    }
+
     var body: some View {
         VStack(spacing: 12) {
-            HStack(alignment: .bottom) {
-                Text(String(group.year)).font(.nunito(56, .black)).tight(56).foregroundStyle(Palette.ink)
-                    .accessibilityAddTraits(.isHeader)
-                Spacer()
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text(agoLabel(group.year)).font(.nunito(14, .semibold)).foregroundStyle(Palette.ink)
-                    Text("\(weekday(year: group.year, day)), \(plural(group.photos.count, "photo"))").font(.nunito(13)).foregroundStyle(Palette.muted)
+            // One row when it fits; with large text the details drop under the year.
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .bottom, spacing: 10) {
+                    year
+                    Spacer(minLength: 0)
+                    details.fixedSize().padding(.bottom, 8)
                 }
-                .padding(.bottom, 8)
+                VStack(alignment: .leading, spacing: 4) {
+                    year
+                    details
+                }
             }
             .padding(.horizontal, 4)
 
@@ -233,7 +279,7 @@ struct YearSection: View {
                 ZStack(alignment: .topLeading) {
                     ForEach(Array(group.photos.enumerated()), id: \.element.key) { i, photo in
                         let t = layout.tiles[i]
-                        PhotoTile(photo: photo, radius: 10, selection: selection) {
+                        PhotoTile(photo: photo, radius: 12, selection: selection) {
                             store.viewer = Viewer(photos: group.photos, start: i)
                         }
                         .frame(width: cell * CGFloat(t.cols) + gap * CGFloat(t.cols - 1), height: row * CGFloat(t.rows) + gap * CGFloat(t.rows - 1))
@@ -245,48 +291,96 @@ struct YearSection: View {
                 let rows = CGFloat(layoutMosaic(group.photos.count).rows)
                 return rows * 54 + (rows - 1) * 4
             }())
-
-            HStack {
-                Spacer()
-                Button(action: share) {
-                    Label("Share \(String(group.year))", systemImage: "square.and.arrow.up")
-                        .font(.nunito(13, .semibold)).foregroundStyle(Palette.muted)
-                        .padding(.horizontal, 10).frame(height: 32)
-                }
-            }
         }
         .padding(.horizontal, 16)
-        .padding(.top, 28)
+        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
+        // Start where the pinned header sits; that header stays hidden until it pins.
+        .padding(.top, -PinnedYear.height)
+        // Space before the next year.
+        .padding(.bottom, 28)
     }
 }
 
-/// A plain 3-column grid, used for Favorites and album pages.
+/// Compact year bar that pins under Today's top bar while that year scrolls past.
+/// Hidden while the year's big header is in its place.
+struct PinnedYear: View {
+    static let height: CGFloat = 44
+    let group: YearGroup
+    let day: MonthDay
+    let barBottom: CGFloat
+    @Binding var pinned: Set<Int>
+    let share: () -> Void
+    @State private var top: CGFloat = .infinity
+    @Environment(\.displayScale) private var scale
+
+    var body: some View {
+        let on = top <= barBottom + 0.5
+        HStack(spacing: 8) {
+            Text(String(group.year)).font(.nunito(26, .black)).tight(26).foregroundStyle(Palette.ink)
+            Text("\(agoLabel(group.year)) · \(weekday(year: group.year, day)), \(plural(group.photos.count, "photo"))")
+                .font(.nunito(14, .medium)).foregroundStyle(Palette.muted).lineLimit(1)
+            Spacer(minLength: 0)
+            Button(action: share) {
+                Image(systemName: "square.and.arrow.up").font(.system(size: 17, weight: .medium)).foregroundStyle(Palette.ink)
+                    .frame(width: 44, height: Self.height)
+            }
+            .accessibilityLabel("Share \(String(group.year))")
+        }
+        .padding(.leading, 20).padding(.trailing, 6)
+        // Fixed 44 pt bar, so it stops growing before the accessibility sizes.
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+        .frame(height: Self.height)
+        .background(.bar)
+        .overlay(alignment: .bottom) { Palette.line.frame(height: 1 / scale) }
+        .opacity(on ? 1 : 0)
+        .allowsHitTesting(on)
+        .accessibilityHidden(!on)
+        .animation(.easeInOut(duration: 0.15), value: on)
+        .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).minY } action: { top = $0 }
+        .onChange(of: on) { _, now in
+            if now { pinned.insert(group.year) } else { pinned.remove(group.year) }
+        }
+        .onDisappear { pinned.remove(group.year) }
+    }
+}
+
+/// A browse grid, used for Favorites and album pages: 3 columns, edge to edge, square tiles.
 struct SquareGrid: View {
     @Environment(AppStore.self) private var store
     let photos: [Photo]
     var showYear = false
 
     var body: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 3), count: 3), spacing: 3) {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 3), spacing: 2) {
             ForEach(Array(photos.enumerated()), id: \.element.key) { i, photo in
-                PhotoTile(photo: photo, radius: 4, showHeart: !showYear) {
+                PhotoTile(photo: photo, radius: 0, showHeart: !showYear) {
                     store.viewer = Viewer(photos: photos, start: i)
                 }
                 .aspectRatio(1, contentMode: .fit)
                 .overlay(alignment: .bottomLeading) {
-                    if showYear {
-                        Text(String(yearOf(photo.time)))
-                            .font(.nunito(13, .black)).foregroundStyle(.white)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 7).padding(.top, 16).padding(.bottom, 5)
-                            .background(LinearGradient(colors: [.clear, .black.opacity(0.5)], startPoint: .top, endPoint: .bottom))
-                            .clipShape(UnevenRoundedRectangle(bottomLeadingRadius: 4, bottomTrailingRadius: 4))
-                            .allowsHitTesting(false)
-                    }
+                    if showYear { YearChip(year: yearOf(photo.time)).padding(6) }
                 }
             }
         }
-        .padding(.horizontal, 3)
+    }
+}
+
+/// Small year label on a photo tile.
+struct YearChip: View {
+    let year: Int
+
+    var body: some View {
+        Text(String(year))
+            .font(.nunito(11, .heavy)).tracking(0.2).foregroundStyle(Palette.chipInk)
+            .padding(.vertical, 2).padding(.horizontal, 7)
+            .background {
+                ZStack {
+                    Capsule().fill(.ultraThinMaterial)
+                    Capsule().fill(Palette.chip)
+                }
+            }
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
     }
 }
 
@@ -320,13 +414,15 @@ struct SelectBar: View {
 struct Print: View {
     let year: Int
     let label: String
-    let color: Color
+    /// A 4:5 drawing from the asset catalog.
+    let image: String
     let width: CGFloat
     let angle: Double
 
     var body: some View {
         VStack(spacing: 0) {
-            RoundedRectangle(cornerRadius: 6).fill(color.opacity(0.85)).aspectRatio(4 / 5, contentMode: .fit)
+            Image(image).resizable().aspectRatio(4 / 5, contentMode: .fit)
+                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
             HStack(alignment: .lastTextBaseline) {
                 Text(String(year)).font(.nunito(width > 160 ? 26 : 22, .black)).tight(22).foregroundStyle(Palette.ink)
                 Spacer()
@@ -336,7 +432,7 @@ struct Print: View {
         }
         .padding([.horizontal, .top], 8)
         .frame(width: width)
-        .background(Palette.surface, in: RoundedRectangle(cornerRadius: 10))
+        .background(Palette.surface, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .shadow(color: Palette.hex(0x141416, 0.14), radius: 15, y: 10)
         .rotationEffect(.degrees(angle))
     }

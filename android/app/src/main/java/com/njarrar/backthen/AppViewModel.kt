@@ -51,6 +51,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val googleImport = MutableStateFlow<GoogleImport?>(null)
     /** Debug screenshots only: the scene to show, see Demo.kt. */
     val demoScene = MutableStateFlow<String?>(null)
+    /** The last day Today showed, so it can come back with photos in place. */
+    var lastDay: Pair<MonthDay, List<YearGroup>>? = null
     private var toastJob: Job? = null
     private var importJob: Job? = null
 
@@ -146,6 +148,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             })
         }
         say("Added to ${_saved.value.albums.firstOrNull { it.id == id }?.name ?: "album"}")
+    }
+
+    fun renameAlbum(id: String, name: String) {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return
+        update { s -> s.copy(albums = s.albums.map { if (it.id == id) it.copy(name = trimmed) else it }) }
     }
 
     fun deleteAlbum(id: String) = update { s -> s.copy(albums = s.albums.filterNot { it.id == id }) }

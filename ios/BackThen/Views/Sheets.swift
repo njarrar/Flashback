@@ -1,11 +1,14 @@
 import SwiftUI
 
-/// iPhone calendar sheet from the design. Picks a month and day, not a year, since every
-/// year shows at once. Dots mark days with photos. A tap jumps straight there.
+/// iPhone calendar sheet. Picks a month and day, not a year, since every year shows at
+/// once. Each day is shaded by how many past years have photos on it. A tap jumps there.
 struct CalendarSheet: View {
     @Environment(AppStore.self) private var store
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let pick: (MonthDay) -> Void
     @State private var month: Int
+    @State private var slide: CGFloat = 0
+    @State private var height: CGFloat = 400
 
     init(start: MonthDay, pick: @escaping (MonthDay) -> Void) {
         self.pick = pick
@@ -13,61 +16,100 @@ struct CalendarSheet: View {
     }
 
     var body: some View {
-        let index = store.index
         let today = MonthDay.today
-        VStack(spacing: 14) {
-            HStack {
-                arrow("chevron.left", "Previous month") { month = (month + 11) % 12 }
-                Spacer()
-                VStack(spacing: 2) {
-                    Text(months[month]).font(.nunito(20, .bold)).foregroundStyle(Palette.ink)
-                    Text("Every year at once").font(.nunito(13)).foregroundStyle(Palette.muted)
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .top, spacing: 8) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(months[month]).font(.nunito(24, .heavy)).tight(24).foregroundStyle(Palette.ink)
+                        .accessibilityAddTraits(.isHeader)
+                    Text("Darker days have photos from more years").font(.nunito(13)).foregroundStyle(Palette.muted)
                 }
-                Spacer()
-                arrow("chevron.right", "Next month") { month = (month + 1) % 12 }
-            }
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 7), spacing: 4) {
-                ForEach(1...daysInMonth[month], id: \.self) { d in
-                    let md = MonthDay(month: month, day: d)
-                    let has = hasPhotos(index, md)
-                    let sel = store.day == md
-                    Button { pick(md) } label: {
-                        VStack(spacing: 3) {
-                            Text("\(d)").font(.nunito(16, .semibold))
-                                .foregroundStyle(sel ? .white : has ? Palette.ink : Palette.faint)
-                            Circle().fill(has ? (sel ? .white : Palette.accent) : .clear).frame(width: 5, height: 5)
-                        }
-                        .frame(maxWidth: .infinity, minHeight: 46)
-                        .background(sel ? Palette.accent : .clear, in: Capsule())
-                        .overlay(Capsule().strokeBorder(md == today && !sel ? Palette.ink : .clear, lineWidth: 1.5))
+                Spacer(minLength: 0)
+                if month != today.month || store.day != today {
+                    Button { pick(today) } label: {
+                        Text("Today").font(.nunito(15, .semibold)).foregroundStyle(Palette.ink)
+                            .padding(.horizontal, 8).frame(height: 38)
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("\(months[month]) \(d)\(has ? ", has photos" : "")")
-                    .accessibilityAddTraits(sel ? .isSelected : [])
                 }
+                arrow("chevron.left", "Previous month") { turn(-1) }
+                arrow("chevron.right", "Next month") { turn(1) }
             }
-            HStack {
-                HStack(spacing: 6) {
-                    Circle().fill(Palette.accent).frame(width: 5, height: 5)
-                    Text("Has photos").font(.nunito(13)).foregroundStyle(Palette.muted)
-                }
-                Spacer()
-                Pill(label: "Today", kind: .secondary, height: 40) { pick(today) }.fixedSize()
-            }
+            grid(today: today)
+                .offset(x: slide)
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 10)
+                        .onChanged { g in if !reduceMotion && abs(g.translation.width) > abs(g.translation.height) { slide = g.translation.width } }
+                        .onEnded { g in
+                            let w = g.translation.width
+                            if abs(w) > 50 && abs(w) > abs(g.translation.height) { turn(w < 0 ? 1 : -1) }
+                            else { withAnimation(.spring(duration: 0.4, bounce: 0)) { slide = 0 } }
+                        }
+                )
         }
         .padding(.horizontal, 20)
-        .padding(.top, 24)
+        .padding(.top, 20)
         .padding(.bottom, 12)
-        .presentationDetents([.height(480)])
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
+        .sensoryFeedback(.selection, trigger: month)
+        .presentationDetents([.height(height)])
         .presentationCornerRadius(36)
         .presentationBackground(Palette.surface)
         .presentationDragIndicator(.visible)
     }
 
+    private func grid(today: MonthDay) -> some View {
+        let index = store.index
+        return LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 7), spacing: 0) {
+            ForEach(1...daysInMonth[month], id: \.self) { d in
+                let md = MonthDay(month: month, day: d)
+                let years = yearsForDay(index, md).count
+                let sel = store.day == md
+                let (fill, ink) = shade(years, selected: sel)
+                Button { pick(md) } label: {
+                    Text("\(d)").font(.nunito(16, .semibold)).monospacedDigit().foregroundStyle(ink)
+                        .frame(width: 40, height: 40)
+                        .background(fill, in: Circle())
+                        .overlay(Circle().strokeBorder(md == today && !sel ? Palette.ink : .clear, lineWidth: 1.5))
+                        .frame(maxWidth: .infinity, minHeight: 46)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(months[month]) \(d), \(years == 0 ? "no photos" : "photos from \(plural(years, "year"))")")
+                .accessibilityAddTraits(sel ? .isSelected : [])
+            }
+        }
+    }
+
+    /// Fill and number color for a day with photos from `years` past years.
+    private func shade(_ years: Int, selected: Bool) -> (Color, Color) {
+        if selected { return (Palette.accent, .white) }
+        switch years {
+        case 0: return (.clear, Palette.faint)
+        case 1: return (Palette.cal1, Palette.cal1Ink)
+        case 2...3: return (Palette.cal2, Palette.cal2Ink)
+        default: return (Palette.cal3, Palette.cal3Ink)
+        }
+    }
+
+    private func turn(_ by: Int) {
+        let next = (month + by + 12) % 12
+        if reduceMotion {
+            withAnimation(.easeInOut(duration: 0.2)) { month = next; slide = 0 }
+            return
+        }
+        // Slide the old month out, then the new one in from the other side.
+        withAnimation(.easeIn(duration: 0.12)) { slide = by > 0 ? -60 : 60 }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+            month = next
+            slide = by > 0 ? 60 : -60
+            withAnimation(.spring(duration: 0.4, bounce: 0)) { slide = 0 }
+        }
+    }
+
     private func arrow(_ icon: String, _ label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Image(systemName: icon).font(.system(size: 16, weight: .bold)).foregroundStyle(Palette.ink)
-                .frame(width: 44, height: 44).background(Palette.fill, in: Circle())
+            Image(systemName: icon).font(.system(size: 15, weight: .bold)).foregroundStyle(Palette.ink)
+                .frame(width: 38, height: 38).background(Palette.fill, in: Circle())
         }
         .accessibilityLabel(label)
     }
@@ -99,8 +141,8 @@ struct AlbumSheet: View {
                         .onSubmit(create)
                         .padding(.horizontal, 14)
                         .frame(height: 48)
-                        .background(Palette.bg, in: RoundedRectangle(cornerRadius: 14))
-                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(focused ? Palette.accent : Palette.line, lineWidth: 1))
+                        .background(Palette.bg, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(focused ? Palette.accent : Palette.line, lineWidth: 1))
                     Pill(label: "Create", height: 48, action: create)
                         .fixedSize()
                         .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
@@ -120,7 +162,7 @@ struct AlbumSheet: View {
                                     Group {
                                         if let first = a.photos.first { PhotoImage(photo: first) } else { Palette.fill }
                                     }
-                                    .frame(width: 48, height: 48).clipShape(RoundedRectangle(cornerRadius: 10))
+                                    .frame(width: 48, height: 48).clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(a.name).font(.nunito(16, .semibold)).foregroundStyle(Palette.ink).lineLimit(1)
                                         Text(plural(a.photos.count, "photo")).font(.nunito(13)).foregroundStyle(Palette.muted)
@@ -131,7 +173,7 @@ struct AlbumSheet: View {
                                 .padding(6)
                                 .contentShape(Rectangle())
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(RowPressStyle())
                             .accessibilityLabel("Add to \(a.name)")
                         }
                     }
@@ -141,7 +183,7 @@ struct AlbumSheet: View {
         }
         .padding(20)
         .presentationDetents([.medium, .large])
-        .presentationCornerRadius(32)
+        .presentationCornerRadius(36)
         .presentationBackground(Palette.surface)
         .presentationDragIndicator(.visible)
     }
@@ -211,7 +253,7 @@ struct SettingsSheet: View {
         }
         .padding(20)
         .presentationDetents([.height(340)])
-        .presentationCornerRadius(32)
+        .presentationCornerRadius(36)
         .presentationBackground(Palette.surface)
         .presentationDragIndicator(.visible)
     }
@@ -242,7 +284,7 @@ struct GoogleSheet: View {
         let connected = store.saved.sources.google
         VStack(alignment: .leading, spacing: 16) {
             Image(systemName: "photo.on.rectangle.angled").font(.system(size: 24)).foregroundStyle(Palette.ink)
-                .frame(width: 52, height: 52).background(Palette.fill, in: RoundedRectangle(cornerRadius: 16))
+                .frame(width: 52, height: 52).background(Palette.fill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             if let progress = store.googleImport {
                 Text(progress.total > 0 ? "Saving your picks" : "Waiting for Google Photos").font(.nunito(24, .heavy)).tight(24).foregroundStyle(Palette.ink)
                 Text(progress.total > 0 ? "\(progress.done) of \(progress.total) photos" : "Pick photos in Google Photos, tap Done, then come back here.")
@@ -267,14 +309,14 @@ struct GoogleSheet: View {
                 } else {
                     Text("This build has no Google client ID yet. See the README to add one.")
                         .font(.nunito(14)).foregroundStyle(Palette.accInk).padding(12)
-                        .background(Palette.accTint, in: RoundedRectangle(cornerRadius: 14))
+                        .background(Palette.accTint, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                     Pill(label: "Close", kind: .ghost, height: 48) { dismiss() }
                 }
             }
         }
         .padding(20)
         .presentationDetents([.medium])
-        .presentationCornerRadius(32)
+        .presentationCornerRadius(36)
         .presentationBackground(Palette.surface)
         .presentationDragIndicator(.visible)
         .interactiveDismissDisabled(store.googleImport != nil)

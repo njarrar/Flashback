@@ -19,8 +19,8 @@ Google Photos.
   </tr>
   <tr>
     <td><img src="docs/screenshots/ios/today.png" width="240" alt="Today screen on iPhone: years with photos from this date, newest first"></td>
-    <td><img src="docs/screenshots/ios/calendar.png" width="240" alt="Calendar sheet on iPhone, with dots on days that have photos"></td>
-    <td><img src="docs/screenshots/ios/viewer.png" width="240" alt="Full-screen photo viewer on iPhone with heart, share and album buttons"></td>
+    <td><img src="docs/screenshots/ios/calendar.png" width="240" alt="Calendar sheet on iPhone, with days shaded by how many years have photos"></td>
+    <td><img src="docs/screenshots/ios/viewer.png" width="240" alt="Full-screen photo viewer on iPhone with a filmstrip and heart, share and album buttons"></td>
   </tr>
   <tr>
     <th>Favorites</th>
@@ -54,19 +54,51 @@ the same way Google Photos picks do.)
 ## What it does
 
 - **Today.** Every past year that has photos on this date, newest first. Each year
-  gets a large year number, how long ago it was, and a mosaic of that day's photos.
+  gets a large year number, how long ago it was, a share button, and a mosaic of
+  that day's photos. While you scroll, the year you are in stays pinned at the top.
   Pull down to check the library for new photos.
 - **Pick a day.** A month-and-day calendar (no year, since every year shows at once).
-  Dots mark days with photos. A day with no photos offers the closest days that have some.
-- **Photo viewer.** Swipe through a day's photos. Heart one, share it, or add it to an album.
-- **Favorites.** Every photo you've hearted, from any day.
+  The darker a day, the more past years have photos on it. Swipe to change month. A
+  day with no photos offers the closest days that have some.
+- **Photo viewer.** Swipe through a day's photos or jump with the filmstrip. Pinch
+  or double tap to zoom, swipe down to close, tap to hide the buttons. Heart a photo,
+  share it, or add it to an album.
+- **Favorites.** Every photo you've hearted, from any day, with its year on each tile.
 - **Albums.** On Today, tap Select, pick photos, then tap Album. Share an album
   through the share sheet, or save it as a real album in Photos (iPhone) or under
-  Pictures/Back Then (Android).
+  Pictures/Back Then (Android). Rename or delete it from the album's menu.
 - **Daily reminder.** One notification a day at a time you choose, and only on days
   that have photos from past years. Tapping it opens that day.
-- **Looks native on each phone.** A floating tab bar and sheets on iPhone; a
-  navigation bar and Android's own date dialog on Android. Light and dark mode.
+- **Looks native on each phone.** The system tab bar and sheets on iPhone, with text
+  that grows with the system text size; a large top app bar, navigation bar and
+  Android's own date dialog on Android. Light and dark mode.
+
+## What's new in 1.3
+
+A design pass to make the app calmer and easier to use. Every change is on both
+apps.
+
+- **Tabs keep their place.** Switching tabs keeps each tab's scroll position and
+  open album. Tap the active tab again to go back to the top. On iPhone the tab bar
+  is now the system one, and an album page has the normal back swipe.
+- **Today header.** The buttons read Select, calendar, then the menu. Share moved
+  into each year's header as a round button, and there is less empty space above the
+  first year. On Android the date is the title of the top bar.
+- **The year stays in view.** While you scroll, the top bar blurs and shows a small
+  date title, and the current year pins under it until the next year pushes it out.
+- **Photo grids.** Favorites and album pages run edge to edge with thin gaps. The
+  year on Favorites tiles is a small chip instead of a dark gradient.
+- **Photo viewer.** Zoom, swipe down to close, tap to hide the buttons, and a
+  filmstrip in place of the page dots and "3 of 23".
+- **Calendar.** Days are shaded by how many years have photos instead of dotted.
+  Swipe to change month; a Today button shows when you are away from today.
+- **Album page.** Two clear buttons, Share album and Save, with Rename and Delete in
+  the menu. Rename is new.
+- **Welcome.** The three prints show small drawings, and a line says your photos
+  stay on the phone.
+- **Under the hood.** Text grows with the iPhone text size, every iPhone corner is
+  smooth and on one scale, album rows answer a press at once, and light haptics mark
+  picks, hearts, new albums and month or photo changes.
 
 ## Where the photos come from
 
