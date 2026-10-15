@@ -80,9 +80,11 @@ func dayRange(year: Int, _ md: MonthDay, calendar: Calendar = .current) -> (Date
 
 func yearOf(_ date: Date) -> Int { Calendar.current.component(.year, from: date) }
 
-func weekday(year: Int, _ md: MonthDay) -> String {
-    guard let (start, _) = dayRange(year: year, md) else { return "" }
-    let f = DateFormatter()
-    f.dateFormat = "EEEE"
-    return f.string(from: start)
+/// "Monday" for this day in that year, or "" if the day doesn't exist then (Feb 29).
+/// Reads the name from the calendar, so no date formatter gets built for each year shown.
+func weekday(year: Int, _ md: MonthDay, calendar: Calendar = .current) -> String {
+    guard let (start, _) = dayRange(year: year, md, calendar: calendar) else { return "" }
+    let i = calendar.component(.weekday, from: start) - 1
+    let names = calendar.weekdaySymbols
+    return names.indices.contains(i) ? names[i] : ""
 }

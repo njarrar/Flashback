@@ -10,7 +10,6 @@ import com.njarrar.backthen.core.MonthDay
 import com.njarrar.backthen.core.Photo
 import com.njarrar.backthen.core.PhotoSource
 import com.njarrar.backthen.core.YearGroup
-import com.njarrar.backthen.core.buildDayIndex
 import com.njarrar.backthen.core.dropDuplicates
 import com.njarrar.backthen.core.localDate
 import com.njarrar.backthen.core.shortLabel
@@ -31,6 +30,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class Viewer(val photos: List<Photo>, val start: Int)
 
@@ -46,6 +46,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _saved = MutableStateFlow(stateFile.read())
     val saved: StateFlow<SavedState> = _saved.asStateFlow()
 
+    // Worked out once per change, not on every screen draw.
+    private val _index = MutableStateFlow(visibleIndex(_saved.value))
+    /** Photo counts per day across every connected source. Hidden days count as empty. */
+    val dayIndex: StateFlow<DayIndex> = _index.asStateFlow()
+
+    private val _favoriteKeys = MutableStateFlow<Set<String>>(_saved.value.favorites.mapTo(HashSet()) { it.key })
+    val favoriteKeys: StateFlow<Set<String>> = _favoriteKeys.asStateFlow()
+
     val day = MutableStateFlow(MonthDay.today())
     val indexing = MutableStateFlow(false)
     val viewer = MutableStateFlow<Viewer?>(null)
@@ -55,45 +63,62 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val demoScene = MutableStateFlow<String?>(null)
     private var toastJob: Job? = null
     private var importJob: Job? = null
+    private var refreshJob: Job? = null
     // One write at a time, in order, so an older snapshot never lands after a newer one.
     private val writer = Dispatchers.IO.limitedParallelism(1)
 
     internal fun updateSaved(change: (SavedState) -> SavedState) = update(change)
 
     private fun update(change: (SavedState) -> SavedState) {
+        val old = _saved.value
         _saved.update(change)
         val snapshot = _saved.value
+        if (snapshot.favorites !== old.favorites) {
+            _favoriteKeys.value = snapshot.favorites.mapTo(HashSet()) { it.key }
+        }
+        if (snapshot.sources != old.sources || snapshot.deviceIndex !== old.deviceIndex ||
+            snapshot.googlePhotos !== old.googlePhotos || snapshot.hiddenDates !== old.hiddenDates
+        ) {
+            _index.value = visibleIndex(snapshot)
+        }
         viewModelScope.launch(writer) { stateFile.write(snapshot) }
     }
 
-    /** Photo counts per day across every connected source. Hidden days count as empty. */
-    fun index(s: SavedState = _saved.value): DayIndex = visibleIndex(s)
-
-    fun refreshIndex() {
-        if (!library.hasAccess()) return
-        viewModelScope.launch {
-            indexing.value = true
+    /**
+     * Rebuilds the phone's day index. The spinner shows only on first run or when the user
+     * pulls to refresh; otherwise the index updates quietly. [force] reads the library even
+     * if it looks unchanged.
+     */
+    fun refreshIndex(force: Boolean = false) {
+        if (!library.hasAccess() || refreshJob?.isActive == true) return
+        refreshJob = viewModelScope.launch {
+            val busy = force || _saved.value.deviceIndex.isEmpty()
+            if (busy) indexing.value = true
             try {
-                val index = buildDayIndex(library.readAllTimes())
-                update { it.copy(deviceIndex = index) }
+                val index = library.readDeviceIndex(force)
+                if (index != null && index != _saved.value.deviceIndex) update { it.copy(deviceIndex = index) }
             } finally {
-                indexing.value = false
+                if (busy) indexing.value = false
             }
         }
     }
 
-    suspend fun photosFor(md: MonthDay): List<YearGroup> {
+    /** Photos for one day, grouped by year. One library query covers every year. */
+    suspend fun photosFor(md: MonthDay): List<YearGroup> = withContext(Dispatchers.Default) {
         val s = _saved.value
-        return yearsForDay(index(s), md).map { year ->
-            val device = if (s.sources.device) runCatching { library.photosOn(year, md) }.getOrDefault(emptyList()) else emptyList()
-            val google = if (s.sources.google) {
-                s.googlePhotos.filter { p ->
-                    val d = localDate(p.time)
-                    d.year == year && d.monthValue - 1 == md.month && d.dayOfMonth == md.day
-                }
-            } else emptyList()
-            YearGroup(year, dropDuplicates(device, google).sortedBy { it.time })
-        }.filter { it.photos.isNotEmpty() }
+        val years = yearsForDay(dayIndex.value, md)
+        if (years.isEmpty()) return@withContext emptyList()
+        val device = if (s.sources.device) runCatching { library.photosOn(years, md) }.getOrDefault(emptyMap()) else emptyMap()
+        val google = if (s.sources.google) {
+            s.googlePhotos.mapNotNull { p ->
+                val d = localDate(p.time)
+                if (d.monthValue - 1 == md.month && d.dayOfMonth == md.day) d.year to p else null
+            }.groupBy({ it.first }, { it.second })
+        } else emptyMap()
+        years.mapNotNull { year ->
+            val photos = dropDuplicates(device[year].orEmpty(), google[year].orEmpty()).sortedBy { it.time }
+            if (photos.isNotEmpty()) YearGroup(year, photos) else null
+        }
     }
 
     fun say(message: String) {
@@ -125,7 +150,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (r.on) Reminders.schedule(getApplication(), r.hour, r.minute) else Reminders.cancel(getApplication())
     }
 
-    fun isFavorite(key: String) = _saved.value.favorites.any { it.key == key }
+    fun isFavorite(key: String) = key in _favoriteKeys.value
 
     fun toggleFavorite(photo: Photo) {
         val on = !isFavorite(photo.key)

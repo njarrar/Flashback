@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// Full-screen photo viewer: swipe between photos, heart, share, add to album.
+/// Full-screen photo viewer: swipe between photos, pinch or double-tap to zoom, swipe down to close,
+/// heart, share, add to album.
 struct PhotoViewer: View {
     @Environment(AppStore.self) private var store
     let viewer: Viewer
@@ -35,7 +36,7 @@ struct PhotoViewer: View {
 
             TabView(selection: $index) {
                 ForEach(Array(photos.enumerated()), id: \.element.key) { i, p in
-                    PhotoImage(photo: p, contentMode: .fit).tag(i)
+                    ZoomablePhoto(photo: p, current: i == index) { store.viewer = nil }.tag(i)
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
@@ -80,5 +81,66 @@ struct PhotoViewer: View {
             Image(systemName: icon).font(.system(size: 26)).foregroundStyle(tint).frame(width: 56, height: 56)
         }
         .accessibilityLabel(label)
+    }
+}
+
+/// One photo that zooms with a pinch (up to 4x) or a double tap, and pans while zoomed.
+/// At normal size, a drag down closes the viewer.
+private struct ZoomablePhoto: View {
+    let photo: Photo
+    let current: Bool
+    let close: () -> Void
+    @State private var scale: CGFloat = 1
+    @State private var lastScale: CGFloat = 1
+    @State private var offset: CGSize = .zero
+    @State private var lastOffset: CGSize = .zero
+    @State private var pull: CGFloat = 0
+
+    var body: some View {
+        PhotoImage(photo: photo, contentMode: .fit)
+            .scaleEffect(scale)
+            .offset(x: offset.width, y: offset.height + pull)
+            .gesture(
+                MagnifyGesture()
+                    .onChanged { scale = min(max(lastScale * $0.magnification, 1), 4) }
+                    .onEnded { _ in
+                        if scale < 1.05 { withAnimation(.spring(duration: 0.25)) { reset() } } else { lastScale = scale }
+                    }
+            )
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 20)
+                    .onChanged { drag in
+                        if scale > 1 {
+                            offset = CGSize(width: lastOffset.width + drag.translation.width,
+                                            height: lastOffset.height + drag.translation.height)
+                        } else if drag.translation.height > abs(drag.translation.width) * 1.3 {
+                            pull = drag.translation.height
+                        }
+                    }
+                    .onEnded { _ in
+                        if scale > 1 {
+                            lastOffset = offset
+                        } else if pull > 110 {
+                            close()
+                        } else {
+                            withAnimation(.spring(duration: 0.2)) { pull = 0 }
+                        }
+                    }
+            )
+            .onTapGesture(count: 2) {
+                withAnimation(.spring(duration: 0.25)) {
+                    if scale > 1 { reset() } else { scale = 2.5; lastScale = 2.5 }
+                }
+            }
+            // Swiping away resets the zoom, so the photo looks normal when you come back to it.
+            .onChange(of: current) { _, now in if !now { reset() } }
+    }
+
+    private func reset() {
+        scale = 1
+        lastScale = 1
+        offset = .zero
+        lastOffset = .zero
+        pull = 0
     }
 }

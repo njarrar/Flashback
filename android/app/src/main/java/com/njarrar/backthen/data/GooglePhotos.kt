@@ -6,6 +6,7 @@ import com.njarrar.backthen.core.Photo
 import com.njarrar.backthen.core.PhotoSource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -120,6 +121,7 @@ class GooglePhotos(private val context: Context) {
             val items = ArrayList<PickedItem>()
             var pageToken: String? = null
             do {
+                ensureActive()
                 val q = "sessionId=${session.id}&pageSize=100" + (pageToken?.let { "&pageToken=$it" } ?: "")
                 val page = json.decodeFromString<PickedPage>(call(token, "/mediaItems?$q"))
                 items += page.mediaItems
@@ -127,7 +129,9 @@ class GooglePhotos(private val context: Context) {
             } while (!pageToken.isNullOrEmpty())
 
             val photos = items.filter { it.type == "PHOTO" }
-            photos.mapIndexed { n, item ->
+            val saved = photos.mapIndexed { n, item ->
+                // Stop between downloads as soon as the user cancels.
+                ensureActive()
                 withContext(Dispatchers.Main) { onProgress(n, photos.size) }
                 // Base URLs expire after an hour and need the token, so keep a local copy.
                 val file = File(dir, item.id.replace(Regex("[^\\w-]"), "_") + ".jpg")
@@ -141,6 +145,8 @@ class GooglePhotos(private val context: Context) {
                     time = Instant.parse(item.createTime).toEpochMilli(),
                 )
             }
+            withContext(Dispatchers.Main) { onProgress(photos.size, photos.size) }
+            saved
         } finally {
             runCatching { call(token, "/sessions/${session.id}", "DELETE") }
         }

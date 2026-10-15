@@ -38,6 +38,7 @@ fun BackThenApp(vm: AppViewModel) {
     val p = LocalPalette.current
     val context = LocalContext.current
     val state by vm.saved.collectAsStateWithLifecycle()
+    val favorites by vm.favoriteKeys.collectAsStateWithLifecycle()
     val viewer by vm.viewer.collectAsStateWithLifecycle()
     val toast by vm.toast.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableStateOf(Tab.Today) }
@@ -108,7 +109,7 @@ fun BackThenApp(vm: AppViewModel) {
             ViewerScreen(
                 photos = v.photos,
                 start = v.start,
-                favorites = state.favorites.map { it.key }.toSet(),
+                favorites = favorites,
                 onFavorite = vm::toggleFavorite,
                 onShare = { sharePhotos(context, listOf(it), "Photo") },
                 onAlbum = { albumFor = listOf(it.key) },

@@ -42,9 +42,11 @@ import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -116,7 +118,8 @@ fun OnboardingScreen(vm: AppViewModel) {
 
     if (chosePhone || state.sources.google) {
         // Step two: the reminder.
-        val years = yearsForDay(vm.index(state), today)
+        val index by vm.dayIndex.collectAsStateWithLifecycle()
+        val years = yearsForDay(index, today)
         Column(Modifier.fillMaxSize().background(p.bg).statusBarsPadding().padding(24.dp)) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(28.dp, Alignment.CenterVertically)) {
                 Row(
@@ -180,12 +183,14 @@ fun OnboardingScreen(vm: AppViewModel) {
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, onSelectingChange: (Boolean) -> Unit) {
     val p = LocalPalette.current
     val context = LocalContext.current
     val state by vm.saved.collectAsStateWithLifecycle()
+    val index by vm.dayIndex.collectAsStateWithLifecycle()
+    val favorites by vm.favoriteKeys.collectAsStateWithLifecycle()
     val day by vm.day.collectAsStateWithLifecycle()
     val indexing by vm.indexing.collectAsStateWithLifecycle()
     val busy by vm.googleImport.collectAsStateWithLifecycle()
@@ -202,7 +207,6 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, on
     var stripPick by remember(day) { mutableStateOf<Int?>(null) }
     val list = rememberLazyListState()
     val scope = rememberCoroutineScope()
-    val index = vm.index(state)
     val startGoogle = rememberGoogleImport(vm)
     val askPhotos = rememberPhotoPermission(vm) { ok -> if (!ok) vm.say("Allow photo access in Settings") }
     val askNotify = rememberNotificationPermission { ok ->
@@ -223,82 +227,92 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, on
 
     val today = MonthDay.today()
     val hidden = day.key in state.hiddenDates
-    val total = groups?.sumOf { it.photos.size } ?: 0
+    val total = remember(groups) { groups?.sumOf { it.photos.size } ?: 0 }
     val summary = when {
         hidden -> "You hid this date"
         groups == null || indexing && groups.isEmpty() -> "Looking through your library…"
         groups.isNotEmpty() -> "${plural(total, "photo")} from ${plural(groups.size, "year")}"
         else -> "No photos on this date"
     }
-    val selection = Selection(selecting, picked.map { it.key }.toSet()) { ph ->
-        picked = if (picked.any { it.key == ph.key }) picked.filterNot { it.key == ph.key } else picked + ph
+    // Kept between draws, so photo tiles only redraw when the selection really changes.
+    val pickedKeys = remember(picked) { picked.mapTo(HashSet()) { it.key } }
+    val selection = remember(selecting, pickedKeys) {
+        Selection(selecting, pickedKeys) { ph ->
+            picked = if (ph.key in pickedKeys) picked.filterNot { it.key == ph.key } else picked + ph
+        }
     }
-    val favorites = state.favorites.map { it.key }.toSet()
 
     Box(Modifier.fillMaxSize().background(p.bg)) {
-        LazyColumn(state = list, contentPadding = PaddingValues(bottom = bottomPadding + 24.dp), modifier = Modifier.statusBarsPadding()) {
-            item {
-                Row(Modifier.fillMaxWidth().height(64.dp).padding(start = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    T("Back Then", size = 20, weight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                    TextButton(onClick = { if (selecting) stopSelecting() else { selecting = true; onSelectingChange(true) } }) {
-                        T(if (selecting) "Cancel" else "Select", size = 15, weight = FontWeight.SemiBold)
+        PullToRefreshBox(
+            isRefreshing = indexing && groups != null,
+            onRefresh = { vm.refreshIndex(force = true) },
+            modifier = Modifier.fillMaxSize().statusBarsPadding(),
+        ) {
+            LazyColumn(state = list, contentPadding = PaddingValues(bottom = bottomPadding + 24.dp), modifier = Modifier.fillMaxSize()) {
+                item {
+                    Row(Modifier.fillMaxWidth().height(64.dp).padding(start = 16.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                        T("Back Then", size = 20, weight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                        TextButton(onClick = { if (selecting) stopSelecting() else { selecting = true; onSelectingChange(true) } }) {
+                            T(if (selecting) "Cancel" else "Select", size = 15, weight = FontWeight.SemiBold)
+                        }
+                        IconButton(onClick = { calendar = true }) { Icon(Icons.Outlined.CalendarMonth, "Pick a day", tint = p.ink) }
+                        IconButton(onClick = { settings = true }) { Icon(Icons.Outlined.MoreVert, "Options", tint = p.ink) }
                     }
-                    IconButton(onClick = { calendar = true }) { Icon(Icons.Outlined.CalendarMonth, "Pick a day", tint = p.ink) }
-                    IconButton(onClick = { settings = true }) { Icon(Icons.Outlined.MoreVert, "Options", tint = p.ink) }
-                }
-                Column(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
-                    Row(
-                        Modifier.clip(RoundedCornerShape(8.dp)).clickable(role = Role.Button) { calendar = true },
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        T(day.label(), size = 32, weight = FontWeight.Bold, tight = true, modifier = Modifier.semantics { heading() })
-                        Icon(Icons.Filled.ArrowDropDown, "Pick another day", tint = Accent)
-                    }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        T(summary, size = 15, muted = true, modifier = Modifier.weight(1f))
-                        if (!hidden) {
-                            TextButton(onClick = { vm.setHidden(day, true) }) {
-                                Icon(Icons.Outlined.VisibilityOff, null, tint = p.muted, modifier = Modifier.size(16.dp))
-                                Spacer(Modifier.size(6.dp))
-                                T("Hide date", size = 14, weight = FontWeight.SemiBold, muted = true)
+                    Column(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                        Row(
+                            Modifier.clip(RoundedCornerShape(8.dp)).clickable(role = Role.Button) { calendar = true },
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            T(day.label(), size = 32, weight = FontWeight.Bold, tight = true, modifier = Modifier.semantics { heading() })
+                            Icon(Icons.Filled.ArrowDropDown, "Pick another day", tint = Accent)
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            T(summary, size = 15, muted = true, modifier = Modifier.weight(1f))
+                            if (!hidden) {
+                                TextButton(onClick = { vm.setHidden(day, true) }) {
+                                    Icon(Icons.Outlined.VisibilityOff, null, tint = p.muted, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.size(6.dp))
+                                    T("Hide date", size = 14, weight = FontWeight.SemiBold, muted = true)
+                                }
                             }
                         }
                     }
-                }
-                if (day != today) {
-                    Row(Modifier.padding(start = 16.dp, top = 8.dp)) {
-                        Pill("Back to today", { go(today) }, kind = Kind.Tint, height = 34.dp, icon = { Icon(Icons.AutoMirrored.Filled.Undo, null, tint = it, modifier = Modifier.size(14.dp)) })
+                    if (day != today) {
+                        Row(Modifier.padding(start = 16.dp, top = 8.dp)) {
+                            Pill("Back to today", { go(today) }, kind = Kind.Tint, height = 34.dp, icon = { Icon(Icons.AutoMirrored.Filled.Undo, null, tint = it, modifier = Modifier.size(14.dp)) })
+                        }
                     }
                 }
-            }
-            when {
-                hidden -> item { HiddenDay(day) { vm.setHidden(day, false) } }
-                groups == null -> item { Skeleton() }
-                groups.isEmpty() -> item {
-                    val noSources = !state.sources.device && !state.sources.google
-                    EmptyDay(day, noSources, nearbyDays(index, day), onGo = ::go, onConnect = { settings = true })
-                }
-                state.layout == YearLayout.STRIP -> {
-                    val years = groups.map { it.year }
-                    val at = stripPick?.let { years.indexOf(it) }?.takeIf { it >= 0 } ?: 0
-                    val g = groups[at]
-                    stickyHeader(key = "years") { YearPills(years, g.year) { stripPick = it } }
-                    item(key = g.year) {
-                        StripYear(
+                when {
+                    hidden -> item { HiddenDay(day) { vm.setHidden(day, false) } }
+                    groups == null -> item { Skeleton() }
+                    groups.isEmpty() -> item {
+                        val noSources = !state.sources.device && !state.sources.google
+                        val near = remember(index, day) { nearbyDays(index, day) }
+                        EmptyDay(day, noSources, near, onGo = ::go, onConnect = { settings = true })
+                    }
+                    state.layout == YearLayout.STRIP -> {
+                        val years = groups.map { it.year }
+                        val at = stripPick?.let { years.indexOf(it) }?.takeIf { it >= 0 } ?: 0
+                        val g = groups[at]
+                        stickyHeader(key = "years") { YearPills(years, g.year) { stripPick = it } }
+                        item(key = g.year) {
+                            StripYear(
+                                g.year, g.photos, day, favorites, selection,
+                                newer = years.getOrNull(at - 1), older = years.getOrNull(at + 1),
+                                onOpen = { i -> vm.viewer.value = com.njarrar.backthen.Viewer(g.photos, i) },
+                                onShare = { shareFor = ShareRequest("${day.label()}, ${g.year}", g.photos) },
+                                onPick = { stripPick = it },
+                            )
+                        }
+                    }
+                    else -> items(groups, key = { it.year }, contentType = { "year" }) { g ->
+                        YearSection(
                             g.year, g.photos, day, favorites, selection,
-                            newer = years.getOrNull(at - 1), older = years.getOrNull(at + 1),
                             onOpen = { i -> vm.viewer.value = com.njarrar.backthen.Viewer(g.photos, i) },
                             onShare = { shareFor = ShareRequest("${day.label()}, ${g.year}", g.photos) },
-                            onPick = { stripPick = it },
                         )
                     }
-                }
-                else -> items(groups, key = { it.year }) { g ->
-                    YearSection(
-                        g.year, g.photos, day, favorites, selection,
-                        onOpen = { i -> vm.viewer.value = com.njarrar.backthen.Viewer(g.photos, i) },
-                        onShare = { shareFor = ShareRequest("${day.label()}, ${g.year}", g.photos) },
-                    )
                 }
             }
         }
@@ -438,9 +452,10 @@ fun FavoritesScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp
     val favs = state.favorites
     LazyColumn(Modifier.fillMaxSize().background(LocalPalette.current.bg).statusBarsPadding(), contentPadding = PaddingValues(bottom = bottomPadding + 24.dp)) {
         item { Header("Favorites", if (favs.isEmpty()) "Nothing saved yet" else plural(favs.size, "photo")) }
-        item {
-            if (favs.isEmpty()) EmptyNote(Icons.Outlined.FavoriteBorder, "No favorites yet", "Open any photo and tap the heart. It will be kept here, whatever day it's from.")
-            else SquareGrid(favs, emptySet(), showYear = true) { i -> vm.viewer.value = com.njarrar.backthen.Viewer(favs, i) }
+        if (favs.isEmpty()) {
+            item { EmptyNote(Icons.Outlined.FavoriteBorder, "No favorites yet", "Open any photo and tap the heart. It will be kept here, whatever day it's from.") }
+        } else {
+            squareGridItems(favs, emptySet(), showYear = true) { i -> vm.viewer.value = com.njarrar.backthen.Viewer(favs, i) }
         }
     }
 }
@@ -484,7 +499,7 @@ fun AlbumScreen(vm: AppViewModel, album: Album, bottomPadding: androidx.compose.
     val context = LocalContext.current
     var confirmDelete by remember { mutableStateOf(false) }
     var sharing by remember { mutableStateOf(false) }
-    val made = localDate(album.createdAt)
+    val made = remember(album.createdAt) { localDate(album.createdAt) }
     BackHandler(onBack = onBack)
     LazyColumn(Modifier.fillMaxSize().background(p.bg).statusBarsPadding(), contentPadding = PaddingValues(bottom = bottomPadding + 24.dp)) {
         item {
@@ -499,8 +514,8 @@ fun AlbumScreen(vm: AppViewModel, album: Album, bottomPadding: androidx.compose.
                 T(album.name, size = 30, weight = FontWeight.Bold, tight = true, modifier = Modifier.semantics { heading() })
                 T("${plural(album.photos.size, "photo")}, made ${MONTHS_SHORT[made.monthValue - 1]} ${made.dayOfMonth}", size = 15, muted = true)
             }
-            SquareGrid(album.photos, emptySet(), showYear = false) { i -> vm.viewer.value = com.njarrar.backthen.Viewer(album.photos, i) }
         }
+        squareGridItems(album.photos, emptySet(), showYear = false) { i -> vm.viewer.value = com.njarrar.backthen.Viewer(album.photos, i) }
     }
     if (sharing) {
         ShareSheet(

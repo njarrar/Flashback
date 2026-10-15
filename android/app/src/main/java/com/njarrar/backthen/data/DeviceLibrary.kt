@@ -10,10 +10,12 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import androidx.core.content.ContextCompat
+import com.njarrar.backthen.core.DayIndex
 import com.njarrar.backthen.core.MonthDay
 import com.njarrar.backthen.core.Photo
 import com.njarrar.backthen.core.PhotoSource
 import com.njarrar.backthen.core.dayRange
+import com.njarrar.backthen.core.localDate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -49,9 +51,42 @@ class DeviceLibrary(private val context: Context) {
         times
     }
 
-    /** Photos taken on one calendar day of one year, oldest first. */
-    suspend fun photosOn(year: Int, md: MonthDay): List<Photo> = withContext(Dispatchers.IO) {
-        val (start, end) = dayRange(year, md) ?: return@withContext emptyList()
+    /** Photo count, newest id and when it was added: if none of these moved, the index is still right. */
+    private data class Signature(val count: Int, val newestId: Long, val newestAdded: Long)
+    @Volatile private var lastSignature: Signature? = null
+
+    /**
+     * Counts photos per day straight from MediaStore, without building a list of times first.
+     * Returns null when the library looks the same as last time, unless [force] is set.
+     */
+    suspend fun readDeviceIndex(force: Boolean = false): DayIndex? = withContext(Dispatchers.IO) {
+        val projection = arrayOf(MediaStore.Images.Media._ID, MediaStore.Images.Media.DATE_TAKEN, MediaStore.Images.Media.DATE_ADDED)
+        val index = HashMap<String, HashMap<Int, Int>>(366)
+        context.contentResolver.query(collection, projection, null, null, "${MediaStore.Images.Media._ID} DESC")?.use { c ->
+            val id = c.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+            val taken = c.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN)
+            val added = c.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
+            val first = c.moveToFirst()
+            val sig = Signature(c.count, if (first) c.getLong(id) else -1, if (first) c.getLong(added) else -1)
+            if (!force && sig == lastSignature) return@withContext null
+            lastSignature = sig
+            if (first) {
+                do {
+                    val t = if (c.isNull(taken) || c.getLong(taken) == 0L) c.getLong(added) * 1000 else c.getLong(taken)
+                    if (t > 0) {
+                        val date = localDate(t)
+                        index.getOrPut(MonthDay.of(date).key) { HashMap() }.merge(date.year, 1, Int::plus)
+                    }
+                } while (c.moveToNext())
+            }
+        }
+        index
+    }
+
+    /** Photos taken on one calendar day in each of [years], oldest first, from one query. */
+    suspend fun photosOn(years: List<Int>, md: MonthDay): Map<Int, List<Photo>> = withContext(Dispatchers.IO) {
+        val ranges = years.mapNotNull { dayRange(it, md) }
+        if (ranges.isEmpty()) return@withContext emptyMap()
         val projection = arrayOf(
             MediaStore.Images.Media._ID,
             MediaStore.Images.Media.DATE_TAKEN,
@@ -60,12 +95,13 @@ class DeviceLibrary(private val context: Context) {
             MediaStore.Images.Media.HEIGHT,
         )
         // Some files have no capture time; fall back to when they were added (in seconds).
-        val selection = "(${MediaStore.Images.Media.DATE_TAKEN} >= ? AND ${MediaStore.Images.Media.DATE_TAKEN} < ?) OR " +
+        val oneDay = "((${MediaStore.Images.Media.DATE_TAKEN} >= ? AND ${MediaStore.Images.Media.DATE_TAKEN} < ?) OR " +
             "((${MediaStore.Images.Media.DATE_TAKEN} IS NULL OR ${MediaStore.Images.Media.DATE_TAKEN} = 0) AND " +
-            "${MediaStore.Images.Media.DATE_ADDED} >= ? AND ${MediaStore.Images.Media.DATE_ADDED} < ?)"
-        val args = arrayOf(start.toString(), end.toString(), (start / 1000).toString(), (end / 1000).toString())
-        val out = ArrayList<Photo>()
-        context.contentResolver.query(collection, projection, selection, args, null)?.use { c ->
+            "${MediaStore.Images.Media.DATE_ADDED} >= ? AND ${MediaStore.Images.Media.DATE_ADDED} < ?))"
+        val selection = ranges.joinToString(" OR ") { oneDay }
+        val args = ranges.flatMap { (start, end) -> listOf(start, end, start / 1000, end / 1000).map { it.toString() } }
+        val byYear = HashMap<Int, ArrayList<Photo>>()
+        context.contentResolver.query(collection, projection, selection, args.toTypedArray(), null)?.use { c ->
             val id = c.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
             val taken = c.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN)
             val added = c.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
@@ -74,7 +110,7 @@ class DeviceLibrary(private val context: Context) {
             while (c.moveToNext()) {
                 val assetId = c.getLong(id)
                 val time = if (c.isNull(taken) || c.getLong(taken) == 0L) c.getLong(added) * 1000 else c.getLong(taken)
-                out += Photo(
+                byYear.getOrPut(localDate(time).year) { ArrayList() } += Photo(
                     key = "d:$assetId",
                     source = PhotoSource.DEVICE,
                     uri = ContentUris.withAppendedId(collection, assetId).toString(),
@@ -84,7 +120,7 @@ class DeviceLibrary(private val context: Context) {
                 )
             }
         }
-        out.sortedBy { it.time }
+        byYear.mapValues { (_, list) -> list.sortedBy { it.time } }
     }
 
     /**

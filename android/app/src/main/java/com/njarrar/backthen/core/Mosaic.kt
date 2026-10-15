@@ -33,18 +33,23 @@ fun spansFor(count: Int): List<Pair<Int, Int>> {
     return spans
 }
 
-/** Places tiles in reading order, each at the first free spot that fits. Returns tiles and row count. */
+/**
+ * Places tiles in reading order, each at the first free spot that fits. Returns tiles and row count.
+ * Each row's taken cells are bits in one Int, so checking a spot needs no new objects.
+ */
 fun layoutMosaic(count: Int): Pair<List<Tile>, Int> {
-    val used = HashSet<Pair<Int, Int>>()
-    val tiles = ArrayList<Tile>()
+    val spans = spansFor(count)
+    var used = IntArray(16)
+    val tiles = ArrayList<Tile>(spans.size)
     var rows = 0
-    for ((cols, rs) in spansFor(count)) {
+    for ((cols, rs) in spans) {
         var r = 0
         placing@ while (true) {
+            if (r + rs > used.size) used = used.copyOf(maxOf(used.size * 2, r + rs))
             for (c in 0..COLUMNS - cols) {
-                val cells = (0 until rs).flatMap { dr -> (0 until cols).map { dc -> (r + dr) to (c + dc) } }
-                if (cells.any { it in used }) continue
-                used += cells
+                val mask = ((1 shl cols) - 1) shl c
+                if ((0 until rs).any { (used[r + it] and mask) != 0 }) continue
+                for (dr in 0 until rs) used[r + dr] = used[r + dr] or mask
                 tiles += Tile(c, r, cols, rs)
                 rows = maxOf(rows, r + rs)
                 break@placing
