@@ -64,7 +64,21 @@ extension Font {
         case .black: name = "Nunito-Black"
         default: name = "Nunito-Regular"
         }
-        return .custom(name, size: size)
+        return .custom(name, size: size, relativeTo: textStyle(for: size))
+    }
+
+    /// The text style a size grows with when the user picks a larger text size.
+    private static func textStyle(for size: CGFloat) -> Font.TextStyle {
+        switch size {
+        case 34...: return .largeTitle
+        case 28..<34: return .title
+        case 22..<28: return .title2
+        case 18..<22: return .title3
+        case 16..<18: return .body
+        case 15..<16: return .subheadline
+        case 13..<15: return .footnote
+        default: return .caption
+        }
     }
 }
 

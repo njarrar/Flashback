@@ -266,6 +266,7 @@ struct YearSection: View {
             }())
         }
         .padding(.horizontal, 16)
+        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
         // Start where the pinned header sits; that header stays hidden until it pins.
         .padding(.top, -PinnedYear.height)
         // Space before the next year.
@@ -299,6 +300,8 @@ struct PinnedYear: View {
             .accessibilityLabel("Share \(String(group.year))")
         }
         .padding(.leading, 20).padding(.trailing, 6)
+        // Fixed 44 pt bar, so it stops growing before the accessibility sizes.
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
         .frame(height: Self.height)
         .background(.bar)
         .overlay(alignment: .bottom) { Palette.line.frame(height: 1 / scale) }
