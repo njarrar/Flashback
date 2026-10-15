@@ -254,6 +254,7 @@ struct YearSection: View {
                     .buttonStyle(PressStyle())
                     .accessibilityLabel("Share \(String(group.year))")
                 }
+                .layoutPriority(1)
                 .padding(.bottom, 8)
             }
             .padding(.horizontal, 4)
