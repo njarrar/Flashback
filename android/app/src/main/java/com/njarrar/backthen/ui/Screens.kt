@@ -437,7 +437,10 @@ fun FavoritesScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp
     val list = rememberLazyListState()
     LaunchedEffect(Unit) { scrollTop.collect { list.animateScrollToItem(0) } }
     LazyColumn(state = list, modifier = Modifier.fillMaxSize().background(LocalPalette.current.bg).statusBarsPadding(), contentPadding = PaddingValues(bottom = bottomPadding + 24.dp)) {
-        item { Header("Favorites", if (favs.isEmpty()) "Nothing saved yet" else plural(favs.size, "photo")) }
+        item {
+            val years = favs.map { localDate(it.time).year }.toSet().size
+            Header("Favorites", if (favs.isEmpty()) "Nothing saved yet" else "${plural(favs.size, "photo")} from ${plural(years, "year")}")
+        }
         item {
             if (favs.isEmpty()) EmptyNote(Icons.Outlined.FavoriteBorder, "No favorites yet", "Open any photo and tap the heart. It will be kept here, whatever day it's from.")
             else SquareGrid(favs, emptySet(), showYear = true) { i -> vm.viewer.value = com.njarrar.backthen.Viewer(favs, i) }

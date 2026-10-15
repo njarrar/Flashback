@@ -309,33 +309,43 @@ struct PinnedYear: View {
     }
 }
 
-/// A plain 3-column grid, used for Favorites and album pages.
+/// A browse grid, used for Favorites and album pages: 3 columns, edge to edge, square tiles.
 struct SquareGrid: View {
     @Environment(AppStore.self) private var store
     let photos: [Photo]
     var showYear = false
 
     var body: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 3), count: 3), spacing: 3) {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 3), spacing: 2) {
             ForEach(Array(photos.enumerated()), id: \.element.key) { i, photo in
-                PhotoTile(photo: photo, radius: 4, showHeart: !showYear) {
+                PhotoTile(photo: photo, radius: 0, showHeart: !showYear) {
                     store.viewer = Viewer(photos: photos, start: i)
                 }
                 .aspectRatio(1, contentMode: .fit)
                 .overlay(alignment: .bottomLeading) {
-                    if showYear {
-                        Text(String(yearOf(photo.time)))
-                            .font(.nunito(13, .black)).foregroundStyle(.white)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 7).padding(.top, 16).padding(.bottom, 5)
-                            .background(LinearGradient(colors: [.clear, .black.opacity(0.5)], startPoint: .top, endPoint: .bottom))
-                            .clipShape(UnevenRoundedRectangle(bottomLeadingRadius: 4, bottomTrailingRadius: 4))
-                            .allowsHitTesting(false)
-                    }
+                    if showYear { YearChip(year: yearOf(photo.time)).padding(6) }
                 }
             }
         }
-        .padding(.horizontal, 3)
+    }
+}
+
+/// Small year label on a photo tile.
+struct YearChip: View {
+    let year: Int
+
+    var body: some View {
+        Text(String(year))
+            .font(.nunito(11, .heavy)).tracking(0.2).foregroundStyle(Palette.chipInk)
+            .padding(.vertical, 2).padding(.horizontal, 7)
+            .background {
+                ZStack {
+                    Capsule().fill(.ultraThinMaterial)
+                    Capsule().fill(Palette.chip)
+                }
+            }
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
     }
 }
 

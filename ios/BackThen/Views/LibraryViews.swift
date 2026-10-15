@@ -41,7 +41,8 @@ struct FavoritesView: View {
     var body: some View {
         let favs = store.saved.favorites
         ScrollView {
-            Header(title: "Favorites", subtitle: favs.isEmpty ? "Nothing saved yet" : plural(favs.count, "photo")) { EmptyView() }
+            Header(title: "Favorites", subtitle: favs.isEmpty ? "Nothing saved yet"
+                   : "\(plural(favs.count, "photo")) from \(plural(Set(favs.map { yearOf($0.time) }).count, "year"))") { EmptyView() }
             if favs.isEmpty {
                 EmptyNote(icon: "heart", title: "No favorites yet", text: "Open any photo and tap the heart. It will be kept here, whatever day it's from.")
             } else {

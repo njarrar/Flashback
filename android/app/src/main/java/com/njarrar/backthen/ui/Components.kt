@@ -306,29 +306,35 @@ fun YearMosaic(photos: List<Photo>, favorites: Set<String>, selection: Selection
     }
 }
 
-/** A plain 3-column grid, used for Favorites and album pages. */
+/** A browse grid, used for Favorites and album pages: 3 columns, edge to edge, square tiles. */
 @Composable
 fun SquareGrid(photos: List<Photo>, favorites: Set<String>, showYear: Boolean, onOpen: (Int) -> Unit) {
-    BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 3.dp)) {
-        val size = (maxWidth - 6.dp) / 3
-        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val gap = 2.dp
+        val size = (maxWidth - gap * 2) / 3
+        Column(verticalArrangement = Arrangement.spacedBy(gap)) {
             photos.chunked(3).forEachIndexed { r, rowPhotos ->
-                Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
                     rowPhotos.forEachIndexed { c, photo ->
                         Box(Modifier.size(size)) {
-                            PhotoTile(photo, 4.dp, !showYear && photo.key in favorites, null, onOpen = { onOpen(r * 3 + c) }, modifier = Modifier.fillMaxSize())
-                            if (showYear) {
-                                Box(
-                                    Modifier.align(Alignment.BottomStart).fillMaxWidth()
-                                        .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.5f))))
-                                        .padding(start = 7.dp, end = 7.dp, top = 16.dp, bottom = 5.dp),
-                                ) { T(localDate(photo.time).year.toString(), size = 13, weight = FontWeight.Black, color = Color.White) }
-                            }
+                            PhotoTile(photo, 0.dp, !showYear && photo.key in favorites, null, onOpen = { onOpen(r * 3 + c) }, modifier = Modifier.fillMaxSize())
+                            if (showYear) YearChip(localDate(photo.time).year, Modifier.align(Alignment.BottomStart).padding(6.dp))
                         }
                     }
                 }
             }
         }
+    }
+}
+
+/** Small year label on a photo tile. */
+@Composable
+fun YearChip(year: Int, modifier: Modifier = Modifier) {
+    Box(modifier.clip(RoundedCornerShape(50)).background(Chip).padding(horizontal = 7.dp, vertical = 2.dp).clearAndSetSemantics {}) {
+        Text(
+            year.toString(), color = ChipInk, fontFamily = Nunito, fontWeight = FontWeight.ExtraBold,
+            fontSize = 11.sp, lineHeight = 14.sp, letterSpacing = 0.2.sp,
+        )
     }
 }
 

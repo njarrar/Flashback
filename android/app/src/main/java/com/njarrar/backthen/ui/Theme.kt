@@ -16,6 +16,10 @@ import com.njarrar.backthen.R
 // Tokens from the design. One coral accent, kept for hearts, selection and the current day.
 val Accent = Color(0xFFE5533D)
 
+/** Year chip on browse grid tiles: white text on a dark capsule, the same in both themes. */
+val Chip = Color(0x73000000)
+val ChipInk = Color.White
+
 data class Palette(
     val bg: Color,
     val surface: Color,

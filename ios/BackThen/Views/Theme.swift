@@ -26,6 +26,9 @@ enum Palette {
     static let glass = dynamic(ui(0xFFFFFF, 0.9), ui(0x2C2C2E, 0.88))
     static let accTint = dynamic(ui(0xFBE4DF), ui(0x3A211C))
     static let accInk = dynamic(ui(0x9A2E1E), ui(0xFF9C8A))
+    /// Year chip on browse grid tiles: white text on a dark capsule, the same in both themes.
+    static let chip = Color(uiColor: ui(0x000000, 0.36))
+    static let chipInk = Color.white
 
     static func hex(_ hex: UInt32, _ alpha: Double = 1) -> Color { Color(uiColor: ui(hex, alpha)) }
 }
