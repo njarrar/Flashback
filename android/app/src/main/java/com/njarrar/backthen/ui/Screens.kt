@@ -74,6 +74,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -262,7 +263,9 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
         groups.isNotEmpty() -> "${plural(total, "photo")} from ${plural(groups.size, "year")}"
         else -> "No photos on this date"
     }
+    val view = LocalView.current
     val selection = Selection(selecting, picked.map { it.key }.toSet()) { ph ->
+        Haptics.tick(view)
         picked = if (picked.any { it.key == ph.key }) picked.filterNot { it.key == ph.key } else picked + ph
     }
     val favorites = state.favorites.map { it.key }.toSet()

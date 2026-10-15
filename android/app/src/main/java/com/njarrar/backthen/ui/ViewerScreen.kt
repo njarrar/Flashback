@@ -57,6 +57,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -113,6 +114,11 @@ fun ViewerScreen(
     val closeAt = with(density) { 120.dp.toPx() }
     val flick = with(density) { 800.dp.toPx() }
     val pull = (drag.value.coerceAtLeast(0f) / fullPull).coerceIn(0f, 1f)
+    val view = LocalView.current
+    var shown by remember { mutableStateOf(pager.currentPage) }
+    LaunchedEffect(pager.currentPage) {
+        if (pager.currentPage != shown) { shown = pager.currentPage; Haptics.tick(view) }
+    }
     val chromeAlpha by animateFloatAsState(if (chrome) 1f else 0f, tween(200), label = "chrome")
 
     Box(Modifier.fillMaxSize()) {
@@ -174,7 +180,7 @@ fun ViewerScreen(
                     Spacer(Modifier.height(24.dp))
                 }
                 Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp), horizontalArrangement = Arrangement.SpaceAround) {
-                    IconButton(onClick = { onFavorite(photo) }, enabled = chrome, modifier = Modifier.size(56.dp)) {
+                    IconButton(onClick = { if (!fav) Haptics.confirm(view); onFavorite(photo) }, enabled = chrome, modifier = Modifier.size(56.dp)) {
                         Icon(
                             if (fav) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                             if (fav) "Remove from favorites" else "Favorite",

@@ -22,6 +22,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -63,6 +65,9 @@ fun CalendarDialog(start: MonthDay, index: DayIndex, onPick: (MonthDay) -> Unit,
     val pager = rememberPagerState(initialPage = start.month) { 12 }
     val scope = rememberCoroutineScope()
     val month = pager.currentPage
+    val view = LocalView.current
+    var shown by remember { mutableStateOf(month) }
+    LaunchedEffect(month) { if (month != shown) { shown = month; Haptics.tick(view) } }
     Dialog(onDismissRequest = onDismiss) {
         Column(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(p.surface2).padding(start = 12.dp, end = 12.dp, top = 20.dp, bottom = 12.dp),

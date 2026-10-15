@@ -1,5 +1,8 @@
 package com.njarrar.backthen.ui
 
+import android.os.Build
+import android.view.HapticFeedbackConstants
+import android.view.View
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -356,6 +359,17 @@ fun Print(year: Int, label: String, @DrawableRes drawing: Int, width: Dp, angle:
             T(year.toString(), size = if (width > 160.dp) 26 else 22, weight = FontWeight.Black, tight = true, modifier = Modifier.weight(1f))
             T(label, size = 11, weight = FontWeight.Medium, muted = true)
         }
+    }
+}
+
+/** Light haptics, one per action, fired with the visual change. */
+object Haptics {
+    fun tick(view: View) {
+        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+    }
+
+    fun confirm(view: View) {
+        view.performHapticFeedback(if (Build.VERSION.SDK_INT >= 30) HapticFeedbackConstants.CONFIRM else HapticFeedbackConstants.VIRTUAL_KEY)
     }
 }
 

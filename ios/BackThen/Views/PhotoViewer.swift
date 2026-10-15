@@ -105,6 +105,8 @@ struct PhotoViewer: View {
             })
         }
         .statusBarHidden()
+        .sensoryFeedback(.impact(weight: .light), trigger: store.saved.favorites.count) { old, new in new > old }
+        .sensoryFeedback(.selection, trigger: index)
     }
 
     private func header(_ photo: Photo) -> some View {

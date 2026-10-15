@@ -51,6 +51,7 @@ struct CalendarSheet: View {
         .padding(.top, 20)
         .padding(.bottom, 12)
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
+        .sensoryFeedback(.selection, trigger: month)
         .presentationDetents([.height(height)])
         .presentationCornerRadius(36)
         .presentationBackground(Palette.surface)
