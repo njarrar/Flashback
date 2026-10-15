@@ -37,17 +37,21 @@ func spans(for count: Int) -> [(Int, Int)] {
 }
 
 /// Places tiles in reading order, each at the first free spot that fits.
+/// Each row's taken cells are bits in one byte, so checking a spot needs no new arrays.
 func layoutMosaic(_ count: Int) -> (tiles: [Tile], rows: Int) {
-    var used = Set<[Int]>()
+    let tileSpans = spans(for: count)
+    var used: [UInt8] = []
     var tiles: [Tile] = []
+    tiles.reserveCapacity(tileSpans.count)
     var rows = 0
-    for (cols, rs) in spans(for: count) {
+    for (cols, rs) in tileSpans {
         var r = 0
         placing: while true {
+            while used.count < r + rs { used.append(0) }
             for c in 0...(mosaicColumns - cols) {
-                let cells = (0..<rs).flatMap { dr in (0..<cols).map { dc in [r + dr, c + dc] } }
-                if cells.contains(where: used.contains) { continue }
-                cells.forEach { used.insert($0) }
+                let mask = UInt8(((1 << cols) - 1) << c)
+                if (0..<rs).contains(where: { used[r + $0] & mask != 0 }) { continue }
+                for dr in 0..<rs { used[r + dr] |= mask }
                 tiles.append(Tile(col: c, row: r, cols: cols, rows: rs))
                 rows = max(rows, r + rs)
                 break placing

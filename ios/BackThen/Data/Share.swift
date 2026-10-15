@@ -5,24 +5,36 @@ import UIKit
 enum Share {
     /// `done` runs when the system sheet closes.
     static func photos(_ photos: [Photo], title: String, done: @escaping () -> Void = {}) async {
-        let dir = FileManager.default.temporaryDirectory.appending(path: "share-\(UUID().uuidString)")
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        var urls: [URL] = []
-        for (i, p) in photos.enumerated() {
-            switch p.source {
-            case .google:
-                urls.append(GooglePhotos.fileURL(p.ref))
-            case .device:
-                guard let data = await PhotoLibrary.data(id: p.ref) else { continue }
-                // Name files by date so they make sense where they land.
-                let f = DateFormatter()
-                f.dateFormat = "yyyy-MM-dd"
-                let url = dir.appending(path: "\(f.string(from: p.time))-\(i + 1).jpg")
-                let jpeg = UIImage(data: data)?.jpegData(compressionQuality: 0.92) ?? data
-                try? jpeg.write(to: url)
-                urls.append(url)
+        // Reads and writes the files off the main thread, so the app doesn't freeze on big shares.
+        let urls: [URL] = await Task.detached(priority: .userInitiated) {
+            let fm = FileManager.default
+            let tmp = fm.temporaryDirectory
+            // Clear out files from earlier shares; those sheets are closed by now.
+            for old in (try? fm.contentsOfDirectory(at: tmp, includingPropertiesForKeys: nil)) ?? []
+            where old.lastPathComponent.hasPrefix("share-") {
+                try? fm.removeItem(at: old)
             }
-        }
+            let dir = tmp.appending(path: "share-\(UUID().uuidString)")
+            try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
+            let f = DateFormatter()
+            f.locale = Locale(identifier: "en_US_POSIX")
+            f.dateFormat = "yyyy-MM-dd"
+            var out: [URL] = []
+            for (i, p) in photos.enumerated() {
+                switch p.source {
+                case .google:
+                    out.append(GooglePhotos.fileURL(p.ref))
+                case .device:
+                    guard let data = await PhotoLibrary.data(id: p.ref) else { continue }
+                    // Name files by date so they make sense where they land.
+                    let url = dir.appending(path: "\(f.string(from: p.time))-\(i + 1).jpg")
+                    let jpeg = UIImage(data: data)?.jpegData(compressionQuality: 0.92) ?? data
+                    try? jpeg.write(to: url, options: .atomic)
+                    out.append(url)
+                }
+            }
+            return out
+        }.value
         guard !urls.isEmpty, let top = topController() else { return }
         let sheet = UIActivityViewController(activityItems: urls, applicationActivities: nil)
         sheet.setValue(title, forKey: "subject")

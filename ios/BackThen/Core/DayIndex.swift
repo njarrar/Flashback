@@ -32,8 +32,13 @@ func yearsForDay(_ index: DayIndex, _ md: MonthDay, today: Date = Date(), calend
         .keys.sorted(by: >)
 }
 
-func hasPhotos(_ index: DayIndex, _ md: MonthDay, today: Date = Date()) -> Bool {
-    !yearsForDay(index, md, today: today).isEmpty
+/// Same test as `yearsForDay`, but stops at the first match and sorts nothing. Calendar dots call it a lot.
+func hasPhotos(_ index: DayIndex, _ md: MonthDay, today: Date = Date(), calendar: Calendar = .current) -> Bool {
+    guard let byYear = index[md.key] else { return false }
+    let now = calendar.dateComponents([.year, .month, .day], from: today)
+    guard let thisYear = now.year, let month = now.month, let day = now.day else { return false }
+    let passed = md.month < month - 1 || (md.month == month - 1 && md.day < day)
+    return byYear.contains { y, n in n > 0 && (y < thisYear || (y == thisYear && passed)) }
 }
 
 /// The closest earlier and later days that have photos, within 60 days.
@@ -41,8 +46,14 @@ func nearbyDays(_ index: DayIndex, _ md: MonthDay, today: Date = Date()) -> (bef
     var before: MonthDay?
     var after: MonthDay?
     for k in 1...60 where before == nil || after == nil {
-        if before == nil, hasPhotos(index, md.shifted(by: -k), today: today) { before = md.shifted(by: -k) }
-        if after == nil, hasPhotos(index, md.shifted(by: k), today: today) { after = md.shifted(by: k) }
+        if before == nil {
+            let earlier = md.shifted(by: -k)
+            if hasPhotos(index, earlier, today: today) { before = earlier }
+        }
+        if after == nil {
+            let later = md.shifted(by: k)
+            if hasPhotos(index, later, today: today) { after = later }
+        }
     }
     return (before, after)
 }

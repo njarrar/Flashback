@@ -35,8 +35,12 @@ fun yearsForDay(index: DayIndex, md: MonthDay, today: LocalDate = LocalDate.now(
         .keys.sortedDescending()
 }
 
-fun hasPhotos(index: DayIndex, md: MonthDay, today: LocalDate = LocalDate.now()) =
-    yearsForDay(index, md, today).isNotEmpty()
+/** Same test as [yearsForDay], but stops at the first match and sorts nothing. Calendar dots call it a lot. */
+fun hasPhotos(index: DayIndex, md: MonthDay, today: LocalDate = LocalDate.now()): Boolean {
+    val byYear = index[md.key] ?: return false
+    val passed = md.month < today.monthValue - 1 || (md.month == today.monthValue - 1 && md.day < today.dayOfMonth)
+    return byYear.any { (y, n) -> n > 0 && (y < today.year || (y == today.year && passed)) }
+}
 
 /** The closest earlier and later days that have photos, within 60 days. */
 fun nearbyDays(index: DayIndex, md: MonthDay, today: LocalDate = LocalDate.now()): Pair<MonthDay?, MonthDay?> {

@@ -108,6 +108,8 @@ enum GooglePhotos {
         let isoPlain = ISO8601DateFormatter()
         var out: [Photo] = []
         for (n, item) in picked.enumerated() {
+            // Stop between downloads as soon as the user cancels.
+            try Task.checkCancellation()
             onProgress(n, picked.count)
             // Base URLs expire after an hour and need the token, so keep a local copy.
             let name = item.id.replacingOccurrences(of: "[^A-Za-z0-9_-]", with: "_", options: .regularExpression) + ".jpg"
@@ -118,6 +120,8 @@ enum GooglePhotos {
                 guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
                     throw GooglePhotosError.http("Download failed")
                 }
+                // A file left by an earlier, cut-off import would make the move fail.
+                try? FileManager.default.removeItem(at: target)
                 try FileManager.default.moveItem(at: tmp, to: target)
             }
             let time = iso.date(from: item.createTime) ?? isoPlain.date(from: item.createTime) ?? Date()

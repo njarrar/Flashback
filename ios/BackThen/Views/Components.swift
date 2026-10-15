@@ -9,30 +9,28 @@ struct PhotoImage: View {
 
     var body: some View {
         GeometryReader { geo in
+            let fit = contentMode == .fit
+            let px = fit ? CGSize(width: 2048, height: 2048) : CGSize(width: geo.size.width * scale, height: geo.size.height * scale)
+            // A tile scrolled back into view shows its cached photo at once, with no gray flash.
+            let shown = image ?? ImageCache.get(ImageCache.key(photo.key, px))
             ZStack {
                 // Gray placeholder for grid tiles only; the viewer shows photos on black.
-                if contentMode == .fill { Palette.fill }
-                if let image {
-                    Image(uiImage: image)
+                if !fit && shown == nil { Palette.fill }
+                if let shown {
+                    Image(uiImage: shown)
                         .resizable()
                         .aspectRatio(contentMode: contentMode)
                         .frame(width: geo.size.width, height: geo.size.height)
                         .clipped()
                 }
             }
-            .task(id: "\(photo.key)-\(Int(geo.size.width))") {
-                let px = CGSize(width: geo.size.width * scale, height: geo.size.height * scale)
-                switch photo.source {
-                case .device:
-                    image = await PhotoLibrary.image(id: photo.ref, size: contentMode == .fit ? CGSize(width: 2048, height: 2048) : px)
-                case .google:
-                    let key = ImageCache.key(photo.key, px)
-                    if let hit = ImageCache.get(key) { image = hit; return }
-                    let url = GooglePhotos.fileURL(photo.ref)
-                    let loaded = await Task.detached { UIImage(contentsOfFile: url.path)?.preparingThumbnail(of: px) ?? UIImage(contentsOfFile: url.path) }.value
-                    if let loaded { ImageCache.set(loaded, key) }
-                    image = loaded
+            .task(id: "\(photo.key)-\(Int(geo.size.width))x\(Int(geo.size.height))") {
+                guard geo.size.width > 1, geo.size.height > 1 else { return }
+                let loaded: UIImage? = switch photo.source {
+                case .device: await PhotoLibrary.image(id: photo.ref, size: px, fit: fit)
+                case .google: await PhotoLibrary.googleImage(ref: photo.ref, key: photo.key, size: px)
                 }
+                if !Task.isCancelled { image = loaded }
             }
         }
         .accessibilityLabel("Photo from \(photo.time.formatted(date: .long, time: .omitted))")
@@ -219,6 +217,8 @@ struct YearSection: View {
     let share: () -> Void
 
     var body: some View {
+        let layout = layoutMosaic(group.photos.count)
+        let rows = CGFloat(layout.rows)
         VStack(spacing: 12) {
             HStack(alignment: .bottom) {
                 Text(String(group.year)).font(.nunito(56, .black)).tight(56).foregroundStyle(Palette.ink)
@@ -235,7 +235,6 @@ struct YearSection: View {
             GeometryReader { geo in
                 let gap: CGFloat = 4, row: CGFloat = 54
                 let cell = (geo.size.width - gap * CGFloat(mosaicColumns - 1)) / CGFloat(mosaicColumns)
-                let layout = layoutMosaic(group.photos.count)
                 ZStack(alignment: .topLeading) {
                     ForEach(Array(group.photos.enumerated()), id: \.element.key) { i, photo in
                         let t = layout.tiles[i]
@@ -247,10 +246,7 @@ struct YearSection: View {
                     }
                 }
             }
-            .frame(height: {
-                let rows = CGFloat(layoutMosaic(group.photos.count).rows)
-                return rows * 54 + (rows - 1) * 4
-            }())
+            .frame(height: max(0, rows * 54 + (rows - 1) * 4))
 
             HStack {
                 Spacer()

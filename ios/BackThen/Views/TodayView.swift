@@ -98,11 +98,11 @@ struct TodayView: View {
                 }
                 Color.clear.frame(height: 120)
             }
-            .refreshable { await store.refreshIndex() }
+            .refreshable { await store.refreshIndex(force: true) }
             .onChange(of: store.day) { _, _ in stripPick = nil; scroll.scrollTo("top") }
         }
         .background(Palette.bg)
-        .task(id: "\(day.key)-\(store.index.count)-\(store.saved.googlePhotos.count)-\(store.saved.sources.device)") {
+        .task(id: "\(day.key)-\(store.indexVersion)") {
             let groups = await store.photos(for: day)
             result = (day, groups)
         }

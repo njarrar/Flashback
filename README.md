@@ -51,6 +51,27 @@ takes them from the real apps on an iPhone simulator and an Android emulator. (A
 simulator can't be given photo access without a tap, so on iPhone the samples load
 the same way Google Photos picks do.)
 
+## What's new in 1.2
+
+- **Zoom.** In the photo viewer, pinch or double-tap to zoom in (up to 4x) and drag
+  to look around. On iPhone, drag a photo down to close the viewer.
+- **Pull to refresh on Android**, as on iPhone. It reads the whole library again.
+- **Faster days.** A day loads with one library query for all its years, not one per
+  year. The photo count per day is worked out once when something changes, not on
+  every redraw, and the calendar's dots no longer sort years to find one.
+- **Quicker returns to the app.** The library check on opening the app counts photos
+  per day as it reads them, skips the work when nothing changed, and no longer shows
+  the "Looking through your library" note unless it's the first run or you pulled
+  to refresh.
+- **Smoother scrolling.** Favorites and album pages draw only the rows on screen.
+  Mosaics lay out in one pass. Android keeps a quarter of its memory for thumbnails
+  and fades them in. iPhone shows a cached thumbnail at once when a tile scrolls back
+  into view, cancels photo loads for tiles that scrolled away, and reads Google
+  photos at tile size straight from the file.
+- **Fixes.** Cancelling a Google Photos import stops between downloads. On iPhone, a
+  file left by a cut-off import no longer blocks the next one, sharing builds its
+  files off the main thread, and old share files get cleaned up.
+
 ## What's new in 1.1
 
 - **Hidden dates.** Hide a date with the "Hide date" button on Today (the eye on

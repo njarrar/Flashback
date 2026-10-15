@@ -16,7 +16,6 @@ import com.njarrar.backthen.core.masonryColumns
 import com.njarrar.backthen.core.tileAspect
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -28,6 +27,8 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
@@ -37,6 +38,8 @@ import androidx.compose.material.icons.outlined.IosShare
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,9 +47,11 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -179,7 +184,8 @@ fun Toast(message: String?, modifier: Modifier = Modifier) {
 }
 
 /** Selection state shared by the photo grids. */
-class Selection(val on: Boolean, val keys: Set<String>, val toggle: (Photo) -> Unit)
+@Immutable
+data class Selection(val on: Boolean, val keys: Set<String>, val toggle: (Photo) -> Unit)
 
 @Composable
 fun PhotoTile(
@@ -193,13 +199,14 @@ fun PhotoTile(
     val p = LocalPalette.current
     val picked = selection?.keys?.contains(photo.key) == true
     val shape = RoundedCornerShape(radius)
+    val description = remember(photo.time) { "Photo from ${localDate(photo.time)}" }
     Box(
         modifier
             .clip(shape)
             .background(p.fill)
             .clickable(role = Role.Image) { if (selection?.on == true) selection.toggle(photo) else onOpen() },
     ) {
-        AsyncImage(model = photo.uri, contentDescription = "Photo from ${localDate(photo.time)}", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        AsyncImage(model = photo.uri, contentDescription = description, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
         if (favorite) {
             Icon(Icons.Filled.Favorite, null, tint = Color.White, modifier = Modifier.align(Alignment.BottomStart).padding(start = 8.dp, bottom = 7.dp).size(16.dp))
         }
@@ -231,32 +238,36 @@ fun YearSection(
     onShare: () -> Unit,
 ) {
     val p = LocalPalette.current
-    val weekday = runCatching {
-        LocalDate.of(year, day.month + 1, day.day).dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault())
-    }.getOrDefault("")
+    val weekday = remember(year, day) { weekdayName(year, day) }
+    val ago = remember(year) { agoLabel(year) }
+    val (tiles, rows) = remember(photos.size) { layoutMosaic(photos.size) }
     Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 28.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.Bottom) {
             T(year.toString(), size = 56, weight = FontWeight.Black, tight = true, modifier = Modifier.weight(1f))
             Column(horizontalAlignment = Alignment.End, modifier = Modifier.padding(bottom = 6.dp)) {
-                T(agoLabel(year), size = 14, weight = FontWeight.SemiBold)
+                T(ago, size = 14, weight = FontWeight.SemiBold)
                 T("$weekday, ${plural(photos.size, "photo")}", size = 13, muted = true)
             }
         }
-        BoxWithConstraints(Modifier.fillMaxWidth()) {
-            val gap = 4.dp
-            val row = 54.dp
-            val cell = (maxWidth - gap * (COLUMNS - 1)) / COLUMNS
-            val (tiles, rows) = layoutMosaic(photos.size)
-            Box(Modifier.fillMaxWidth().height(row * rows + gap * (rows - 1))) {
+        // Places tiles in one measure pass, in place of a BoxWithConstraints that composes twice.
+        Layout(
+            content = {
                 photos.forEachIndexed { i, photo ->
-                    val t = tiles[i]
-                    PhotoTile(
-                        photo, 10.dp, photo.key in favorites, selection, onOpen = { onOpen(i) },
-                        modifier = Modifier
-                            .offset((cell + gap) * t.col, (row + gap) * t.row)
-                            .size(cell * t.cols + gap * (t.cols - 1), row * t.rows + gap * (t.rows - 1)),
-                    )
+                    PhotoTile(photo, 10.dp, photo.key in favorites, selection, onOpen = { onOpen(i) })
                 }
+            },
+            modifier = Modifier.fillMaxWidth(),
+        ) { measurables, constraints ->
+            val gap = 4.dp.roundToPx()
+            val row = 54.dp.roundToPx()
+            val width = constraints.maxWidth
+            val cell = (width - gap * (COLUMNS - 1)) / COLUMNS
+            val placeables = measurables.mapIndexed { i, m ->
+                val t = tiles[i]
+                m.measure(Constraints.fixed(cell * t.cols + gap * (t.cols - 1), row * t.rows + gap * (t.rows - 1)))
+            }
+            layout(width, if (rows > 0) row * rows + gap * (rows - 1) else 0) {
+                placeables.forEachIndexed { i, pl -> pl.placeRelative((cell + gap) * tiles[i].col, (row + gap) * tiles[i].row) }
             }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
@@ -272,28 +283,28 @@ fun YearSection(
     }
 }
 
-/** A plain 3-column grid, used for Favorites and album pages. */
-@Composable
-fun SquareGrid(photos: List<Photo>, favorites: Set<String>, showYear: Boolean, onOpen: (Int) -> Unit) {
-    BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 3.dp)) {
-        val size = (maxWidth - 6.dp) / 3
-        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            photos.chunked(3).forEachIndexed { r, rowPhotos ->
-                Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                    rowPhotos.forEachIndexed { c, photo ->
-                        Box(Modifier.size(size)) {
-                            PhotoTile(photo, 4.dp, !showYear && photo.key in favorites, null, onOpen = { onOpen(r * 3 + c) }, modifier = Modifier.fillMaxSize())
-                            if (showYear) {
-                                Box(
-                                    Modifier.align(Alignment.BottomStart).fillMaxWidth()
-                                        .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.5f))))
-                                        .padding(start = 7.dp, end = 7.dp, top = 16.dp, bottom = 5.dp),
-                                ) { T(localDate(photo.time).year.toString(), size = 13, weight = FontWeight.Black, color = Color.White) }
-                            }
-                        }
+/** A plain 3-column grid, used for Favorites and album pages. Adds one list item per row, so only rows on screen get drawn. */
+fun LazyListScope.squareGridItems(photos: List<Photo>, favorites: Set<String>, showYear: Boolean, onOpen: (Int) -> Unit) {
+    itemsIndexed(photos.chunked(3), key = { _, row -> row.first().key }, contentType = { _, _ -> "photo-row" }) { r, rowPhotos ->
+        Row(
+            Modifier.fillMaxWidth().padding(start = 3.dp, end = 3.dp, bottom = 3.dp),
+            horizontalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            rowPhotos.forEachIndexed { c, photo ->
+                Box(Modifier.weight(1f).aspectRatio(1f)) {
+                    PhotoTile(photo, 4.dp, !showYear && photo.key in favorites, null, onOpen = { onOpen(r * 3 + c) }, modifier = Modifier.fillMaxSize())
+                    if (showYear) {
+                        val year = remember(photo.time) { localDate(photo.time).year.toString() }
+                        Box(
+                            Modifier.align(Alignment.BottomStart).fillMaxWidth()
+                                .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.5f))))
+                                .padding(start = 7.dp, end = 7.dp, top = 16.dp, bottom = 5.dp),
+                        ) { T(year, size = 13, weight = FontWeight.Black, color = Color.White) }
                     }
                 }
             }
+            // Keeps the last row's tiles the same size as the others.
+            repeat(3 - rowPhotos.size) { Spacer(Modifier.weight(1f).aspectRatio(1f)) }
         }
     }
 }
@@ -357,9 +368,9 @@ fun StripYear(
     onShare: () -> Unit,
     onPick: (Int) -> Unit,
 ) {
-    val weekday = runCatching {
-        LocalDate.of(year, day.month + 1, day.day).dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault())
-    }.getOrDefault("")
+    val weekday = remember(year, day) { weekdayName(year, day) }
+    val aspects = remember(photos) { photos.map { tileAspect(it.width, it.height) } }
+    val columns = remember(aspects) { masonryColumns(aspects) }
     Column(Modifier.padding(top = 12.dp)) {
         Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             T(year.toString(), size = 96, weight = FontWeight.Black, tight = true, modifier = Modifier.semantics { heading() })
@@ -369,13 +380,13 @@ fun StripYear(
             }
         }
         Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            masonryColumns(photos.map { tileAspect(it.width, it.height) }).forEach { col ->
+            columns.forEach { col ->
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     col.forEach { i ->
                         val ph = photos[i]
                         PhotoTile(
                             ph, 12.dp, ph.key in favorites, selection, onOpen = { onOpen(i) },
-                            modifier = Modifier.fillMaxWidth().aspectRatio(tileAspect(ph.width, ph.height)),
+                            modifier = Modifier.fillMaxWidth().aspectRatio(aspects[i]),
                         )
                     }
                 }
@@ -404,3 +415,8 @@ fun StripYear(
         }
     }
 }
+
+/** "Monday" for this day in that year, or "" if the day doesn't exist then (Feb 29). */
+private fun weekdayName(year: Int, day: MonthDay): String = runCatching {
+    LocalDate.of(year, day.month + 1, day.day).dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault())
+}.getOrDefault("")
