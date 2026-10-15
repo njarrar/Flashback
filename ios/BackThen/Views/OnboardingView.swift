@@ -37,7 +37,7 @@ struct OnboardingView: View {
             if denied {
                 Label("Without photo access there is nothing to show. You can allow it later in Settings.", systemImage: "exclamationmark.circle")
                     .font(.nunito(14, .medium)).foregroundStyle(Palette.accInk)
-                    .padding(12).background(Palette.accTint, in: RoundedRectangle(cornerRadius: 14))
+                    .padding(12).background(Palette.accTint, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
             // Apple Photos leads on iPhone, as in the design.
             VStack(spacing: 10) {
@@ -82,8 +82,8 @@ struct OnboardingView: View {
                 .foregroundStyle(Palette.ink)
             }
             .padding(14)
-            .background(Palette.glass, in: RoundedRectangle(cornerRadius: 22))
-            .overlay(RoundedRectangle(cornerRadius: 22).stroke(Palette.line))
+            .background(Palette.glass, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Palette.line))
             VStack(alignment: .leading, spacing: 10) {
                 Text("One reminder a day").font(.nunito(32, .bold)).tight(32).foregroundStyle(Palette.ink).accessibilityAddTraits(.isHeader)
                 Text("Only on days that have photos from past years. You can change the time later.").font(.nunito(16)).foregroundStyle(Palette.muted)

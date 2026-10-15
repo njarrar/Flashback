@@ -171,15 +171,15 @@ private struct Skeleton: View {
     var body: some View {
         VStack(spacing: 14) {
             HStack(alignment: .bottom) {
-                RoundedRectangle(cornerRadius: 10).fill(Palette.fill2).frame(width: 128, height: 48)
+                RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Palette.fill2).frame(width: 128, height: 48)
                 Spacer()
-                RoundedRectangle(cornerRadius: 8).fill(Palette.fill).frame(width: 76, height: 28)
+                RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Palette.fill).frame(width: 76, height: 28)
             }
             HStack(spacing: 4) {
-                RoundedRectangle(cornerRadius: 10).fill(Palette.fill2).frame(height: 228)
+                RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Palette.fill2).frame(height: 228)
                 VStack(spacing: 4) {
-                    RoundedRectangle(cornerRadius: 10).fill(Palette.fill)
-                    RoundedRectangle(cornerRadius: 10).fill(Palette.fill2)
+                    RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Palette.fill)
+                    RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Palette.fill2)
                 }
                 .frame(width: 110, height: 228)
             }
@@ -199,7 +199,7 @@ private struct EmptyDay: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Image(systemName: "camera.badge.ellipsis").font(.system(size: 26)).foregroundStyle(Palette.muted)
-                .frame(width: 56, height: 56).background(Palette.fill, in: RoundedRectangle(cornerRadius: 16))
+                .frame(width: 56, height: 56).background(Palette.fill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             Text(noSources ? "No photos connected" : "Nothing from \(day.label) yet").font(.nunito(24, .bold)).tight(24).foregroundStyle(Palette.ink)
             Text(noSources ? "Connect Apple Photos or Google Photos to see this day in past years."
                  : near.before != nil || near.after != nil ? "You didn't take photos on this date in past years. These nearby days have some."

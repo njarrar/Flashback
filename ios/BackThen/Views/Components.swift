@@ -114,24 +114,24 @@ struct Logo: View {
         ZStack(alignment: .topLeading) {
             Palette.hex(0x2E7BFF)
             RadialGradient(colors: [.white.opacity(0.22), .clear], center: UnitPoint(x: 0.3, y: 0.18), startRadius: 0, endRadius: 100 * s)
-            RoundedRectangle(cornerRadius: 14 * s)
+            RoundedRectangle(cornerRadius: 14 * s, style: .continuous)
                 .fill(.white)
                 .frame(width: 86 * s, height: 102 * s)
                 .overlay(alignment: .top) {
-                    RoundedRectangle(cornerRadius: 7 * s).fill(Palette.hex(0xFFC93C))
+                    RoundedRectangle(cornerRadius: 7 * s, style: .continuous).fill(Palette.hex(0xFFC93C))
                         .padding(EdgeInsets(top: 8 * s, leading: 8 * s, bottom: 22 * s, trailing: 8 * s))
                 }
                 .rotationEffect(.degrees(12))
                 .offset(x: 62 * s, y: 30 * s)
-            RoundedRectangle(cornerRadius: 15 * s)
+            RoundedRectangle(cornerRadius: 15 * s, style: .continuous)
                 .fill(.white)
                 .frame(width: 96 * s, height: 114 * s)
                 .overlay(alignment: .topLeading) {
                     ZStack(alignment: .topLeading) {
-                        RoundedRectangle(cornerRadius: 8 * s).fill(Palette.hex(0xFF4B3E))
+                        RoundedRectangle(cornerRadius: 8 * s, style: .continuous).fill(Palette.hex(0xFF4B3E))
                         dot(21, 29.6, 9.5, 10.5, Palette.hex(0x1D1B2E), s)
                         dot(47.4, 29.6, 9.5, 10.5, Palette.hex(0x1D1B2E), s)
-                        UnevenRoundedRectangle(bottomLeadingRadius: 11.5 * s, bottomTrailingRadius: 11.5 * s)
+                        UnevenRoundedRectangle(bottomLeadingRadius: 11.5 * s, bottomTrailingRadius: 11.5 * s, style: .continuous)
                             .fill(Palette.hex(0x1D1B2E)).frame(width: 23 * s, height: 11.5 * s).offset(x: 27.5 * s, y: 44.3 * s)
                         dot(10.6, 41, 10.5, 7.4, Palette.hex(0xFF9EC0, 0.9), s)
                         dot(56.8, 41, 10.5, 7.4, Palette.hex(0xFF9EC0, 0.9), s)
@@ -197,9 +197,9 @@ struct PhotoTile: View {
                 .overlay {
                     if selection?.on == true {
                         ZStack(alignment: .topTrailing) {
-                            RoundedRectangle(cornerRadius: radius)
+                            RoundedRectangle(cornerRadius: radius, style: .continuous)
                                 .fill(picked ? Palette.accent.opacity(0.18) : Color.white.opacity(0.12))
-                                .overlay(RoundedRectangle(cornerRadius: radius).strokeBorder(picked ? Palette.accent : .clear, lineWidth: 3))
+                                .overlay(RoundedRectangle(cornerRadius: radius, style: .continuous).strokeBorder(picked ? Palette.accent : .clear, lineWidth: 3))
                             Image(systemName: picked ? "checkmark.circle.fill" : "circle")
                                 .font(.system(size: 21)).foregroundStyle(.white).shadow(color: .black.opacity(0.35), radius: 2).padding(7)
                         }
@@ -405,7 +405,7 @@ struct Print: View {
         }
         .padding([.horizontal, .top], 8)
         .frame(width: width)
-        .background(Palette.surface, in: RoundedRectangle(cornerRadius: 10))
+        .background(Palette.surface, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .shadow(color: Palette.hex(0x141416, 0.14), radius: 15, y: 10)
         .rotationEffect(.degrees(angle))
     }

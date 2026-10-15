@@ -140,8 +140,8 @@ struct AlbumSheet: View {
                         .onSubmit(create)
                         .padding(.horizontal, 14)
                         .frame(height: 48)
-                        .background(Palette.bg, in: RoundedRectangle(cornerRadius: 14))
-                        .overlay(RoundedRectangle(cornerRadius: 14).stroke(focused ? Palette.accent : Palette.line, lineWidth: 1))
+                        .background(Palette.bg, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(focused ? Palette.accent : Palette.line, lineWidth: 1))
                     Pill(label: "Create", height: 48, action: create)
                         .fixedSize()
                         .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
@@ -161,7 +161,7 @@ struct AlbumSheet: View {
                                     Group {
                                         if let first = a.photos.first { PhotoImage(photo: first) } else { Palette.fill }
                                     }
-                                    .frame(width: 48, height: 48).clipShape(RoundedRectangle(cornerRadius: 10))
+                                    .frame(width: 48, height: 48).clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(a.name).font(.nunito(16, .semibold)).foregroundStyle(Palette.ink).lineLimit(1)
                                         Text(plural(a.photos.count, "photo")).font(.nunito(13)).foregroundStyle(Palette.muted)
@@ -182,7 +182,7 @@ struct AlbumSheet: View {
         }
         .padding(20)
         .presentationDetents([.medium, .large])
-        .presentationCornerRadius(32)
+        .presentationCornerRadius(36)
         .presentationBackground(Palette.surface)
         .presentationDragIndicator(.visible)
     }
@@ -252,7 +252,7 @@ struct SettingsSheet: View {
         }
         .padding(20)
         .presentationDetents([.height(340)])
-        .presentationCornerRadius(32)
+        .presentationCornerRadius(36)
         .presentationBackground(Palette.surface)
         .presentationDragIndicator(.visible)
     }
@@ -283,7 +283,7 @@ struct GoogleSheet: View {
         let connected = store.saved.sources.google
         VStack(alignment: .leading, spacing: 16) {
             Image(systemName: "photo.on.rectangle.angled").font(.system(size: 24)).foregroundStyle(Palette.ink)
-                .frame(width: 52, height: 52).background(Palette.fill, in: RoundedRectangle(cornerRadius: 16))
+                .frame(width: 52, height: 52).background(Palette.fill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             if let progress = store.googleImport {
                 Text(progress.total > 0 ? "Saving your picks" : "Waiting for Google Photos").font(.nunito(24, .heavy)).tight(24).foregroundStyle(Palette.ink)
                 Text(progress.total > 0 ? "\(progress.done) of \(progress.total) photos" : "Pick photos in Google Photos, tap Done, then come back here.")
@@ -308,14 +308,14 @@ struct GoogleSheet: View {
                 } else {
                     Text("This build has no Google client ID yet. See the README to add one.")
                         .font(.nunito(14)).foregroundStyle(Palette.accInk).padding(12)
-                        .background(Palette.accTint, in: RoundedRectangle(cornerRadius: 14))
+                        .background(Palette.accTint, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                     Pill(label: "Close", kind: .ghost, height: 48) { dismiss() }
                 }
             }
         }
         .padding(20)
         .presentationDetents([.medium])
-        .presentationCornerRadius(32)
+        .presentationCornerRadius(36)
         .presentationBackground(Palette.surface)
         .presentationDragIndicator(.visible)
         .interactiveDismissDisabled(store.googleImport != nil)

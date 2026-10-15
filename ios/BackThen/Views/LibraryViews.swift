@@ -26,7 +26,7 @@ private struct EmptyNote: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Image(systemName: icon).font(.system(size: 26)).foregroundStyle(Palette.accent)
-                .frame(width: 56, height: 56).background(Palette.accTint, in: RoundedRectangle(cornerRadius: 16))
+                .frame(width: 56, height: 56).background(Palette.accTint, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             Text(title).font(.nunito(22, .bold)).tight(22).foregroundStyle(Palette.ink)
             Text(text).font(.nunito(15)).foregroundStyle(Palette.muted).frame(maxWidth: 300, alignment: .leading)
         }
@@ -100,7 +100,7 @@ struct AlbumsView: View {
                             }
                             .frame(width: 72, height: 72, alignment: .topLeading)
                             .background(Palette.fill)
-                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                             VStack(alignment: .leading, spacing: 3) {
                                 Text(a.name).font(.nunito(17, .semibold)).foregroundStyle(Palette.ink).lineLimit(1)
                                 Text("\(plural(a.photos.count, "photo")), made \(a.createdAt.formatted(.dateTime.month(.abbreviated).day()))")
