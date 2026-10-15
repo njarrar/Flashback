@@ -251,6 +251,3 @@ fun SelectBar(count: Int, onShare: () -> Unit, onAlbum: () -> Unit, modifier: Mo
         Pill("+ Album", onAlbum, kind = Kind.Accent, height = 44.dp, enabled = !none)
     }
 }
-
-@Composable
-fun Dot(color: Color) = Box(Modifier.size(5.dp).clip(RoundedCornerShape(50)).background(color))
