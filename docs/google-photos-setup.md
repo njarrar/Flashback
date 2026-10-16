@@ -35,10 +35,10 @@ This is the screen people see when they sign in. Go to **Google Auth Platform**
 
 Then fill in the other pages in the left menu:
 
-- **Branding:**
-  - App home page: `https://github.com/njarrar/PicturesFromthisday`
-  - Privacy policy: `https://github.com/njarrar/PicturesFromthisday/blob/main/play-store/privacy-policy.md`
-  - Skip the logo for now. Adding one makes Google review the app before the logo shows.
+- **Branding:** leave the logo, home page, privacy policy and authorized domains
+  empty for now. They are optional while the app is in testing, and a logo makes
+  Google review the app before anyone can sign in. You fill them in before a public
+  launch (see the last section).
 - **Data Access:** click **Add or remove scopes**, paste this in **Manually add
   scopes**, click **Add to table**, then **Update** and **Save**:
 
@@ -116,12 +116,14 @@ version 1.8, since earlier runs used a throwaway key each time.
 Testing mode is fine for the closed test. Before a public launch:
 
 1. Go to **Audience** and click **Publish app**.
-2. Google requires a review for apps that use the Google Photos APIs. Go to
+2. On **Branding**, add the 120 x 120 logo, a home page, the privacy policy and
+   your domain under **Authorized domains**.
+3. Google requires a review for apps that use the Google Photos APIs. Go to
    **Verification Center** and submit. Google will ask for:
    - a home page and privacy policy on a domain you own and have verified in
      [Google Search Console](https://search.google.com/search-console) (a github.com
      page can't be verified as yours, so you will need your own domain, which can
      point at GitHub Pages);
    - a short video showing the sign-in and how the app uses the photos.
-3. Until the review passes, users see the "unverified app" screen and Google caps
+4. Until the review passes, users see the "unverified app" screen and Google caps
    sign-ins at 100 users.
