@@ -1,6 +1,7 @@
 package com.njarrar.backthen.core
 
 import android.icu.text.DateFormat
+import android.icu.util.GregorianCalendar
 import java.time.LocalDate
 import java.time.ZoneId
 import java.util.Date
@@ -40,10 +41,12 @@ fun agoLabel(year: Int, thisYear: Int = LocalDate.now().year): String {
 
 // Dates in the app's language, from CLDR skeletons such as "MMMMd" (October 16) or "EEEE" (Friday).
 // These use Android's ICU, so they run on a phone, not in plain JVM unit tests.
+// Always the Gregorian calendar: the app matches photos by Gregorian date, and a phone set to
+// Saudi Arabia would otherwise write the Hijri date.
 
 fun formatDate(date: LocalDate, skeleton: String): String {
     val at = Date(date.atTime(12, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli())
-    return DateFormat.getInstanceForSkeleton(skeleton, L.locale).format(at)
+    return DateFormat.getInstanceForSkeleton(GregorianCalendar(L.locale), skeleton, L.locale).format(at)
 }
 
 /** A month and day with no year, in a leap year so February 29 works. */

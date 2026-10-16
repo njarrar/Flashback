@@ -177,6 +177,10 @@ enum L {
     static func date(_ date: Date, _ skeleton: String) -> String {
         let f = DateFormatter()
         f.locale = locale
+        // The app matches photos by Gregorian date; a phone set to Saudi Arabia would otherwise write the Hijri date.
+        var gregorian = Calendar(identifier: .gregorian)
+        gregorian.locale = locale
+        f.calendar = gregorian
         f.setLocalizedDateFormatFromTemplate(skeleton)
         return f.string(from: date)
     }

@@ -36,6 +36,7 @@ extension AppStore {
     private static func samplePhotos() -> [Photo] {
         let names = (try? FileManager.default.contentsOfDirectory(atPath: GooglePhotos.folder.path)) ?? []
         let exifDate = DateFormatter()
+        exifDate.locale = Locale(identifier: "en_US_POSIX")
         exifDate.dateFormat = "yyyy:MM:dd HH:mm:ss"
         return names.filter { $0.hasSuffix(".jpg") }.sorted().compactMap { name in
             guard let src = CGImageSourceCreateWithURL(GooglePhotos.fileURL(name) as CFURL, nil),
