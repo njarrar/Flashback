@@ -127,6 +127,14 @@ Google Photos to delete the copies.
 GitHub Actions builds both apps on every push. The Android run also uploads a debug
 APK you can install on a phone.
 
+### Built apps in `build/`
+
+The [build](build/) folder holds ready-made copies of both apps: an Android APK you
+can install on a phone, and an iPhone app for the iOS Simulator on a Mac. The
+[Build apps workflow](.github/workflows/build.yml) makes them; run it again from the
+Actions tab after app changes. See [build/README.md](build/README.md) for how to
+install each one.
+
 ### Turning on Google Photos
 
 The apps work without this, using the phone's library.
