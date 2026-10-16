@@ -206,6 +206,12 @@
     <string name="ios_photos_permission">Back Then shows the photos you took on this day in past years.</string>
     <string name="ios_photos_add_permission">Back Then saves your albums to Photos when you ask it to.</string>
 
+    <!-- Home screen widget -->
+    <string name="widget_name">On this day</string>
+    <string name="widget_description">A photo from this day in a past year</string>
+    <string name="widget_empty">No photos from this day yet</string>
+    <string name="widget_open_app">Open Back Then to see photos from this day</string>
+
     <!-- Sample albums for the README screenshots -->
     <string name="demo_album_fall">Fall weekends</string>
     <string name="demo_album_garden">Grandma's garden</string>

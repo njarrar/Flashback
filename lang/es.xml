@@ -198,6 +198,12 @@
     <string name="ios_photos_permission">Back Then muestra las fotos que tomaste en este día en años pasados.</string>
     <string name="ios_photos_add_permission">Back Then guarda tus álbumes en Fotos cuando se lo pides.</string>
 
+    <!-- Widget de la pantalla de inicio -->
+    <string name="widget_name">Un día como hoy</string>
+    <string name="widget_description">Una foto de este día en un año pasado</string>
+    <string name="widget_empty">Aún no hay fotos de este día</string>
+    <string name="widget_open_app">Abre Back Then para ver las fotos de este día</string>
+
     <!-- Sample albums for the README screenshots -->
     <string name="demo_album_fall">Fines de semana de otoño</string>
     <string name="demo_album_garden">El jardín de la abuela</string>

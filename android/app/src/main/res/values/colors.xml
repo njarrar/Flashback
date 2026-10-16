@@ -1,4 +1,9 @@
 <resources>
     <color name="bg">#F6F6F3</color>
     <color name="icon_bg">#2E7BFF</color>
+    <!-- Home screen widget, matching the app's surface, ink and coral. -->
+    <color name="widget_surface">#FFFFFF</color>
+    <color name="widget_ink">#141416</color>
+    <color name="widget_muted">#6E6E73</color>
+    <color name="widget_accent">#E5533D</color>
 </resources>

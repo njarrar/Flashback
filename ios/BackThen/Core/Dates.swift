@@ -17,6 +17,9 @@ struct MonthDay: Hashable, Codable {
 
     var key: String { "\(month)-\(day)" }
 
+    /// Later in the year than `other`.
+    func isAfter(_ other: MonthDay) -> Bool { month > other.month || (month == other.month && day > other.day) }
+
     static func of(_ date: Date, calendar: Calendar = .app) -> MonthDay {
         let c = calendar.dateComponents([.month, .day], from: date)
         return MonthDay(month: c.month! - 1, day: c.day!)

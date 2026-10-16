@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// iPhone calendar sheet. Picks a month and day, not a year, since every year shows at
-/// once. Each day is shaded by how many photos it has next to the user's other days. A tap jumps there.
+/// once. Each day is shaded by how many photos it has. A tap jumps there; days after today can't be picked.
 struct CalendarSheet: View {
     @Environment(AppStore.self) private var store
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -70,7 +70,9 @@ struct CalendarSheet: View {
             ForEach(1...daysInMonth[month], id: \.self) { d in
                 let md = MonthDay(month: month, day: d)
                 let sel = store.day == md
-                let (fill, ink) = shade(levels[md.key] ?? 0, selected: sel)
+                let future = md.isAfter(today)
+                // Days still to come this year stay plain and can't be tapped.
+                let (fill, ink) = future && !sel ? (Color.clear, Palette.faint.opacity(0.5)) : shade(levels[md.key] ?? 0, selected: sel)
                 Button { pick(md) } label: {
                     Text(L.num(d)).font(.nunito(16, .semibold)).monospacedDigit().foregroundStyle(ink)
                         .frame(width: 40, height: 40)
@@ -79,6 +81,7 @@ struct CalendarSheet: View {
                         .frame(maxWidth: .infinity, minHeight: 46)
                 }
                 .buttonStyle(.plain)
+                .disabled(future)
                 .accessibilityLabel(label(md, index))
                 .accessibilityAddTraits(sel ? .isSelected : [])
             }
@@ -92,7 +95,7 @@ struct CalendarSheet: View {
         return L.s("day_photos_from", ["day": md.label, "photos": L.p("photos", photoCount(index, md)), "years": L.p("years", years)])
     }
 
-    /// Fill and number color for a day at fullness `level`, 0 (no photos) to 4.
+    /// Fill and number color for a day at fullness `level`, 0 (no photos) to 5.
     private func shade(_ level: Int, selected: Bool) -> (Color, Color) {
         if selected { return (Palette.accent, .white) }
         switch level {
@@ -100,15 +103,16 @@ struct CalendarSheet: View {
         case 1: return (Palette.cal1, Palette.cal1Ink)
         case 2: return (Palette.cal2, Palette.cal2Ink)
         case 3: return (Palette.cal3, Palette.cal3Ink)
-        default: return (Palette.cal4, Palette.cal4Ink)
+        case 4: return (Palette.cal4, Palette.cal4Ink)
+        default: return (Palette.cal5, Palette.cal5Ink)
         }
     }
 
-    /// Fewer ○○○● More, so the shades read without the hint.
+    /// Fewer ○○○○● More, so the shades read without the hint.
     private var legend: some View {
         HStack(spacing: 6) {
             Text(L.s("calendar_fewer"))
-            ForEach(1...4, id: \.self) { level in
+            ForEach(1...5, id: \.self) { level in
                 Circle().fill(shade(level, selected: false).0).frame(width: 12, height: 12)
             }
             Text(L.s("calendar_more"))

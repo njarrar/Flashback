@@ -95,9 +95,10 @@ the same way Google Photos picks do.)
   Or switch to one year at a time. Pull down to check the library for new photos.
   Hide a date you'd rather not see again.
 - **Pick a day.** A month-and-day calendar (no year, since every year shows at once).
-  The darker a day, the more photos it has, measured against your other days, with a
-  Fewer to More key under the month. Swipe to change month. A day with no photos
-  offers the closest days that have some.
+  Today and earlier days can be picked; days still to come this year can't. The
+  deeper a day's color, the more photos it has, in five shades with a Fewer to More
+  key under the month. Swipe to change month. A day with no photos offers the closest
+  days that have some.
 - **Photo viewer.** Swipe through a day's photos or jump with the filmstrip. Pinch
   or double tap to zoom, swipe down to close, tap to hide the buttons. Heart a photo,
   share it, or add it to an album.
@@ -105,6 +106,9 @@ the same way Google Photos picks do.)
 - **Albums.** On Today, tap Select, pick photos, then tap Album. Share an album
   through any app, or save it as a real album in Photos (iPhone) or under
   Pictures/Back Then (Android). Rename or delete it from the album's menu.
+- **Home screen widget.** A photo from this day in a past year, with its year and
+  how long ago, in small and medium sizes. It picks another photo every hour and
+  opens Today when tapped.
 - **Daily reminder.** One notification a day at a time you choose, and only on days
   that have photos from past years. Tapping it opens that day.
 - **Looks native on each phone.** The system tab bar and sheets on iPhone, with text
@@ -127,6 +131,30 @@ Google Photos sign-in.
   fails if it crashes.
 - **Setup guide.** [docs/google-photos-setup.md](docs/google-photos-setup.md) walks
   through the Google Cloud steps, which keys to register, and how to add testers.
+
+## What's new in 1.7
+
+- **Home screen widget, on both phones.** Add "Back Then" from the widget picker. It
+  shows a photo from this day in a past year, with the year and how long ago, and
+  picks another photo from the day every hour. Tap it to open Today. With no photos
+  that day, or before you allow photo access, it shows the date and a short note.
+  Hidden days never show up in it. On iPhone it shows photos from the phone's
+  library; on Android it also shows your Google Photos picks.
+- **Only today and past days in the calendar.** Days still to come this year are
+  greyed out and can't be tapped.
+- **Calendar colors follow the photo count.** Before, each day's shade came from its
+  rank among your other days, so a day with 3 photos could look as dark as one with
+  300, and the lightest shade was hard to see. Now the shade follows how many photos
+  a day has, on a log scale (1, a few, around 10, dozens, a lot), in five shades from
+  a clear tint to a deep brick red. The top shade starts where your busiest tenth of
+  days are, so one huge day (a wedding, a trip) doesn't make every other day look
+  empty. The deep red is darker than the coral used for the chosen day, so the two
+  don't mix up.
+
+To try the iPhone widget from Xcode: run the app once, then add the widget from the
+home screen. The app and widget share a small settings file through an App Group
+(`group.com.njarrar.backthen`), so the widget knows your hidden days. Xcode sets it
+up when you pick your team for both the **BackThen** and **BackThenWidget** targets.
 
 ## What's new in 1.6
 
@@ -363,12 +391,14 @@ ios/BackThen/
   Core/      dates, day index, mosaic layout, language files
   Data/      PhotoKit, Google sign-in and picker, reminders, app state
   Views/     Today, calendar, viewer, Favorites, Albums, onboarding
+ios/BackThenWidget/ the home screen widget (it shares Core/ with the app)
 ios/BackThenTests/  unit tests
 ios/scripts/        build step that copies lang/ into the app
 android/app/src/main/java/com/njarrar/backthen/
   core/      the same core logic, with unit tests
   data/      MediaStore, Google picker, reminders, saved state
   ui/        Compose screens
+  widget/    the home screen widget
 design/      the source design (open "On This Day.dc.html") and the Nunito and Tajawal font licenses
 ```
 
