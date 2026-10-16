@@ -28,19 +28,22 @@ shoot() {
   sleep 1
   adb exec-out screencap -p > "shots/android/$1.png"
 }
-adb shell am start -W -n $PKG/.MainActivity
-sleep 6
-shoot 1-welcome
-# The same app in Arabic. Debug builds take the language as a launch extra.
-adb shell am force-stop $PKG
-adb shell am start -W -n $PKG/.MainActivity --es lang ar
-sleep 6
-shoot ar-1-welcome
-for l in en ar; do
+# Languages to shoot. English files have no prefix, others start with the code (ar-today).
+# The Play Store workflow sets LANGS="en fr es ar". Debug builds take the language as a
+# launch extra. Welcome screens go first, before a demo scene fills the app.
+LANGS=${LANGS:-en ar}
+pre() { if [ $1 = en ]; then echo ""; else echo "$1-"; fi; }
+for l in $LANGS; do
+  adb shell am force-stop $PKG
+  adb shell am start -W -n $PKG/.MainActivity --es lang $l
+  sleep 6
+  shoot "$(pre $l)1-welcome"
+done
+for l in $LANGS; do
   for scene in today calendar viewer favorites album; do
     adb shell am force-stop $PKG
     adb shell am start -W -n $PKG/.MainActivity --es scene $scene --es lang $l
     sleep 8
-    if [ $l = en ]; then shoot $scene; else shoot ar-$scene; fi
+    shoot "$(pre $l)$scene"
   done
 done

@@ -111,6 +111,22 @@ the same way Google Photos picks do.)
   that grows with the system text size; a large top app bar, navigation bar and
   Android's own date dialog on Android. Light and dark mode.
 
+## What's new in 1.6
+
+Ready for Google Play.
+
+- **Play Store kit.** A new [Play Store workflow](.github/workflows/play.yml) builds
+  a release bundle (`build/BackThen-Android.aab`), takes phone screenshots in all
+  four languages, and makes the app icon and feature graphics. The store text,
+  privacy policy and a step by step guide live in [play-store/](play-store).
+- **Signed release builds.** The release build signs with your Play upload key when
+  the key is in GitHub secrets. The key never goes in the repo.
+- **Android 16.** The Android app now targets Android 16 (API 36), which Google Play
+  needs for new apps since August 31, 2026.
+- **No advertising ID.** The Android app blocks the advertising ID permission, since
+  it has no ads or tracking.
+- The Screenshots workflow can shoot any set of languages (`LANGS`).
+
 ## What's new in 1.5
 
 Faster loading and scrolling, a calendar that shows how full each day is, and a
@@ -289,6 +305,13 @@ can install on a phone, and an iPhone app for the iOS Simulator on a Mac. The
 [Build apps workflow](.github/workflows/build.yml) makes them; run it again from the
 Actions tab after app changes. See [build/README.md](build/README.md) for how to
 install each one.
+
+### Publishing on Google Play
+
+The Android package name is `com.njarrar.backthen`. Follow
+[play-store/README.md](play-store/README.md): make an upload key, add it to GitHub
+secrets, run the Play Store workflow, then fill in the Play Console from the files in
+[play-store/](play-store).
 
 ### Turning on Google Photos
 
