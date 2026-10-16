@@ -45,7 +45,7 @@ enum Palette {
 }
 
 enum Nunito {
-    /// Registers the bundled Nunito files once, so `Font.custom` can find them without Info.plist entries.
+    /// Registers the bundled Nunito and Tajawal files once, so `Font.custom` can find them without Info.plist entries.
     static func register() {
         let urls = (Bundle.main.urls(forResourcesWithExtension: "ttf", subdirectory: nil) ?? [])
             + (Bundle.main.urls(forResourcesWithExtension: "ttf", subdirectory: "Fonts") ?? [])
@@ -54,7 +54,9 @@ enum Nunito {
 }
 
 extension Font {
+    /// The app font: Nunito, or Tajawal for languages in Arabic script, since Nunito has no Arabic letters.
     static func nunito(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
+        if L.lang.arabicScript { return tajawal(size, weight) }
         let name: String
         switch weight {
         case .medium: name = "Nunito-Medium"
@@ -63,6 +65,19 @@ extension Font {
         case .heavy: name = "Nunito-ExtraBold"
         case .black: name = "Nunito-Black"
         default: name = "Nunito-Regular"
+        }
+        return .custom(name, size: size, relativeTo: textStyle(for: size))
+    }
+
+    /// Tajawal has no SemiBold, so SemiBold uses Bold: Arabic needs the extra weight to read at small sizes.
+    private static func tajawal(_ size: CGFloat, _ weight: Font.Weight) -> Font {
+        let name: String
+        switch weight {
+        case .medium: name = "Tajawal-Medium"
+        case .semibold, .bold: name = "Tajawal-Bold"
+        case .heavy: name = "Tajawal-ExtraBold"
+        case .black: name = "Tajawal-Black"
+        default: name = "Tajawal-Regular"
         }
         return .custom(name, size: size, relativeTo: textStyle(for: size))
     }
@@ -84,5 +99,6 @@ extension Font {
 
 extension View {
     /// Tight tracking used for big titles and year numbers in the design.
-    func tight(_ size: CGFloat) -> some View { tracking(-0.03 * size) }
+    /// Arabic letters join, so they keep normal spacing.
+    func tight(_ size: CGFloat) -> some View { tracking(L.lang.arabicScript ? 0 : -0.03 * size) }
 }

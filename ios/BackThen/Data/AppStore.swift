@@ -126,7 +126,7 @@ final class AppStore {
         saved.onboarded = true
         saved.reminder.on = reminder
         applyReminder()
-        if reminder { say("Daily reminder set for \(formatTime(hour: saved.reminder.hour, minute: saved.reminder.minute))") }
+        if reminder { say(L.s("toast_reminder_set", ["time": formatTime(hour: saved.reminder.hour, minute: saved.reminder.minute)])) }
     }
 
     func setReminder(on: Bool? = nil, hour: Int? = nil, minute: Int? = nil) {
@@ -152,10 +152,10 @@ final class AppStore {
     func toggleFavorite(_ photo: Photo) {
         if isFavorite(photo.key) {
             saved.favorites.removeAll { $0.key == photo.key }
-            say("Removed from Favorites")
+            say(L.s("toast_unfavorited"))
         } else {
             saved.favorites.insert(photo, at: 0)
-            say("Added to Favorites")
+            say(L.s("toast_favorited"))
         }
     }
 
@@ -164,7 +164,7 @@ final class AppStore {
         let album = Album(id: UUID().uuidString, name: name, photos: photos, createdAt: Date())
         saved.albums.insert(album, at: 0)
         albumSaves += 1
-        say("Album created")
+        say(L.s("toast_album_created"))
         return album
     }
 
@@ -173,7 +173,7 @@ final class AppStore {
         let known = Set(saved.albums[i].photos.map(\.key))
         saved.albums[i].photos += photos.filter { !known.contains($0.key) }
         albumSaves += 1
-        say("Added to \(saved.albums[i].name)")
+        say(L.s("toast_added_to", ["name": saved.albums[i].name]))
     }
 
     func renameAlbum(id: String, name: String) {
@@ -188,11 +188,11 @@ final class AppStore {
 
     func saveToPhotos(_ album: Album) async {
         do {
-            if !PhotoLibrary.hasAccess, !(await PhotoLibrary.requestAccess()) { return say("Allow photo access to save") }
+            if !PhotoLibrary.hasAccess, !(await PhotoLibrary.requestAccess()) { return say(L.s("toast_allow_save")) }
             try await PhotoLibrary.saveAlbum(name: album.name, photos: album.photos)
-            say("Saved to Photos")
+            say(L.s("toast_saved_photos"))
         } catch {
-            say("Could not save the album")
+            say(L.s("toast_save_failed"))
         }
     }
 
@@ -205,15 +205,15 @@ final class AppStore {
                 guard let token = try await GoogleAuth.shared.accessToken() else { return }
                 guard let photos = try await GooglePhotos.pick(token: token, onProgress: { [weak self] done, total in
                     self?.googleImport = (done, total)
-                }) else { return say("No photos picked") }
+                }) else { return say(L.s("toast_no_picks")) }
                 let known = Set(saved.googlePhotos.map(\.key))
                 saved.googlePhotos += photos.filter { !known.contains($0.key) }
                 saved.sources.google = true
-                say(photos.isEmpty ? "Google Photos connected" : "Added \(photos.count) from Google Photos")
+                say(photos.isEmpty ? L.s("toast_google_connected") : L.s("toast_google_added", ["photos": L.p("photos", photos.count)]))
                 applyReminder()
             } catch is CancellationError {
             } catch {
-                say("Could not reach Google Photos")
+                say(L.s("toast_google_failed"))
             }
         }
     }
@@ -230,6 +230,6 @@ final class AppStore {
         saved.sources.google = false
         saved.favorites.removeAll { $0.source == .google }
         for i in saved.albums.indices { saved.albums[i].photos.removeAll { $0.source == .google } }
-        say("Google Photos disconnected")
+        say(L.s("toast_google_disconnected"))
     }
 }

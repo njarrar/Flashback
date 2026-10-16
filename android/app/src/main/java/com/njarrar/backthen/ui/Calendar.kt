@@ -45,9 +45,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.njarrar.backthen.core.DAYS_IN_MONTH
 import com.njarrar.backthen.core.DayIndex
-import com.njarrar.backthen.core.MONTHS
+import com.njarrar.backthen.core.L
 import com.njarrar.backthen.core.MonthDay
-import com.njarrar.backthen.core.plural
+import com.njarrar.backthen.core.label
+import com.njarrar.backthen.core.monthName
 import com.njarrar.backthen.core.shortLabel
 import com.njarrar.backthen.core.yearsForDay
 import kotlinx.coroutines.launch
@@ -74,14 +75,14 @@ fun CalendarDialog(start: MonthDay, index: DayIndex, onPick: (MonthDay) -> Unit,
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Column(Modifier.padding(horizontal = 12.dp)) {
-                T("Pick a day", size = 14, weight = FontWeight.Medium, muted = true)
+                T(L.s("pick_a_day"), size = 14, weight = FontWeight.Medium, muted = true)
                 T(chosen.shortLabel(), size = 32, weight = FontWeight.Bold, tight = true)
             }
             HorizontalDivider(color = p.line)
             Row(Modifier.padding(start = 12.dp), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Column(Modifier.weight(1f)) {
-                    T(MONTHS[month], size = 24, weight = FontWeight.ExtraBold, tight = true, modifier = Modifier.semantics { heading() })
-                    T("Darker days have photos from more years", size = 13, muted = true)
+                    T(monthName(month), size = 24, weight = FontWeight.ExtraBold, tight = true, modifier = Modifier.semantics { heading() })
+                    T(L.s("calendar_hint"), size = 13, muted = true)
                 }
                 if (month != today.month || chosen != today) {
                     Box(
@@ -90,7 +91,7 @@ fun CalendarDialog(start: MonthDay, index: DayIndex, onPick: (MonthDay) -> Unit,
                             scope.launch { pager.animateScrollToPage(today.month) }
                         }.padding(horizontal = 8.dp),
                         contentAlignment = Alignment.Center,
-                    ) { T("Today", size = 15, weight = FontWeight.SemiBold) }
+                    ) { T(L.s("today"), size = 15, weight = FontWeight.SemiBold) }
                 }
                 Arrow(left = true) { scope.launch { pager.animateScrollToPage((month + 11) % 12) } }
                 Arrow(left = false) { scope.launch { pager.animateScrollToPage((month + 1) % 12) } }
@@ -101,7 +102,7 @@ fun CalendarDialog(start: MonthDay, index: DayIndex, onPick: (MonthDay) -> Unit,
                         Row {
                             for (d in week) {
                                 val md = MonthDay(m, d)
-                                Day(d, yearsForDay(index, md).size, chosen == md, today == md, MONTHS[m], Modifier.weight(1f)) { chosen = md }
+                                Day(md, yearsForDay(index, md).size, chosen == md, today == md, Modifier.weight(1f)) { chosen = md }
                             }
                             repeat(7 - week.size) { Box(Modifier.weight(1f)) }
                         }
@@ -109,15 +110,15 @@ fun CalendarDialog(start: MonthDay, index: DayIndex, onPick: (MonthDay) -> Unit,
                 }
             }
             Row(Modifier.align(Alignment.End)) {
-                Pill("Cancel", onDismiss, kind = Kind.Ghost, height = 40.dp)
-                Pill("OK", { onPick(chosen) }, kind = Kind.Ghost, height = 40.dp)
+                Pill(L.s("cancel"), onDismiss, kind = Kind.Ghost, height = 40.dp)
+                Pill(L.s("ok"), { onPick(chosen) }, kind = Kind.Ghost, height = 40.dp)
             }
         }
     }
 }
 
 @Composable
-private fun Day(day: Int, years: Int, selected: Boolean, isToday: Boolean, monthName: String, modifier: Modifier, onClick: () -> Unit) {
+private fun Day(md: MonthDay, years: Int, selected: Boolean, isToday: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val p = LocalPalette.current
     val (fill, ink) = when {
         selected -> Accent to Color.White
@@ -132,13 +133,14 @@ private fun Day(day: Int, years: Int, selected: Boolean, isToday: Boolean, month
                 .then(if (isToday && !selected) Modifier.border(1.5.dp, p.ink, CircleShape) else Modifier)
                 .clickable(onClick = onClick)
                 .semantics {
-                    contentDescription = "$monthName $day, " + if (years == 0) "no photos" else "photos from ${plural(years, "year")}"
+                    contentDescription = if (years == 0) L.s("day_no_photos", "day" to md.label())
+                    else L.s("day_photos_from", "day" to md.label(), "years" to L.p("years", years))
                     this.selected = selected
                 },
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                day.toString(), color = ink,
+                L.num(md.day), color = ink,
                 style = TextStyle(fontFamily = Nunito, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, fontFeatureSettings = "tnum"),
             )
         }
@@ -151,7 +153,7 @@ private fun Arrow(left: Boolean, onClick: () -> Unit) {
     Box(Modifier.size(38.dp).clip(CircleShape).background(p.fill).clickable(onClick = onClick), contentAlignment = Alignment.Center) {
         Icon(
             if (left) Icons.AutoMirrored.Filled.KeyboardArrowLeft else Icons.AutoMirrored.Filled.KeyboardArrowRight,
-            if (left) "Previous month" else "Next month",
+            L.s(if (left) "previous_month" else "next_month"),
             tint = p.ink,
         )
     }

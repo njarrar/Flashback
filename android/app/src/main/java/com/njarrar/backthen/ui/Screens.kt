@@ -30,6 +30,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Download
@@ -85,15 +86,16 @@ import coil3.compose.AsyncImage
 import com.njarrar.backthen.AppViewModel
 import com.njarrar.backthen.R
 import com.njarrar.backthen.core.Album
-import com.njarrar.backthen.core.MONTHS_SHORT
+import com.njarrar.backthen.core.L
 import com.njarrar.backthen.core.MonthDay
 import com.njarrar.backthen.core.Photo
 import com.njarrar.backthen.core.YearGroup
+import com.njarrar.backthen.core.formatDate
 import com.njarrar.backthen.core.formatTime
+import com.njarrar.backthen.core.fullDate
 import com.njarrar.backthen.core.label
 import com.njarrar.backthen.core.localDate
 import com.njarrar.backthen.core.nearbyDays
-import com.njarrar.backthen.core.plural
 import com.njarrar.backthen.core.shortLabel
 import com.njarrar.backthen.core.yearsForDay
 import kotlinx.coroutines.flow.Flow
@@ -128,7 +130,7 @@ fun OnboardingScreen(vm: AppViewModel) {
     val askPhotos = rememberPhotoPermission(vm) { ok -> denied = !ok; chosePhone = ok }
     val askNotify = rememberNotificationPermission { ok ->
         vm.finishOnboarding(ok)
-        if (ok) vm.say("Daily reminder set for ${formatTime(state.reminder.hour, state.reminder.minute)}")
+        if (ok) vm.say(L.s("toast_reminder_set", "time" to formatTime(state.reminder.hour, state.reminder.minute)))
     }
     val startGoogle = rememberGoogleImport(vm)
 
@@ -144,20 +146,24 @@ fun OnboardingScreen(vm: AppViewModel) {
                     Logo(40.dp)
                     Column(Modifier.weight(1f)) {
                         Row {
-                            T("Back Then", size = 14, weight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                            T(L.s("app_name"), size = 14, weight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                             T(formatTime(state.reminder.hour, state.reminder.minute), size = 14, muted = true)
                         }
-                        T("${today.shortLabel()} has photos from ${if (years.isEmpty()) "past years" else plural(years.size, "year")}", size = 14, weight = FontWeight.SemiBold)
-                        T((if (years.isEmpty()) "" else "The oldest is from ${years.last()}. ") + "Tap to look back.", size = 14, muted = true)
+                        T(
+                            if (years.isEmpty()) L.s("reminder_title_any", "day" to today.shortLabel())
+                            else L.s("reminder_title_years", "day" to today.shortLabel(), "years" to L.p("years", years.size)),
+                            size = 14, weight = FontWeight.SemiBold,
+                        )
+                        T(if (years.isEmpty()) L.s("reminder_body") else L.s("reminder_body_oldest", "year" to years.last()), size = 14, muted = true)
                     }
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    T("One reminder a day", size = 32, weight = FontWeight.Bold, tight = true, modifier = Modifier.semantics { heading() })
-                    T("Only on days that have photos from past years. You can change the time later.", muted = true)
+                    T(L.s("reminder_onboarding_title"), size = 32, weight = FontWeight.Bold, tight = true, modifier = Modifier.semantics { heading() })
+                    T(L.s("reminder_onboarding_body"), muted = true)
                 }
             }
-            Pill("Turn on reminder", askNotify, modifier = Modifier.fillMaxWidth())
-            Pill("Not now", { vm.finishOnboarding(false) }, kind = Kind.Ghost, height = 48.dp, modifier = Modifier.fillMaxWidth())
+            Pill(L.s("turn_on_reminder"), askNotify, modifier = Modifier.fillMaxWidth())
+            Pill(L.s("not_now"), { vm.finishOnboarding(false) }, kind = Kind.Ghost, height = 48.dp, modifier = Modifier.fillMaxWidth())
         }
         return
     }
@@ -165,7 +171,7 @@ fun OnboardingScreen(vm: AppViewModel) {
     Column(Modifier.fillMaxSize().background(p.bg).statusBarsPadding().padding(24.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Logo(36.dp)
-            T("Back Then", size = 22, weight = FontWeight.Black, tight = true)
+            T(L.s("app_name"), size = 22, weight = FontWeight.Black, tight = true)
         }
         Box(Modifier.weight(1f).fillMaxWidth().heightIn(min = 260.dp)) {
             val label = today.shortLabel()
@@ -174,19 +180,19 @@ fun OnboardingScreen(vm: AppViewModel) {
             Print(2025, label, R.drawable.welcome_2025_cake, 176.dp, -1.5f, Modifier.align(Alignment.TopCenter).offset(y = 118.dp))
         }
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            T("See what this day looked like, every year.", size = 32, weight = FontWeight.Bold, tight = true, modifier = Modifier.semantics { heading() })
-            T("Each morning, Back Then finds the photos you took on today's date in past years and sorts them by year.", muted = true)
+            T(L.s("welcome_title"), size = 32, weight = FontWeight.Bold, tight = true, modifier = Modifier.semantics { heading() })
+            T(L.s("welcome_body"), muted = true)
         }
         if (denied) {
             Row(Modifier.clip(RoundedCornerShape(14.dp)).background(p.accTint).padding(12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Icon(Icons.Outlined.WarningAmber, null, tint = p.accInk, modifier = Modifier.size(18.dp))
-                T("Without photo access there is nothing to show. You can allow it later in Settings.", size = 14, weight = FontWeight.Medium, color = p.accInk)
+                T(L.s("welcome_denied"), size = 14, weight = FontWeight.Medium, color = p.accInk)
             }
         }
         // Google Photos leads on Android, as in the design.
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Pill("Use Google Photos", { google = true }, modifier = Modifier.fillMaxWidth())
-            Pill("Use photos on this phone", askPhotos, kind = Kind.Secondary, modifier = Modifier.fillMaxWidth())
+            Pill(L.s("use_google_photos"), { google = true }, modifier = Modifier.fillMaxWidth())
+            Pill(L.s("use_phone_photos"), askPhotos, kind = Kind.Secondary, modifier = Modifier.fillMaxWidth())
             Row(
                 Modifier.fillMaxWidth().padding(top = 2.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
@@ -194,7 +200,7 @@ fun OnboardingScreen(vm: AppViewModel) {
             ) {
                 Icon(Icons.Outlined.Lock, null, tint = p.muted, modifier = Modifier.size(13.dp))
                 Text(
-                    "Your photos stay on this phone. Nothing is uploaded.", color = p.muted, textAlign = TextAlign.Center,
+                    L.s("privacy_line"), color = p.muted, textAlign = TextAlign.Center,
                     style = TextStyle(fontFamily = Nunito, fontWeight = FontWeight.Medium, fontSize = 13.sp, lineHeight = 18.sp),
                 )
             }
@@ -233,9 +239,9 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
     val scope = rememberCoroutineScope()
     val index = vm.index(state)
     val startGoogle = rememberGoogleImport(vm)
-    val askPhotos = rememberPhotoPermission(vm) { ok -> if (!ok) vm.say("Allow photo access in Settings") }
+    val askPhotos = rememberPhotoPermission(vm) { ok -> if (!ok) vm.say(L.s("toast_allow_access")) }
     val askNotify = rememberNotificationPermission { ok ->
-        if (ok) vm.setReminder { it.copy(on = true) } else vm.say("Notifications are off in Settings")
+        if (ok) vm.setReminder { it.copy(on = true) } else vm.say(L.s("toast_notifications_off"))
     }
 
     LaunchedEffect(day, index) { result = (day to vm.photosFor(day)).also { vm.lastDay = it } }
@@ -259,9 +265,9 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
     val today = MonthDay.today()
     val total = groups?.sumOf { it.photos.size } ?: 0
     val summary = when {
-        groups == null || indexing && groups.isEmpty() -> "Looking through your library…"
-        groups.isNotEmpty() -> "${plural(total, "photo")} from ${plural(groups.size, "year")}"
-        else -> "No photos on this date"
+        groups == null || indexing && groups.isEmpty() -> L.s("today_loading")
+        groups.isNotEmpty() -> L.s("photos_from_years", "photos" to L.p("photos", total), "years" to L.p("years", groups.size))
+        else -> L.s("today_none")
     }
     val view = LocalView.current
     val selection = Selection(selecting, picked.map { it.key }.toSet()) { ph ->
@@ -275,7 +281,7 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
             // The date is the title: large at rest, title size once the list scrolls.
             MaterialTheme(
                 typography = MaterialTheme.typography.copy(
-                    headlineMedium = TextStyle(fontFamily = Nunito, fontWeight = FontWeight.Bold, fontSize = 32.sp, lineHeight = 36.sp, letterSpacing = (-0.96).sp),
+                    headlineMedium = TextStyle(fontFamily = Nunito, fontWeight = FontWeight.Bold, fontSize = 32.sp, lineHeight = 40.sp, letterSpacing = tightSpacing(32).sp),
                     titleLarge = TextStyle(fontFamily = Nunito, fontWeight = FontWeight.Bold, fontSize = 20.sp, lineHeight = 26.sp),
                 ),
             ) {
@@ -286,15 +292,15 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(day.label(), color = p.ink)
-                            Icon(Icons.Filled.ArrowDropDown, "Pick another day", tint = Accent)
+                            Icon(Icons.Filled.ArrowDropDown, L.s("pick_another_day"), tint = Accent)
                         }
                     },
                     actions = {
                         TextButton(onClick = { if (selecting) stopSelecting() else { selecting = true; onSelectingChange(true) } }) {
-                            T(if (selecting) "Cancel" else "Select", size = 15, weight = FontWeight.SemiBold)
+                            T(L.s(if (selecting) "cancel" else "select"), size = 15, weight = FontWeight.SemiBold)
                         }
-                        IconButton(onClick = { calendar = true }) { Icon(Icons.Outlined.CalendarMonth, "Pick a day", tint = p.ink) }
-                        IconButton(onClick = { settings = true }) { Icon(Icons.Outlined.MoreVert, "Options", tint = p.ink) }
+                        IconButton(onClick = { calendar = true }) { Icon(Icons.Outlined.CalendarMonth, L.s("pick_a_day"), tint = p.ink) }
+                        IconButton(onClick = { settings = true }) { Icon(Icons.Outlined.MoreVert, L.s("options"), tint = p.ink) }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = p.bg, scrolledContainerColor = p.bg.copy(alpha = 0.92f)),
                     scrollBehavior = topBar,
@@ -306,7 +312,7 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
                         T(summary, size = 15, muted = true)
                         if (day != today) {
                             Row(Modifier.padding(top = 8.dp)) {
-                                Pill("Back to today", { go(today) }, kind = Kind.Tint, height = 34.dp, icon = { Icon(Icons.AutoMirrored.Filled.Undo, null, tint = it, modifier = Modifier.size(14.dp)) })
+                                Pill(L.s("back_to_today"), { go(today) }, kind = Kind.Tint, height = 34.dp, icon = { Icon(Icons.AutoMirrored.Filled.Undo, null, tint = it, modifier = Modifier.size(14.dp)) })
                             }
                         }
                     }
@@ -318,7 +324,7 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
                         EmptyDay(day, noSources, nearbyDays(index, day), onGo = ::go, onConnect = { settings = true })
                     }
                     else -> groups.forEach { g ->
-                        val share = { sharePhotos(context, g.photos, "${day.label()}, ${g.year}") }
+                        val share = { sharePhotos(context, g.photos, fullDate(g.year, day)) }
                         val pinKey = "pin-${g.year}"
                         stickyHeader(key = pinKey) {
                             // Shown only while pinned to the top of the list; the big header covers this space otherwise.
@@ -344,7 +350,7 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
         if (selecting) {
             SelectBar(
                 picked.size,
-                onShare = { sharePhotos(context, picked, plural(picked.size, "photo")) },
+                onShare = { sharePhotos(context, picked, L.p("photos", picked.size)) },
                 onAlbum = { albumFor = picked },
                 modifier = Modifier.align(Alignment.BottomCenter).padding(12.dp).padding(bottom = bottomPadding),
             )
@@ -407,17 +413,17 @@ private fun EmptyDay(day: MonthDay, noSources: Boolean, near: Pair<MonthDay?, Mo
         Box(Modifier.size(56.dp).clip(RoundedCornerShape(16.dp)).background(p.fill), contentAlignment = Alignment.Center) {
             Icon(Icons.Outlined.HideImage, null, tint = p.muted, modifier = Modifier.size(28.dp))
         }
-        T(if (noSources) "No photos connected" else "Nothing from ${day.label()} yet", size = 24, weight = FontWeight.Bold, tight = true)
+        T(if (noSources) L.s("empty_no_sources_title") else L.s("empty_title", "day" to day.label()), size = 24, weight = FontWeight.Bold, tight = true)
         T(
             when {
-                noSources -> "Connect your phone's photos or Google Photos to see this day in past years."
-                before != null || after != null -> "You didn't take photos on this date in past years. These nearby days have some."
-                else -> "You didn't take photos on this date in past years."
+                noSources -> L.s("empty_no_sources_android")
+                before != null || after != null -> L.s("empty_nearby")
+                else -> L.s("empty_none")
             },
             size = 15, muted = true, modifier = Modifier.widthIn(max = 300.dp),
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (noSources) Pill("Connect photos", onConnect, height = 40.dp)
+            if (noSources) Pill(L.s("connect_photos"), onConnect, height = 40.dp)
             before?.let { md -> Pill(md.shortLabel(), { onGo(md) }, kind = Kind.Secondary, height = 40.dp, icon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = it, modifier = Modifier.size(15.dp)) }) }
             after?.let { md -> Pill(md.shortLabel(), { onGo(md) }, kind = Kind.Secondary, height = 40.dp, icon = { Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = it, modifier = Modifier.size(15.dp)) }) }
         }
@@ -456,10 +462,10 @@ fun FavoritesScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp
     LazyColumn(state = list, modifier = Modifier.fillMaxSize().background(LocalPalette.current.bg).statusBarsPadding(), contentPadding = PaddingValues(bottom = bottomPadding + 24.dp)) {
         item {
             val years = favs.map { localDate(it.time).year }.toSet().size
-            Header("Favorites", if (favs.isEmpty()) "Nothing saved yet" else "${plural(favs.size, "photo")} from ${plural(years, "year")}")
+            Header(L.s("tab_favorites"), if (favs.isEmpty()) L.s("favorites_none") else L.s("photos_from_years", "photos" to L.p("photos", favs.size), "years" to L.p("years", years)))
         }
         item {
-            if (favs.isEmpty()) EmptyNote(Icons.Outlined.FavoriteBorder, "No favorites yet", "Open any photo and tap the heart. It will be kept here, whatever day it's from.")
+            if (favs.isEmpty()) EmptyNote(Icons.Outlined.FavoriteBorder, L.s("favorites_empty_title"), L.s("favorites_empty_body"))
             else SquareGrid(favs, emptySet(), showYear = true) { i -> vm.viewer.value = com.njarrar.backthen.Viewer(favs, i) }
         }
     }
@@ -473,11 +479,12 @@ fun AlbumsScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, s
     LaunchedEffect(Unit) { scrollTop.collect { list.animateScrollToItem(0) } }
     LazyColumn(state = list, modifier = Modifier.fillMaxSize().background(p.bg).statusBarsPadding(), contentPadding = PaddingValues(bottom = bottomPadding + 24.dp)) {
         item {
-            Header("Albums", plural(state.albums.size, "album")) { Pill("+ New", onNew, height = 40.dp) }
-            if (state.albums.isEmpty()) EmptyNote(Icons.Outlined.PhotoLibrary, "No albums yet", "On Today, tap Select, pick a few photos, then tap Album.")
+            Header(L.s("tab_albums"), L.p("albums", state.albums.size)) {
+                Pill(L.s("new_album"), onNew, height = 40.dp, icon = { Icon(Icons.Filled.Add, null, tint = it, modifier = Modifier.size(16.dp)) })
+            }
+            if (state.albums.isEmpty()) EmptyNote(Icons.Outlined.PhotoLibrary, L.s("albums_empty_title"), L.s("albums_empty_body"))
         }
         items(state.albums, key = { it.id }) { a ->
-            val made = localDate(a.createdAt)
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 12.dp).clip(RoundedCornerShape(16.dp)).clickable(role = Role.Button) { onOpen(a) }.padding(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -493,7 +500,7 @@ fun AlbumsScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, s
                 }
                 Column(Modifier.weight(1f)) {
                     T(a.name, size = 17, weight = FontWeight.SemiBold, maxLines = 1)
-                    T("${plural(a.photos.size, "photo")}, made ${MONTHS_SHORT[made.monthValue - 1]} ${made.dayOfMonth}", size = 14, muted = true)
+                    T(L.s("album_made", "photos" to L.p("photos", a.photos.size), "date" to formatDate(localDate(a.createdAt), "MMMd")), size = 14, muted = true)
                 }
             }
         }
@@ -509,7 +516,6 @@ fun AlbumScreen(vm: AppViewModel, album: Album, bottomPadding: androidx.compose.
     var confirmDelete by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
     var renaming by remember { mutableStateOf(false) }
-    val made = localDate(album.createdAt)
     val list = rememberLazyListState()
     LaunchedEffect(Unit) { scrollTop.collect { list.animateScrollToItem(0) } }
     BackHandler(onBack = onBack)
@@ -517,16 +523,16 @@ fun AlbumScreen(vm: AppViewModel, album: Album, bottomPadding: androidx.compose.
         TopAppBar(
             title = {},
             navigationIcon = {
-                IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Albums", tint = p.ink) }
+                IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, L.s("tab_albums"), tint = p.ink) }
             },
             actions = {
                 Box {
-                    IconButton(onClick = { menu = true }) { Icon(Icons.Outlined.MoreVert, "More", tint = p.ink) }
+                    IconButton(onClick = { menu = true }) { Icon(Icons.Outlined.MoreVert, L.s("more"), tint = p.ink) }
                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }, containerColor = p.surface) {
-                        DropdownMenuItem(text = { T("Rename") }, onClick = { menu = false; renaming = true })
+                        DropdownMenuItem(text = { T(L.s("rename")) }, onClick = { menu = false; renaming = true })
                         HorizontalDivider(color = p.line)
                         DropdownMenuItem(
-                            text = { T("Delete album", color = MaterialTheme.colorScheme.error) },
+                            text = { T(L.s("delete_album"), color = MaterialTheme.colorScheme.error) },
                             onClick = { menu = false; confirmDelete = true },
                         )
                     }
@@ -538,15 +544,15 @@ fun AlbumScreen(vm: AppViewModel, album: Album, bottomPadding: androidx.compose.
             item {
                 Column(Modifier.padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 16.dp)) {
                     T(album.name, size = 30, weight = FontWeight.Bold, tight = true, modifier = Modifier.semantics { heading() })
-                    T("${plural(album.photos.size, "photo")} · made ${MONTHS_SHORT[made.monthValue - 1]} ${made.dayOfMonth}", size = 15, muted = true)
+                    T(L.s("album_made", "photos" to L.p("photos", album.photos.size), "date" to formatDate(localDate(album.createdAt), "MMMd")), size = 15, muted = true)
                 }
                 Row(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Pill(
-                        "Share album", { sharePhotos(context, album.photos, album.name) }, height = 46.dp, modifier = Modifier.weight(1f),
+                        L.s("share_album"), { sharePhotos(context, album.photos, album.name) }, height = 46.dp, modifier = Modifier.weight(1f),
                         icon = { Icon(Icons.Outlined.IosShare, null, tint = it, modifier = Modifier.size(18.dp)) },
                     )
                     Pill(
-                        "Save to gallery", { vm.saveAlbumToGallery(album) }, kind = Kind.Secondary, height = 46.dp, modifier = Modifier.weight(1f),
+                        L.s("save_to_gallery"), { vm.saveAlbumToGallery(album) }, kind = Kind.Secondary, height = 46.dp, modifier = Modifier.weight(1f),
                         icon = { Icon(Icons.Outlined.Download, null, tint = it, modifier = Modifier.size(18.dp)) },
                     )
                 }
@@ -559,7 +565,7 @@ fun AlbumScreen(vm: AppViewModel, album: Album, bottomPadding: androidx.compose.
         AlertDialog(
             onDismissRequest = { renaming = false },
             containerColor = p.surface,
-            title = { T("Rename album", size = 20, weight = FontWeight.Bold) },
+            title = { T(L.s("rename_album"), size = 20, weight = FontWeight.Bold) },
             text = {
                 OutlinedTextField(
                     value = name,
@@ -571,23 +577,23 @@ fun AlbumScreen(vm: AppViewModel, album: Album, bottomPadding: androidx.compose.
                 )
             },
             confirmButton = {
-                TextButton(onClick = { vm.renameAlbum(album.id, name); renaming = false }, enabled = name.isNotBlank()) { T("Save", weight = FontWeight.SemiBold) }
+                TextButton(onClick = { vm.renameAlbum(album.id, name); renaming = false }, enabled = name.isNotBlank()) { T(L.s("save"), weight = FontWeight.SemiBold) }
             },
-            dismissButton = { TextButton(onClick = { renaming = false }) { T("Cancel", weight = FontWeight.SemiBold) } },
+            dismissButton = { TextButton(onClick = { renaming = false }) { T(L.s("cancel"), weight = FontWeight.SemiBold) } },
         )
     }
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
             containerColor = p.surface,
-            title = { T("Delete \"${album.name}\"?", size = 20, weight = FontWeight.Bold) },
-            text = { T("The photos stay in your library.", muted = true) },
+            title = { T(L.s("delete_album_confirm", "name" to album.name), size = 20, weight = FontWeight.Bold) },
+            text = { T(L.s("delete_album_note"), muted = true) },
             confirmButton = {
                 TextButton(onClick = { confirmDelete = false; onBack(); vm.deleteAlbum(album.id) }) {
-                    T("Delete album", weight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.error)
+                    T(L.s("delete_album"), weight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.error)
                 }
             },
-            dismissButton = { TextButton(onClick = { confirmDelete = false }) { T("Cancel", weight = FontWeight.SemiBold) } },
+            dismissButton = { TextButton(onClick = { confirmDelete = false }) { T(L.s("cancel"), weight = FontWeight.SemiBold) } },
         )
     }
 }

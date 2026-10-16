@@ -20,14 +20,11 @@ class CoreTest {
     }
 
     @Test fun labels() {
+        val en = LangFiles.load("en")
+        L.use(en, en, java.util.Locale.ENGLISH)
         assertEquals("1 year ago", agoLabel(2025, 2026))
         assertEquals("10 years ago", agoLabel(2016, 2026))
         assertEquals("Earlier this year", agoLabel(2026, 2026))
-        assertEquals("1 photo", plural(1, "photo"))
-        assertEquals("3 photos", plural(3, "photo"))
-        assertEquals("9:00 AM", formatTime(9, 0))
-        assertEquals("12:05 AM", formatTime(0, 5))
-        assertEquals("6:30 PM", formatTime(18, 30))
     }
 
     private val index = buildDayIndex(

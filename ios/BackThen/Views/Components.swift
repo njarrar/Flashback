@@ -25,7 +25,7 @@ struct PhotoImage: View {
                 image = await loadImage(photo, size: contentMode == .fit ? CGSize(width: 2048, height: 2048) : px)
             }
         }
-        .accessibilityLabel("Photo from \(photo.time.formatted(date: .long, time: .omitted))")
+        .accessibilityLabel(L.s("photo_from", ["date": L.date(photo.time, "yMMMMd")]))
     }
 }
 
@@ -157,6 +157,8 @@ struct Logo: View {
         }
         .frame(width: size, height: size)
         .clipShape(RoundedRectangle(cornerRadius: size * 0.24, style: .continuous))
+        // A drawing, not text: it stays the same way round in right to left languages.
+        .environment(\.layoutDirection, .leftToRight)
         .accessibilityHidden(true)
     }
 
@@ -229,13 +231,14 @@ struct PhotoTile: View {
 /// Sits under its `PinnedYear` header, drawn over the header's space while that is hidden.
 struct YearSection: View {
     @Environment(AppStore.self) private var store
+    @Environment(\.layoutDirection) private var direction
     let group: YearGroup
     let day: MonthDay
     let selection: Selection
     let share: () -> Void
 
     private var year: some View {
-        Text(String(group.year)).font(.nunito(56, .black)).tight(56).foregroundStyle(Palette.ink)
+        Text(L.num(group.year)).font(.nunito(56, .black)).tight(56).foregroundStyle(Palette.ink)
             .accessibilityAddTraits(.isHeader)
     }
 
@@ -243,7 +246,7 @@ struct YearSection: View {
         HStack(spacing: 10) {
             VStack(alignment: .trailing, spacing: 2) {
                 Text(agoLabel(group.year)).font(.nunito(14, .semibold)).foregroundStyle(Palette.ink)
-                Text("\(weekday(year: group.year, day)), \(plural(group.photos.count, "photo"))").font(.nunito(13)).foregroundStyle(Palette.muted)
+                Text(L.s("weekday_photos", ["weekday": weekday(year: group.year, day), "photos": L.p("photos", group.photos.count)])).font(.nunito(13)).foregroundStyle(Palette.muted)
             }
             Button(action: share) {
                 Image(systemName: "square.and.arrow.up").font(.system(size: 18)).foregroundStyle(Palette.ink)
@@ -252,7 +255,7 @@ struct YearSection: View {
                     .overlay(Circle().stroke(Palette.line, lineWidth: 1))
             }
             .buttonStyle(PressStyle())
-            .accessibilityLabel("Share \(String(group.year))")
+            .accessibilityLabel(L.s("share_year", ["year": group.year]))
         }
     }
 
@@ -279,14 +282,20 @@ struct YearSection: View {
                 ZStack(alignment: .topLeading) {
                     ForEach(Array(group.photos.enumerated()), id: \.element.key) { i, photo in
                         let t = layout.tiles[i]
+                        // Right to left, the first photo sits on the right.
+                        let col = direction == .rightToLeft ? mosaicColumns - t.col - t.cols : t.col
                         PhotoTile(photo: photo, radius: 12, selection: selection) {
                             store.viewer = Viewer(photos: group.photos, start: i)
                         }
+                        .environment(\.layoutDirection, direction)
                         .frame(width: cell * CGFloat(t.cols) + gap * CGFloat(t.cols - 1), height: row * CGFloat(t.rows) + gap * CGFloat(t.rows - 1))
-                        .offset(x: (cell + gap) * CGFloat(t.col), y: (row + gap) * CGFloat(t.row))
+                        .offset(x: (cell + gap) * CGFloat(col), y: (row + gap) * CGFloat(t.row))
                     }
                 }
+                .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
             }
+            // Tiles are placed from the left edge, in a box as wide as the screen; the column above mirrors them.
+            .environment(\.layoutDirection, .leftToRight)
             .frame(height: {
                 let rows = CGFloat(layoutMosaic(group.photos.count).rows)
                 return rows * 54 + (rows - 1) * 4
@@ -316,15 +325,15 @@ struct PinnedYear: View {
     var body: some View {
         let on = top <= barBottom + 0.5
         HStack(spacing: 8) {
-            Text(String(group.year)).font(.nunito(26, .black)).tight(26).foregroundStyle(Palette.ink)
-            Text("\(agoLabel(group.year)) · \(weekday(year: group.year, day)), \(plural(group.photos.count, "photo"))")
+            Text(L.num(group.year)).font(.nunito(26, .black)).tight(26).foregroundStyle(Palette.ink)
+            Text(L.s("ago_weekday_photos", ["ago": agoLabel(group.year), "weekday": weekday(year: group.year, day), "photos": L.p("photos", group.photos.count)]))
                 .font(.nunito(14, .medium)).foregroundStyle(Palette.muted).lineLimit(1)
             Spacer(minLength: 0)
             Button(action: share) {
                 Image(systemName: "square.and.arrow.up").font(.system(size: 17, weight: .medium)).foregroundStyle(Palette.ink)
                     .frame(width: 44, height: Self.height)
             }
-            .accessibilityLabel("Share \(String(group.year))")
+            .accessibilityLabel(L.s("share_year", ["year": group.year]))
         }
         .padding(.leading, 20).padding(.trailing, 6)
         // Fixed 44 pt bar, so it stops growing before the accessibility sizes.
@@ -370,8 +379,8 @@ struct YearChip: View {
     let year: Int
 
     var body: some View {
-        Text(String(year))
-            .font(.nunito(11, .heavy)).tracking(0.2).foregroundStyle(Palette.chipInk)
+        Text(L.num(year))
+            .font(.nunito(11, .heavy)).tracking(L.lang.arabicScript ? 0 : 0.2).foregroundStyle(Palette.chipInk)
             .padding(.vertical, 2).padding(.horizontal, 7)
             .background {
                 ZStack {
@@ -392,15 +401,15 @@ struct SelectBar: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            Text(count == 0 ? "Tap photos to select" : "\(plural(count, "photo")) selected")
+            Text(count == 0 ? L.s("select_hint") : L.s("n_selected", ["photos": L.p("photos", count)]))
                 .font(.nunito(15, .semibold)).foregroundStyle(Palette.bg)
                 .frame(maxWidth: .infinity, alignment: .leading)
             Button(action: share) {
-                Label("Share", systemImage: "square.and.arrow.up").font(.nunito(15, .semibold)).foregroundStyle(Palette.bg)
+                Label(L.s("share"), systemImage: "square.and.arrow.up").font(.nunito(15, .semibold)).foregroundStyle(Palette.bg)
                     .padding(.horizontal, 14).frame(height: 44)
             }
             .disabled(count == 0).opacity(count == 0 ? 0.4 : 1)
-            Pill(label: "Album", systemImage: "plus", kind: .accent, height: 44, action: album).disabled(count == 0).fixedSize()
+            Pill(label: L.s("album"), systemImage: "plus", kind: .accent, height: 44, action: album).disabled(count == 0).fixedSize()
         }
         .padding(.leading, 20).padding(.trailing, 8)
         .frame(height: 62)
@@ -424,7 +433,7 @@ struct Print: View {
             Image(image).resizable().aspectRatio(4 / 5, contentMode: .fit)
                 .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
             HStack(alignment: .lastTextBaseline) {
-                Text(String(year)).font(.nunito(width > 160 ? 26 : 22, .black)).tight(22).foregroundStyle(Palette.ink)
+                Text(L.num(year)).font(.nunito(width > 160 ? 26 : 22, .black)).tight(22).foregroundStyle(Palette.ink)
                 Spacer()
                 Text(label).font(.nunito(11, .medium)).foregroundStyle(Palette.muted)
             }

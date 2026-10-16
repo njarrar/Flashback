@@ -5,6 +5,7 @@ import SwiftUI
 struct CalendarSheet: View {
     @Environment(AppStore.self) private var store
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.layoutDirection) private var direction
     let pick: (MonthDay) -> Void
     @State private var month: Int
     @State private var slide: CGFloat = 0
@@ -20,19 +21,19 @@ struct CalendarSheet: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .top, spacing: 8) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(months[month]).font(.nunito(24, .heavy)).tight(24).foregroundStyle(Palette.ink)
+                    Text(L.monthName(month)).font(.nunito(24, .heavy)).tight(24).foregroundStyle(Palette.ink)
                         .accessibilityAddTraits(.isHeader)
-                    Text("Darker days have photos from more years").font(.nunito(13)).foregroundStyle(Palette.muted)
+                    Text(L.s("calendar_hint")).font(.nunito(13)).foregroundStyle(Palette.muted)
                 }
                 Spacer(minLength: 0)
                 if month != today.month || store.day != today {
                     Button { pick(today) } label: {
-                        Text("Today").font(.nunito(15, .semibold)).foregroundStyle(Palette.ink)
+                        Text(L.s("today")).font(.nunito(15, .semibold)).foregroundStyle(Palette.ink)
                             .padding(.horizontal, 8).frame(height: 38)
                     }
                 }
-                arrow("chevron.left", "Previous month") { turn(-1) }
-                arrow("chevron.right", "Next month") { turn(1) }
+                arrow("chevron.backward", L.s("previous_month")) { turn(-1) }
+                arrow("chevron.forward", L.s("next_month")) { turn(1) }
             }
             grid(today: today)
                 .offset(x: slide)
@@ -42,7 +43,8 @@ struct CalendarSheet: View {
                         .onChanged { g in if !reduceMotion && abs(g.translation.width) > abs(g.translation.height) { slide = g.translation.width } }
                         .onEnded { g in
                             let w = g.translation.width
-                            if abs(w) > 50 && abs(w) > abs(g.translation.height) { turn(w < 0 ? 1 : -1) }
+                            // Right to left, the next month comes in from the left.
+                            if abs(w) > 50 && abs(w) > abs(g.translation.height) { turn((w < 0) != rtl ? 1 : -1) }
                             else { withAnimation(.spring(duration: 0.4, bounce: 0)) { slide = 0 } }
                         }
                 )
@@ -67,14 +69,15 @@ struct CalendarSheet: View {
                 let sel = store.day == md
                 let (fill, ink) = shade(years, selected: sel)
                 Button { pick(md) } label: {
-                    Text("\(d)").font(.nunito(16, .semibold)).monospacedDigit().foregroundStyle(ink)
+                    Text(L.num(d)).font(.nunito(16, .semibold)).monospacedDigit().foregroundStyle(ink)
                         .frame(width: 40, height: 40)
                         .background(fill, in: Circle())
                         .overlay(Circle().strokeBorder(md == today && !sel ? Palette.ink : .clear, lineWidth: 1.5))
                         .frame(maxWidth: .infinity, minHeight: 46)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("\(months[month]) \(d), \(years == 0 ? "no photos" : "photos from \(plural(years, "year"))")")
+                .accessibilityLabel(years == 0 ? L.s("day_no_photos", ["day": md.label])
+                                    : L.s("day_photos_from", ["day": md.label, "years": L.p("years", years)]))
                 .accessibilityAddTraits(sel ? .isSelected : [])
             }
         }
@@ -91,6 +94,8 @@ struct CalendarSheet: View {
         }
     }
 
+    private var rtl: Bool { direction == .rightToLeft }
+
     private func turn(_ by: Int) {
         let next = (month + by + 12) % 12
         if reduceMotion {
@@ -98,10 +103,11 @@ struct CalendarSheet: View {
             return
         }
         // Slide the old month out, then the new one in from the other side.
-        withAnimation(.easeIn(duration: 0.12)) { slide = by > 0 ? -60 : 60 }
+        let out: CGFloat = (by > 0) != rtl ? -60 : 60
+        withAnimation(.easeIn(duration: 0.12)) { slide = out }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
             month = next
-            slide = by > 0 ? 60 : -60
+            slide = -out
             withAnimation(.spring(duration: 0.4, bounce: 0)) { slide = 0 }
         }
     }
@@ -128,13 +134,13 @@ struct AlbumSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Add to album").font(.nunito(22, .bold)).foregroundStyle(Palette.ink)
-                Text("\(plural(photos.count, "photo")) selected").font(.nunito(14)).foregroundStyle(Palette.muted)
+                Text(L.s("add_to_album")).font(.nunito(22, .bold)).foregroundStyle(Palette.ink)
+                Text(L.s("n_selected", ["photos": L.p("photos", photos.count)])).font(.nunito(14)).foregroundStyle(Palette.muted)
             }
             VStack(alignment: .leading, spacing: 6) {
-                Text("New album name").font(.nunito(13, .semibold)).foregroundStyle(Palette.muted2)
+                Text(L.s("new_album_name")).font(.nunito(13, .semibold)).foregroundStyle(Palette.muted2)
                 HStack(spacing: 8) {
-                    TextField("e.g. Fall in the city", text: $name)
+                    TextField(L.s("album_name_example"), text: $name)
                         .font(.nunito(16, .medium))
                         .focused($focused)
                         .submitLabel(.done)
@@ -143,14 +149,14 @@ struct AlbumSheet: View {
                         .frame(height: 48)
                         .background(Palette.bg, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                         .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(focused ? Palette.accent : Palette.line, lineWidth: 1))
-                    Pill(label: "Create", height: 48, action: create)
+                    Pill(label: L.s("create"), height: 48, action: create)
                         .fixedSize()
                         .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
             if !store.saved.albums.isEmpty {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Or add to an existing album").font(.nunito(13, .semibold)).foregroundStyle(Palette.muted2).padding(.bottom, 4)
+                    Text(L.s("add_to_existing")).font(.nunito(13, .semibold)).foregroundStyle(Palette.muted2).padding(.bottom, 4)
                     ScrollView {
                         ForEach(store.saved.albums) { a in
                             Button {
@@ -165,7 +171,7 @@ struct AlbumSheet: View {
                                     .frame(width: 48, height: 48).clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(a.name).font(.nunito(16, .semibold)).foregroundStyle(Palette.ink).lineLimit(1)
-                                        Text(plural(a.photos.count, "photo")).font(.nunito(13)).foregroundStyle(Palette.muted)
+                                        Text(L.p("photos", a.photos.count)).font(.nunito(13)).foregroundStyle(Palette.muted)
                                     }
                                     Spacer()
                                     Image(systemName: "plus.circle.fill").font(.system(size: 22)).foregroundStyle(Palette.accent)
@@ -174,7 +180,7 @@ struct AlbumSheet: View {
                                 .contentShape(Rectangle())
                             }
                             .buttonStyle(RowPressStyle())
-                            .accessibilityLabel("Add to \(a.name)")
+                            .accessibilityLabel(L.s("add_to_named", ["name": a.name]))
                         }
                     }
                     .frame(maxHeight: 220)
@@ -208,26 +214,26 @@ struct SettingsSheet: View {
     var body: some View {
         let s = store.saved
         VStack(alignment: .leading, spacing: 14) {
-            Text("Photo sources").font(.nunito(13, .bold)).foregroundStyle(Palette.muted)
-            row(icon: "apple.logo", title: "Apple Photos", status: s.sources.device ? "Connected" : "Not connected", on: s.sources.device) {
+            Text(L.s("photo_sources")).font(.nunito(13, .bold)).foregroundStyle(Palette.muted)
+            row(icon: "apple.logo", title: L.s("apple_photos"), status: L.s(s.sources.device ? "connected" : "not_connected"), on: s.sources.device) {
                 guard !s.sources.device else { return }
                 Task {
                     if PhotoLibrary.canAsk || PhotoLibrary.hasAccess {
-                        if await store.connectDevice() { store.say("Apple Photos connected") }
+                        if await store.connectDevice() { store.say(L.s("toast_apple_connected")) }
                     } else if let url = URL(string: UIApplication.openSettingsURLString) {
                         await UIApplication.shared.open(url)
                     }
                 }
             }
-            row(icon: "photo.on.rectangle.angled", title: "Google Photos",
-                status: s.sources.google ? "\(plural(s.googlePhotos.count, "photo")) picked" : "Not connected", on: s.sources.google) {
+            row(icon: "photo.on.rectangle.angled", title: L.s("google_photos"),
+                status: s.sources.google ? L.s("n_picked", ["photos": L.p("photos", s.googlePhotos.count)]) : L.s("not_connected"), on: s.sources.google) {
                 dismiss()
                 showGoogle = true
             }
             Divider()
             HStack(spacing: 12) {
                 Image(systemName: "bell").foregroundStyle(Palette.ink)
-                Text("Daily reminder").font(.nunito(16, .semibold)).foregroundStyle(Palette.ink)
+                Text(L.s("daily_reminder")).font(.nunito(16, .semibold)).foregroundStyle(Palette.ink)
                 Spacer()
                 if s.reminder.on {
                     Button {
@@ -238,18 +244,18 @@ struct SettingsSheet: View {
                         Text(formatTime(hour: s.reminder.hour, minute: s.reminder.minute)).font(.nunito(15, .semibold)).foregroundStyle(Palette.ink)
                             .padding(.horizontal, 12).padding(.vertical, 6).background(Palette.fill, in: Capsule())
                     }
-                    .accessibilityLabel("Change reminder time")
+                    .accessibilityLabel(L.s("change_reminder_time"))
                 }
-                Toggle("Daily reminder", isOn: Binding(get: { s.reminder.on }, set: { on in
+                Toggle(L.s("daily_reminder"), isOn: Binding(get: { s.reminder.on }, set: { on in
                     Task {
-                        if on, !(await Reminders.requestPermission()) { return store.say("Notifications are off in Settings") }
+                        if on, !(await Reminders.requestPermission()) { return store.say(L.s("toast_notifications_off")) }
                         store.setReminder(on: on)
                     }
                 }))
                 .labelsHidden()
                 .tint(Palette.accent)
             }
-            Text("Only on days that have photos from past years. Tap the time to change it.").font(.nunito(13)).foregroundStyle(Palette.muted)
+            Text(L.s("reminder_settings_note")).font(.nunito(13)).foregroundStyle(Palette.muted)
         }
         .padding(20)
         .presentationDetents([.height(340)])
@@ -286,31 +292,31 @@ struct GoogleSheet: View {
             Image(systemName: "photo.on.rectangle.angled").font(.system(size: 24)).foregroundStyle(Palette.ink)
                 .frame(width: 52, height: 52).background(Palette.fill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             if let progress = store.googleImport {
-                Text(progress.total > 0 ? "Saving your picks" : "Waiting for Google Photos").font(.nunito(24, .heavy)).tight(24).foregroundStyle(Palette.ink)
-                Text(progress.total > 0 ? "\(progress.done) of \(progress.total) photos" : "Pick photos in Google Photos, tap Done, then come back here.")
+                Text(L.s(progress.total > 0 ? "google_saving" : "google_waiting")).font(.nunito(24, .heavy)).tight(24).foregroundStyle(Palette.ink)
+                Text(progress.total > 0 ? L.s("google_progress", ["done": progress.done, "photos": L.p("photos", progress.total)]) : L.s("google_waiting_body"))
                     .font(.nunito(15, .medium)).foregroundStyle(Palette.muted)
                 ProgressView().tint(Palette.accent).frame(maxWidth: .infinity)
-                Pill(label: "Cancel", kind: .ghost, height: 48) { store.cancelGoogleImport() }
+                Pill(label: L.s("cancel"), kind: .ghost, height: 48) { store.cancelGoogleImport() }
             } else {
-                Text(connected ? "Google Photos is connected" : "Add Google Photos").font(.nunito(24, .heavy)).tight(24).foregroundStyle(Palette.ink)
+                Text(L.s(connected ? "google_connected_title" : "google_add_title")).font(.nunito(24, .heavy)).tight(24).foregroundStyle(Palette.ink)
                 Text(connected
-                     ? "\(plural(store.saved.googlePhotos.count, "photo")) picked. Pick more any time."
-                     : "Google only lets apps see the photos you pick. Choose the ones you want Back Then to bring back, such as a whole year or a trip. Copies of shots already in Apple Photos show once.")
+                     ? L.s("google_connected_body", ["photos": L.p("photos", store.saved.googlePhotos.count)])
+                     : L.s("google_intro_ios"))
                     .font(.nunito(15, .medium)).foregroundStyle(Palette.muted).fixedSize(horizontal: false, vertical: true)
                 if GoogleConfig.isConfigured {
                     VStack(spacing: 6) {
-                        Pill(label: connected ? "Pick more photos" : "Continue with Google") { store.importFromGoogle() }
+                        Pill(label: L.s(connected ? "pick_more" : "continue_google")) { store.importFromGoogle() }
                         if connected {
-                            Pill(label: "Disconnect", kind: .ghost, height: 48) { store.disconnectGoogle(); dismiss() }
+                            Pill(label: L.s("disconnect"), kind: .ghost, height: 48) { store.disconnectGoogle(); dismiss() }
                         } else {
-                            Pill(label: "Not now", kind: .ghost, height: 48) { dismiss() }
+                            Pill(label: L.s("not_now"), kind: .ghost, height: 48) { dismiss() }
                         }
                     }
                 } else {
-                    Text("This build has no Google client ID yet. See the README to add one.")
+                    Text(L.s("google_no_client"))
                         .font(.nunito(14)).foregroundStyle(Palette.accInk).padding(12)
                         .background(Palette.accTint, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    Pill(label: "Close", kind: .ghost, height: 48) { dismiss() }
+                    Pill(label: L.s("close"), kind: .ghost, height: 48) { dismiss() }
                 }
             }
         }

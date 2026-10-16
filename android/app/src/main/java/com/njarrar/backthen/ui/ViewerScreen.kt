@@ -64,9 +64,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import com.njarrar.backthen.core.MONTHS
+import com.njarrar.backthen.core.L
 import com.njarrar.backthen.core.Photo
 import com.njarrar.backthen.core.agoLabel
+import com.njarrar.backthen.core.formatDate
 import com.njarrar.backthen.core.localDate
 import kotlinx.coroutines.launch
 import me.saket.telephoto.zoomable.DoubleClickToZoomListener
@@ -75,8 +76,6 @@ import me.saket.telephoto.zoomable.ZoomableState
 import me.saket.telephoto.zoomable.coil3.ZoomableAsyncImage
 import me.saket.telephoto.zoomable.rememberZoomableImageState
 import me.saket.telephoto.zoomable.rememberZoomableState
-import java.time.format.TextStyle
-import java.util.Locale
 
 /** Double tap goes to 2.5x at the tap, or back to fit from any zoom. */
 private val ToggleZoom = object : DoubleClickToZoomListener {
@@ -145,7 +144,7 @@ fun ViewerScreen(
             LaunchedEffect(current) { if (!current) zoom.zoomableState.resetZoom(snap()) }
             ZoomableAsyncImage(
                 model = photos[i].uri,
-                contentDescription = "Photo from ${localDate(photos[i].time)}",
+                contentDescription = L.s("photo_from", "date" to formatDate(localDate(photos[i].time), "yMMMMd")),
                 state = zoom,
                 contentScale = ContentScale.Fit,
                 onClick = { chrome = !chrome },
@@ -165,12 +164,11 @@ fun ViewerScreen(
             Column(Modifier.fillMaxSize().systemBarsPadding().graphicsLayer { alpha = chromeAlpha * (1f - pull) }) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onClose, enabled = chrome, modifier = Modifier.size(44.dp).clip(CircleShape).background(ViewerInk.copy(alpha = 0.14f))) {
-                        Icon(Icons.Filled.Close, "Close", tint = ViewerInk)
+                        Icon(Icons.Filled.Close, L.s("close"), tint = ViewerInk)
                     }
                     Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                        T("${MONTHS[date.monthValue - 1]} ${date.dayOfMonth}, ${date.year}", size = 16, weight = FontWeight.Bold, color = ViewerInk)
-                        val weekday = date.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault())
-                        T("${agoLabel(date.year)} · $weekday", size = 13, color = ViewerInk.copy(alpha = 0.62f))
+                        T(formatDate(date, "yMMMMd"), size = 16, weight = FontWeight.Bold, color = ViewerInk)
+                        T(L.s("ago_weekday", "ago" to agoLabel(date.year), "weekday" to formatDate(date, "EEEE")), size = 13, color = ViewerInk.copy(alpha = 0.62f))
                     }
                     Spacer(Modifier.size(44.dp))
                 }
@@ -183,16 +181,16 @@ fun ViewerScreen(
                     IconButton(onClick = { if (!fav) Haptics.confirm(view); onFavorite(photo) }, enabled = chrome, modifier = Modifier.size(56.dp)) {
                         Icon(
                             if (fav) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                            if (fav) "Remove from favorites" else "Favorite",
+                            L.s(if (fav) "unfavorite" else "favorite"),
                             tint = if (fav) ViewerHeart else ViewerInk,
                             modifier = Modifier.size(28.dp),
                         )
                     }
                     IconButton(onClick = { onShare(photo) }, enabled = chrome, modifier = Modifier.size(56.dp)) {
-                        Icon(Icons.Outlined.IosShare, "Share", tint = ViewerInk, modifier = Modifier.size(28.dp))
+                        Icon(Icons.Outlined.IosShare, L.s("share"), tint = ViewerInk, modifier = Modifier.size(28.dp))
                     }
                     IconButton(onClick = { onAlbum(photo) }, enabled = chrome, modifier = Modifier.size(56.dp)) {
-                        Icon(Icons.Outlined.LibraryAdd, "Add to album", tint = ViewerInk, modifier = Modifier.size(28.dp))
+                        Icon(Icons.Outlined.LibraryAdd, L.s("add_to_album"), tint = ViewerInk, modifier = Modifier.size(28.dp))
                     }
                 }
             }
@@ -237,7 +235,7 @@ private fun Filmstrip(photos: List<Photo>, index: Int, enabled: Boolean, onPick:
                         .graphicsLayer { alpha = if (on) 1f else 0.7f }
                         .clickable(enabled = enabled) { onPick(i) }
                         .semantics {
-                            contentDescription = "Photo ${i + 1} of ${photos.size}"
+                            contentDescription = L.s("photo_n_of", "n" to i + 1, "total" to photos.size)
                             selected = on
                         },
                 )

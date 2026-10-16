@@ -12,17 +12,17 @@ struct RootView: View {
                     NavigationStack {
                         TodayView().toolbar(.hidden, for: .navigationBar)
                     }
-                    .tabItem { Label("Today", systemImage: "clock.arrow.circlepath") }
+                    .tabItem { Label(L.s("tab_today"), systemImage: "clock.arrow.circlepath") }
                     .tag(AppTab.today)
 
                     NavigationStack {
                         FavoritesView().toolbar(.hidden, for: .navigationBar)
                     }
-                    .tabItem { Label("Favorites", systemImage: store.tab == .favorites ? "heart.fill" : "heart") }
+                    .tabItem { Label(L.s("tab_favorites"), systemImage: store.tab == .favorites ? "heart.fill" : "heart") }
                     .tag(AppTab.favorites)
 
                     AlbumsView()
-                        .tabItem { Label("Albums", systemImage: "photo.on.rectangle") }
+                        .tabItem { Label(L.s("tab_albums"), systemImage: "photo.on.rectangle") }
                         .tag(AppTab.albums)
                 }
                 .tint(Palette.accent)

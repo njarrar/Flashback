@@ -23,15 +23,24 @@ adb shell am broadcast -a com.android.systemui.demo -e command battery -e level 
 adb shell am broadcast -a com.android.systemui.demo -e command network -e wifi show -e level 4
 adb shell am broadcast -a com.android.systemui.demo -e command notifications -e visible false
 mkdir -p shots/android
-adb shell am start -W -n $PKG/.MainActivity
-sleep 6
-adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS || true
-adb exec-out screencap -p > shots/android/1-welcome.png
-for scene in today calendar viewer favorites album; do
-  adb shell am force-stop $PKG
-  adb shell am start -W -n $PKG/.MainActivity --es scene $scene
-  sleep 8
+shoot() {
   adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS || true
   sleep 1
-  adb exec-out screencap -p > "shots/android/$scene.png"
+  adb exec-out screencap -p > "shots/android/$1.png"
+}
+adb shell am start -W -n $PKG/.MainActivity
+sleep 6
+shoot 1-welcome
+# The same app in Arabic. Debug builds take the language as a launch extra.
+adb shell am force-stop $PKG
+adb shell am start -W -n $PKG/.MainActivity --es lang ar
+sleep 6
+shoot ar-1-welcome
+for l in en ar; do
+  for scene in today calendar viewer favorites album; do
+    adb shell am force-stop $PKG
+    adb shell am start -W -n $PKG/.MainActivity --es scene $scene --es lang $l
+    sleep 8
+    if [ $l = en ]; then shoot $scene; else shoot ar-$scene; fi
+  done
 done

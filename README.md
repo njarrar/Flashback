@@ -45,6 +45,42 @@ Google Photos.
   </tr>
 </table>
 
+### In Arabic
+
+The whole app turns right to left, with an Arabic font and Arabic month names.
+
+<table>
+  <tr>
+    <th>iPhone: Today</th>
+    <th>iPhone: Pick a day</th>
+    <th>iPhone: First launch</th>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/ios/ar-today.png" width="240" alt="Today screen on iPhone in Arabic, laid out right to left"></td>
+    <td><img src="docs/screenshots/ios/ar-calendar.png" width="240" alt="Calendar sheet on iPhone in Arabic, with the first day on the right"></td>
+    <td><img src="docs/screenshots/ios/ar-1-welcome.png" width="240" alt="Welcome screen on iPhone in Arabic"></td>
+  </tr>
+  <tr>
+    <th>iPhone: Photo viewer</th>
+    <th>iPhone: Favorites</th>
+    <th>iPhone: An album</th>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/ios/ar-viewer.png" width="240" alt="Photo viewer on iPhone in Arabic"></td>
+    <td><img src="docs/screenshots/ios/ar-favorites.png" width="240" alt="Favorites on iPhone in Arabic"></td>
+    <td><img src="docs/screenshots/ios/ar-album.png" width="240" alt="An album on iPhone in Arabic"></td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+    <td><img src="docs/screenshots/android/ar-today.png" width="200" alt="Today screen on Android in Arabic"></td>
+    <td><img src="docs/screenshots/android/ar-calendar.png" width="200" alt="Date picker on Android in Arabic"></td>
+    <td><img src="docs/screenshots/android/ar-viewer.png" width="200" alt="Photo viewer on Android in Arabic"></td>
+    <td><img src="docs/screenshots/android/ar-1-welcome.png" width="200" alt="Welcome screen on Android in Arabic"></td>
+  </tr>
+</table>
+
 The photos in these screenshots are samples from [Lorem Picsum](https://picsum.photos),
 stamped with past dates. The [Screenshots workflow](.github/workflows/screenshots.yml)
 takes them from the real apps on an iPhone simulator and an Android emulator. (A
@@ -72,6 +108,23 @@ the same way Google Photos picks do.)
 - **Looks native on each phone.** The system tab bar and sheets on iPhone, with text
   that grows with the system text size; a large top app bar, navigation bar and
   Android's own date dialog on Android. Light and dark mode.
+
+## What's new in 1.4
+
+- **Four languages.** English, French, Spanish and Arabic. The app follows the
+  phone's language (on iPhone, also the app's own language in Settings). Dates,
+  times and numbers are written the way that language writes them, so French gets
+  "16 octobre" and a 24 hour clock.
+- **Arabic, right to left.** Every screen flips: the back arrow, the calendar (the
+  first day sits on the right and swipes go the other way), the photo mosaic, the
+  viewer and the tab order. Arabic text uses the Tajawal font, since Nunito has no
+  Arabic letters, with normal letter spacing (tight spacing breaks joined letters)
+  and taller lines. Counts use all six Arabic plural forms, such as صورتان for two
+  photos, and digits follow the phone's setting (Western or Arabic).
+- **One file per language** in [`lang/`](lang), shared by both apps. See
+  [Languages](#languages) for how to add one.
+- **iPhone unit tests** run in CI again, with new tests for the language files on
+  both apps.
 
 ## What's new in 1.3
 
@@ -115,6 +168,42 @@ phone, adds it to the day-by-day view, and skips shots that are already in the
 phone's library. You can pick more at any time from the "..." menu, or disconnect
 Google Photos to delete the copies.
 
+## Languages
+
+Every word the apps show lives in one XML file per language in [`lang/`](lang):
+`en.xml`, `fr.xml`, `es.xml` and `ar.xml`. Both apps read the same files. Android
+packs the folder as app assets; on iPhone a build step copies it into the app.
+
+```xml
+<language name="Français" dir="ltr" script="latin">
+    <string name="tab_today">Aujourd'hui</string>
+    <string name="photos_from_years">{photos} sur {years}</string>
+    <plurals name="photos">
+        <item quantity="one">{n} photo</item>
+        <item quantity="other">{n} photos</item>
+    </plurals>
+</language>
+```
+
+At launch each app picks the first language in the phone's list that has a file,
+and falls back to English. A word missing from a file also comes from English.
+Words hold `{slots}` that the app fills in, so each language can put them in its
+own order. In code, `L.s("tab_today")` gets a word and `L.p("photos", 3)` gets a
+plural, the same on both apps.
+
+**To add a language:**
+
+1. Copy `lang/en.xml` to `lang/<code>.xml`, such as `de.xml` or `pt-BR.xml`.
+2. Set `name`, `dir="rtl"` for a right to left language, and `script="arabic"` for
+   one written in Arabic script (Persian, Urdu).
+3. Translate the text between the tags, keeping the `{slots}`. Give each plural the
+   forms the language uses (`zero`, `one`, `two`, `few`, `many`, `other`).
+4. Run the tests. They check that the file has every word and the same slots.
+
+That's all for both apps. If the language has plural rules the apps don't know yet,
+add a line to `pluralForm` in `ios/BackThen/Core/Lang.swift` and
+`android/.../core/Lang.kt`; the common ones are already there.
+
 ## Running the apps
 
 | | iPhone | Android |
@@ -122,7 +211,7 @@ Google Photos to delete the copies.
 | Needs | Xcode 16, iOS 17 or later | Android Studio, Android 8 or later |
 | Open | `ios/BackThen.xcodeproj` | the `android/` folder |
 | Run | pick your team under Signing, then Run | Run, or `cd android && ./gradlew installDebug` |
-| Tests | built in CI | `./gradlew testDebugUnitTest` |
+| Tests | Product > Test (⌘U) | `./gradlew testDebugUnitTest` |
 
 GitHub Actions builds both apps on every push. The Android run also uploads a debug
 APK you can install on a phone.
@@ -147,20 +236,23 @@ a day index that counts photos per day and year, the nearby-days search, the che
 that drops Google copies of phone photos, and the mosaic patterns.
 
 ```
+lang/        one XML file per language, read by both apps
 ios/BackThen/
-  Core/      dates, day index, mosaic layout
+  Core/      dates, day index, mosaic layout, language files
   Data/      PhotoKit, Google sign-in and picker, reminders, app state
   Views/     Today, calendar, viewer, Favorites, Albums, onboarding
+ios/BackThenTests/  unit tests
+ios/scripts/        build step that copies lang/ into the app
 android/app/src/main/java/com/njarrar/backthen/
   core/      the same core logic, with unit tests
   data/      MediaStore, Google picker, reminders, saved state
   ui/        Compose screens
-design/      the source design (open "On This Day.dc.html") and the Nunito font license
+design/      the source design (open "On This Day.dc.html") and the Nunito and Tajawal font licenses
 ```
 
 Debug builds accept a `scene` launch argument (`today`, `calendar`, `viewer`,
 `favorites`, `album`) that fills the app with sample data. The Screenshots workflow
-uses it; release builds ignore it.
+uses it, once in English and once in Arabic; release builds ignore it.
 
 ## Not built yet
 

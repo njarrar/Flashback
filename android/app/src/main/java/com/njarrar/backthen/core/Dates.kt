@@ -1,7 +1,10 @@
 package com.njarrar.backthen.core
 
+import android.icu.text.DateFormat
+import android.icu.util.GregorianCalendar
 import java.time.LocalDate
 import java.time.ZoneId
+import java.util.Date
 
 /** A calendar day without a year. [month] is 0-based, to match the design's logic. */
 data class MonthDay(val month: Int, val day: Int) {
@@ -12,12 +15,6 @@ data class MonthDay(val month: Int, val day: Int) {
         fun today() = of(LocalDate.now())
     }
 }
-
-val MONTHS = listOf(
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December",
-)
-val MONTHS_SHORT = MONTHS.map { it.take(3) }
 
 // February has 29 so Feb 29 can always be picked.
 val DAYS_IN_MONTH = listOf(31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
@@ -37,20 +34,43 @@ fun MonthDay.shift(delta: Int): MonthDay {
     return MonthDay(m, d)
 }
 
-fun MonthDay.label() = "${MONTHS[month]} $day"
-fun MonthDay.shortLabel() = "${MONTHS_SHORT[month]} $day"
-
-fun plural(n: Int, word: String) = "$n $word${if (n == 1) "" else "s"}"
-
-fun agoLabel(year: Int, thisYear: Int = LocalDate.now().year): String = when (val diff = thisYear - year) {
-    0 -> "Earlier this year"
-    1 -> "1 year ago"
-    else -> "$diff years ago"
+fun agoLabel(year: Int, thisYear: Int = LocalDate.now().year): String {
+    val diff = thisYear - year
+    return if (diff == 0) L.s("ago_this_year") else L.p("ago_years", diff)
 }
 
+// Dates in the app's language, from CLDR skeletons such as "MMMMd" (October 16) or "EEEE" (Friday).
+// These use Android's ICU, so they run on a phone, not in plain JVM unit tests.
+// Always the Gregorian calendar: the app matches photos by Gregorian date, and a phone set to
+// Saudi Arabia would otherwise write the Hijri date.
+
+fun formatDate(date: LocalDate, skeleton: String): String {
+    val at = Date(date.atTime(12, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli())
+    return DateFormat.getInstanceForSkeleton(GregorianCalendar(L.locale), skeleton, L.locale).format(at)
+}
+
+/** A month and day with no year, in a leap year so February 29 works. */
+private fun MonthDay.inLeapYear(): LocalDate = LocalDate.of(2024, month + 1, day)
+
+/** "October 16" in the app's language. */
+fun MonthDay.label() = formatDate(inLeapYear(), "MMMMd")
+
+/** "Oct 16" in the app's language. */
+fun MonthDay.shortLabel() = formatDate(inLeapYear(), "MMMd")
+
+fun monthName(month: Int) = formatDate(LocalDate.of(2024, month + 1, 1), "LLLL")
+
+/** "October 16, 2021", or just the month and day if that year has no such day. */
+fun fullDate(year: Int, md: MonthDay): String =
+    runCatching { formatDate(LocalDate.of(year, md.month + 1, md.day), "yMMMMd") }.getOrDefault(md.label())
+
+fun weekdayOf(year: Int, md: MonthDay): String =
+    runCatching { formatDate(LocalDate.of(year, md.month + 1, md.day), "EEEE") }.getOrDefault("")
+
+/** The reminder time, 12 or 24 hour as the language and phone prefer. */
 fun formatTime(hour: Int, minute: Int): String {
-    val h = if (hour % 12 == 0) 12 else hour % 12
-    return "$h:${minute.toString().padStart(2, '0')} ${if (hour < 12) "AM" else "PM"}"
+    val at = Date(LocalDate.of(2024, 1, 1).atTime(hour, minute).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli())
+    return DateFormat.getInstanceForSkeleton("jmm", L.locale).format(at)
 }
 
 /** Start and end (exclusive) of a local calendar day, in epoch ms. Null if the day doesn't exist that year. */
