@@ -3,7 +3,8 @@ import UIKit
 /// Opens the system share sheet with the photos themselves, so any app can take them.
 @MainActor
 enum Share {
-    static func photos(_ photos: [Photo], title: String) async {
+    /// `done` runs when the system sheet closes.
+    static func photos(_ photos: [Photo], title: String, done: @escaping () -> Void = {}) async {
         let dir = FileManager.default.temporaryDirectory.appending(path: "share-\(UUID().uuidString)")
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         var urls: [URL] = []
@@ -26,6 +27,7 @@ enum Share {
         guard !urls.isEmpty, let top = topController() else { return }
         let sheet = UIActivityViewController(activityItems: urls, applicationActivities: nil)
         sheet.setValue(title, forKey: "subject")
+        sheet.completionWithItemsHandler = { _, _, _, _ in done() }
         sheet.popoverPresentationController?.sourceView = top.view
         top.present(sheet, animated: true)
     }

@@ -35,8 +35,12 @@ func loadImage(_ photo: Photo, size px: CGSize) async -> UIImage? {
     case .device:
         return await PhotoLibrary.image(id: photo.ref, size: px)
     case .google:
+        let key = ImageCache.key(photo.key, px)
+        if let hit = ImageCache.get(key) { return hit }
         let url = GooglePhotos.fileURL(photo.ref)
-        return await Task.detached { UIImage(contentsOfFile: url.path)?.preparingThumbnail(of: px) ?? UIImage(contentsOfFile: url.path) }.value
+        let loaded = await Task.detached { UIImage(contentsOfFile: url.path)?.preparingThumbnail(of: px) ?? UIImage(contentsOfFile: url.path) }.value
+        if let loaded { ImageCache.set(loaded, key) }
+        return loaded
     }
 }
 
@@ -49,6 +53,7 @@ struct Pill: View {
     var height: CGFloat = 54
     /// Stretch to the full width given. Defaults to ghost pills and tall pills.
     var wide: Bool?
+    var iconAfter = false
     var action: () -> Void
 
     @Environment(\.isEnabled) private var enabled
@@ -63,8 +68,9 @@ struct Pill: View {
         }
         Button(action: action) {
             HStack(spacing: 8) {
-                if let systemImage { Image(systemName: systemImage).font(.system(size: height < 48 ? 14 : 18, weight: .semibold)) }
+                if let systemImage, !iconAfter { Image(systemName: systemImage).font(.system(size: height < 48 ? 14 : 18, weight: .semibold)) }
                 Text(label).font(.nunito(height < 48 ? 15 : 16, .semibold))
+                if let systemImage, iconAfter { Image(systemName: systemImage).font(.system(size: height < 48 ? 14 : 18, weight: .semibold)) }
             }
             .foregroundStyle(fg)
             .padding(.horizontal, height < 48 ? 16 : 20)
@@ -444,5 +450,96 @@ struct Print: View {
         .background(Palette.surface, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .shadow(color: Palette.hex(0x141416, 0.14), radius: 15, y: 10)
         .rotationEffect(.degrees(angle))
+    }
+}
+
+/// Strip layout: a row of year buttons that stays at the top while scrolling.
+struct YearPills: View {
+    let years: [Int]
+    let selected: Int
+    let pick: (Int) -> Void
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(years, id: \.self) { y in
+                    let on = y == selected
+                    Button { pick(y) } label: {
+                        Text(L.num(y)).font(.nunito(14, .semibold))
+                            .foregroundStyle(on ? Palette.bg : Palette.ink)
+                            .padding(.horizontal, 14).frame(height: 36)
+                            .background(on ? Palette.ink : Palette.surface, in: Capsule())
+                            .overlay(Capsule().stroke(on ? Palette.ink : Palette.line, lineWidth: 1))
+                    }
+                    .buttonStyle(PressStyle())
+                    .accessibilityAddTraits(on ? .isSelected : [])
+                }
+            }
+            .padding(.horizontal, 16)
+        }
+        .padding(.vertical, 10)
+        .background(Palette.bg)
+    }
+}
+
+/// Strip layout: one year, a huge year number, then two columns of photos and buttons to step between years.
+struct StripYear: View {
+    @Environment(AppStore.self) private var store
+    let group: YearGroup
+    let day: MonthDay
+    let selection: Selection
+    let newer: Int?
+    let older: Int?
+    let share: () -> Void
+    let pick: (Int) -> Void
+
+    var body: some View {
+        let photos = group.photos
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(L.num(group.year)).font(.nunito(96, .black)).tight(96).foregroundStyle(Palette.ink)
+                    .accessibilityAddTraits(.isHeader)
+                HStack(spacing: 10) {
+                    Text(agoLabel(group.year)).foregroundStyle(Palette.ink)
+                    Text(L.s("weekday_photos", ["weekday": weekday(year: group.year, day), "photos": L.p("photos", photos.count)])).foregroundStyle(Palette.muted)
+                }
+                .font(.nunito(15, .medium))
+            }
+            .padding(.horizontal, 20).padding(.top, 12)
+
+            HStack(alignment: .top, spacing: 6) {
+                ForEach(Array(masonryColumns(photos.map { tileAspect(width: $0.width, height: $0.height) }).enumerated()), id: \.offset) { _, col in
+                    VStack(spacing: 6) {
+                        ForEach(col, id: \.self) { i in
+                            let p = photos[i]
+                            PhotoTile(photo: p, radius: 12, selection: selection) {
+                                store.viewer = Viewer(photos: photos, start: i)
+                            }
+                            .aspectRatio(tileAspect(width: p.width, height: p.height), contentMode: .fit)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .top)
+                }
+            }
+            .padding(.horizontal, 16).padding(.top, 16)
+
+            HStack {
+                Pill(label: newer.map(L.num) ?? L.s("newest"), systemImage: "arrow.backward", kind: .secondary, height: 44) {
+                    if let newer { pick(newer) }
+                }
+                .fixedSize().disabled(newer == nil)
+                Spacer()
+                Button(action: share) {
+                    Label(L.s("share"), systemImage: "square.and.arrow.up").font(.nunito(15, .semibold)).foregroundStyle(Palette.muted)
+                        .padding(.horizontal, 14).frame(height: 44)
+                }
+                Spacer()
+                Pill(label: older.map(L.num) ?? L.s("oldest"), systemImage: "arrow.forward", kind: .secondary, height: 44, iconAfter: true) {
+                    if let older { pick(older) }
+                }
+                .fixedSize().disabled(older == nil)
+            }
+            .padding(.horizontal, 16).padding(.top, 10)
+        }
     }
 }

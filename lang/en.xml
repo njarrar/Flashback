@@ -157,6 +157,27 @@
     <string name="disconnect">Disconnect</string>
     <string name="google_no_client">This build has no Google client ID yet. See the README to add one.</string>
 
+    <!-- Hidden dates, layout and the share sheet -->
+    <string name="you_hid_date">You hid this date</string>
+    <string name="hide_date">Hide date</string>
+    <string name="hide_day">Hide {day}</string>
+    <string name="show_day_again">Show {day} again</string>
+    <string name="hidden_note">Hidden dates don't come up on their own or in reminders.</string>
+    <string name="hidden_dates">Hidden dates</string>
+    <string name="show">Show</string>
+    <string name="day_is_hidden">{day} is hidden</string>
+    <string name="hidden_body">It won't come up on its own or in reminders.</string>
+    <string name="show_it_again">Show it again</string>
+    <string name="toast_day_hidden">{day} hidden</string>
+    <string name="toast_day_shown">{day} shown again</string>
+    <string name="layout">Layout</string>
+    <string name="layout_all_years">All years</string>
+    <string name="layout_one_year">One year at a time</string>
+    <string name="newest">Newest</string>
+    <string name="oldest">Oldest</string>
+    <string name="save_copies_photos">Save to an album in Photos</string>
+    <string name="save_copies_gallery">Save copies to Pictures</string>
+
     <!-- Short messages at the bottom of the screen -->
     <string name="toast_reminder_set">Daily reminder set for {time}</string>
     <string name="toast_apple_connected">Apple Photos connected</string>

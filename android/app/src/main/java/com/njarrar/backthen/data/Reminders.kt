@@ -20,7 +20,6 @@ import com.njarrar.backthen.MainActivity
 import com.njarrar.backthen.R
 import com.njarrar.backthen.core.L
 import com.njarrar.backthen.core.MonthDay
-import com.njarrar.backthen.core.buildDayIndex
 import com.njarrar.backthen.core.label
 import com.njarrar.backthen.core.mergeIndexes
 import com.njarrar.backthen.core.startLanguage
@@ -60,12 +59,9 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
             ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) return Result.success()
 
-        val index = mergeIndexes(
-            if (state.sources.device) state.deviceIndex else emptyMap(),
-            if (state.sources.google) buildDayIndex(state.googlePhotos.map { it.time }) else emptyMap(),
-        )
+        // Hidden days are left out of the index, so they never notify.
         val today = MonthDay.today()
-        val years = yearsForDay(index, today)
+        val years = yearsForDay(visibleIndex(state), today)
         if (years.isEmpty()) return Result.success()
 
         startLanguage(ctx)

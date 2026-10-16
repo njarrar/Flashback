@@ -14,13 +14,16 @@ struct TodayView: View {
     @State private var titleBottom: CGFloat = .infinity
     /// Years whose header is pinned under the top bar right now.
     @State private var pinnedYears: Set<Int> = []
+    @State private var shareFor: ShareRequest?
+    @State private var stripPick: Int?
 
     var body: some View {
         let day = store.day
         let groups = result?.day == day ? result?.groups : nil
         let today = MonthDay.today
         let total = groups?.reduce(0) { $0 + $1.photos.count } ?? 0
-        let summary = groups == nil ? L.s("today_loading")
+        let hidden = store.isHidden(day)
+        let summary = hidden ? L.s("you_hid_date") : groups == nil ? L.s("today_loading")
             : groups!.isEmpty ? (store.indexing ? L.s("today_loading") : L.s("today_none"))
             : L.s("photos_from_years", ["photos": L.p("photos", total), "years": L.p("years", groups!.count)])
         let selection = Selection(on: selecting, keys: Set(picked.map(\.key))) { p in
@@ -51,20 +54,36 @@ struct TodayView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .id("top")
 
-                if let groups {
+                if hidden {
+                    HiddenDay(day: day) { store.setHidden(day, false) }
+                } else if let groups {
                     if groups.isEmpty {
                         EmptyDay(day: day, noSources: !store.saved.sources.device && !store.saved.sources.google,
                                  near: nearbyDays(store.index, day), go: go, connect: { settings = true })
+                    } else if store.saved.layout == .strip {
+                        let years = groups.map(\.year)
+                        let at = stripPick.flatMap { years.firstIndex(of: $0) } ?? 0
+                        let g = groups[at]
+                        LazyVStack(spacing: 0, pinnedViews: .sectionHeaders) {
+                            Section {
+                                StripYear(group: g, day: day, selection: selection,
+                                          newer: at > 0 ? years[at - 1] : nil, older: at + 1 < years.count ? years[at + 1] : nil,
+                                          share: { shareFor = ShareRequest(title: fullDate(year: g.year, day), photos: g.photos) },
+                                          pick: { stripPick = $0 })
+                            } header: {
+                                YearPills(years: years, selected: g.year) { stripPick = $0 }
+                            }
+                        }
                     } else {
                         LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
                             ForEach(groups) { g in
                                 Section {
                                     YearSection(group: g, day: day, selection: selection) {
-                                        Task { await Share.photos(g.photos, title: fullDate(year: g.year, day)) }
+                                        shareFor = ShareRequest(title: fullDate(year: g.year, day), photos: g.photos)
                                     }
                                 } header: {
                                     PinnedYear(group: g, day: day, barBottom: barBottom, pinned: $pinnedYears) {
-                                        Task { await Share.photos(g.photos, title: fullDate(year: g.year, day)) }
+                                        shareFor = ShareRequest(title: fullDate(year: g.year, day), photos: g.photos)
                                     }
                                 }
                             }
@@ -76,7 +95,7 @@ struct TodayView: View {
                 Color.clear.frame(height: 120)
             }
             .refreshable { await store.refreshIndex() }
-            .onChange(of: store.day) { _, _ in scroll.scrollTo("top") }
+            .onChange(of: store.day) { _, _ in stripPick = nil; scroll.scrollTo("top") }
             .safeAreaInset(edge: .top, spacing: 0) { topBar(day) }
         }
         .background(Palette.bg)
@@ -87,7 +106,7 @@ struct TodayView: View {
         .overlay(alignment: .bottom) {
             if selecting {
                 SelectBar(count: picked.count, share: {
-                    Task { await Share.photos(picked, title: L.p("photos", picked.count)) }
+                    shareFor = ShareRequest(title: L.p("photos", picked.count), photos: picked)
                 }, album: { albumFor = picked })
                 .padding(.bottom, 4)
             }
@@ -97,6 +116,7 @@ struct TodayView: View {
         }
         .sheet(isPresented: $settings) { SettingsSheet(showGoogle: $google) }
         .sheet(isPresented: $google) { GoogleSheet() }
+        .sheet(item: $shareFor) { ShareSheetView(request: $0) }
         .sheet(isPresented: Binding(get: { albumFor != nil }, set: { if !$0 { albumFor = nil } })) {
             AlbumSheet(photos: albumFor ?? [], created: { album in store.openAlbumID = album.id }, done: stopSelecting)
         }
@@ -129,6 +149,11 @@ struct TodayView: View {
             .accessibilityLabel(day.label)
             .accessibilityHint(L.s("pick_another_day"))
             Spacer()
+            if !store.isHidden(day) {
+                GlassButton(accessibility: L.s("hide_date"), size: size, action: { store.setHidden(day, true) }) {
+                    Image(systemName: "eye.slash").font(.system(size: 16, weight: .semibold))
+                }
+            }
             GlassButton(accessibility: L.s(selecting ? "cancel" : "select"), size: size, action: toggleSelect) {
                 Text(L.s(selecting ? "cancel" : "select")).font(.nunito(15, .semibold))
             }
@@ -187,6 +212,26 @@ private struct Skeleton: View {
         }
         .padding(16).padding(.top, 8)
         .accessibilityLabel(L.s("loading"))
+    }
+}
+
+/// Shown instead of photos on a day the user hid.
+private struct HiddenDay: View {
+    let day: MonthDay
+    let show: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Image(systemName: "eye.slash").font(.system(size: 24)).foregroundStyle(Palette.muted)
+                .frame(width: 56, height: 56).background(Palette.fill, in: RoundedRectangle(cornerRadius: 16))
+            Text(L.s("day_is_hidden", ["day": day.label])).font(.nunito(24, .bold)).tight(24).foregroundStyle(Palette.ink)
+            Text(L.s("hidden_body"))
+                .font(.nunito(15)).foregroundStyle(Palette.muted).frame(maxWidth: 300, alignment: .leading)
+            Pill(label: L.s("show_it_again"), height: 40, action: show).fixedSize().padding(.top, 4)
+        }
+        .padding(.horizontal, 32)
+        .padding(.top, 64)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

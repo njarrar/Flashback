@@ -40,6 +40,16 @@ struct MonthDay: Hashable, Codable {
     var shortLabel: String { L.monthDay(self, "MMMd") }
 }
 
+// In an extension, so MonthDay keeps its memberwise init.
+extension MonthDay {
+    /// Reads a `key` back, or nil if it isn't one.
+    init?(key: String) {
+        let parts = key.split(separator: "-").compactMap { Int($0) }
+        guard parts.count == 2, (0..<12).contains(parts[0]), (1...daysInMonth[parts[0]]).contains(parts[1]) else { return nil }
+        self.init(month: parts[0], day: parts[1])
+    }
+}
+
 /// February has 29 so Feb 29 can always be picked.
 let daysInMonth = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 

@@ -13,6 +13,14 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import com.njarrar.backthen.core.masonryColumns
+import com.njarrar.backthen.core.tileAspect
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -69,6 +77,7 @@ import com.njarrar.backthen.core.MonthDay
 import com.njarrar.backthen.core.Photo
 import com.njarrar.backthen.core.agoLabel
 import com.njarrar.backthen.core.formatDate
+import com.njarrar.backthen.core.formatTime
 import com.njarrar.backthen.core.layoutMosaic
 import com.njarrar.backthen.core.localDate
 import com.njarrar.backthen.core.weekdayOf
@@ -111,6 +120,7 @@ fun Pill(
     height: Dp = 54.dp,
     enabled: Boolean = true,
     modifier: Modifier = Modifier,
+    iconAfter: Boolean = false,
     icon: (@Composable (Color) -> Unit)? = null,
 ) {
     val p = LocalPalette.current
@@ -132,8 +142,9 @@ fun Pill(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
     ) {
-        icon?.invoke(fg.copy(alpha = if (enabled) 1f else 0.4f))
+        if (!iconAfter) icon?.invoke(fg.copy(alpha = if (enabled) 1f else 0.4f))
         T(label, size = if (height < 48.dp) 15 else 16, weight = FontWeight.SemiBold, color = fg.copy(alpha = if (enabled) 1f else 0.4f))
+        if (iconAfter) icon?.invoke(fg.copy(alpha = if (enabled) 1f else 0.4f))
     }
 }
 
@@ -381,3 +392,90 @@ object Haptics {
 
 @Composable
 fun Gap(h: Dp) = Spacer(Modifier.height(h))
+
+/** A reminder time in the phone's 12 or 24 hour style. */
+@Composable
+fun timeLabel(hour: Int, minute: Int): String =
+    formatTime(hour, minute, android.text.format.DateFormat.is24HourFormat(androidx.compose.ui.platform.LocalContext.current))
+
+/** Strip layout: a row of year buttons that stays at the top while scrolling. */
+@Composable
+fun YearPills(years: List<Int>, selected: Int, onPick: (Int) -> Unit) {
+    val p = LocalPalette.current
+    Row(
+        Modifier.fillMaxWidth().background(p.bg).horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        years.forEach { y ->
+            val on = y == selected
+            Box(
+                Modifier.height(36.dp).clip(RoundedCornerShape(50))
+                    .background(if (on) p.ink else p.surface)
+                    .border(1.dp, if (on) p.ink else p.line, RoundedCornerShape(50))
+                    .clickable(role = Role.Tab) { onPick(y) }
+                    .padding(horizontal = 14.dp),
+                contentAlignment = Alignment.Center,
+            ) { T(L.num(y), size = 14, weight = FontWeight.SemiBold, color = if (on) p.bg else p.ink) }
+        }
+    }
+}
+
+/** Strip layout: one year, a huge year number, then two columns of photos and buttons to step between years. */
+@Composable
+fun StripYear(
+    year: Int,
+    photos: List<Photo>,
+    day: MonthDay,
+    favorites: Set<String>,
+    selection: Selection,
+    newer: Int?,
+    older: Int?,
+    onOpen: (Int) -> Unit,
+    onShare: () -> Unit,
+    onPick: (Int) -> Unit,
+) {
+    val weekday = weekdayOf(year, day)
+    Column(Modifier.padding(top = 12.dp)) {
+        Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            T(L.num(year), size = 96, weight = FontWeight.Black, tight = true, modifier = Modifier.semantics { heading() })
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                T(agoLabel(year), size = 15, weight = FontWeight.Medium)
+                T(L.s("weekday_photos", "weekday" to weekday, "photos" to L.p("photos", photos.size)), size = 15, weight = FontWeight.Medium, muted = true)
+            }
+        }
+        Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            masonryColumns(photos.map { tileAspect(it.width, it.height) }).forEach { col ->
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    col.forEach { i ->
+                        val ph = photos[i]
+                        PhotoTile(
+                            ph, 12.dp, ph.key in favorites, selection, onOpen = { onOpen(i) },
+                            modifier = Modifier.fillMaxWidth().aspectRatio(tileAspect(ph.width, ph.height)),
+                        )
+                    }
+                }
+            }
+        }
+        Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Pill(
+                newer?.let(L::num) ?: L.s("newest"), { newer?.let(onPick) }, kind = Kind.Secondary, height = 44.dp, enabled = newer != null,
+                icon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = it, modifier = Modifier.size(15.dp)) },
+            )
+            Spacer(Modifier.weight(1f))
+            Row(
+                Modifier.clip(RoundedCornerShape(50)).clickable(role = Role.Button, onClick = onShare).padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Icon(Icons.Outlined.IosShare, null, tint = LocalPalette.current.muted, modifier = Modifier.size(16.dp))
+                T(L.s("share"), size = 15, weight = FontWeight.SemiBold, muted = true)
+            }
+            Spacer(Modifier.weight(1f))
+            Pill(
+                older?.let(L::num) ?: L.s("oldest"), { older?.let(onPick) }, kind = Kind.Secondary, height = 44.dp, enabled = older != null,
+                iconAfter = true,
+                icon = { Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = it, modifier = Modifier.size(15.dp)) },
+            )
+        }
+    }
+}

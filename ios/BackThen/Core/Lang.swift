@@ -199,6 +199,8 @@ enum L {
     static func time(hour: Int, minute: Int) -> String {
         var c = DateComponents(year: 2024, month: 1, day: 1, hour: hour, minute: minute)
         c.calendar = Calendar(identifier: .gregorian)
-        return date(c.date ?? Date(), "jmm")
+        // The phone's 12 or 24 hour setting wins over the language's habit.
+        let twelve = DateFormatter.dateFormat(fromTemplate: "j", options: 0, locale: .autoupdatingCurrent)?.contains("a") ?? false
+        return date(c.date ?? Date(), twelve ? "hmm" : "Hmm")
     }
 }

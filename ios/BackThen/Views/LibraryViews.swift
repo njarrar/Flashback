@@ -129,6 +129,7 @@ struct AlbumDetailView: View {
     @State private var confirmDelete = false
     @State private var renaming = false
     @State private var newName = ""
+    @State private var shareFor: ShareRequest?
 
     var body: some View {
         ScrollView {
@@ -141,10 +142,10 @@ struct AlbumDetailView: View {
             .padding(.horizontal, 20).padding(.top, 4).padding(.bottom, 16)
             HStack(spacing: 10) {
                 Pill(label: L.s("share_album"), systemImage: "square.and.arrow.up", height: 46, wide: true) {
-                    Task { await Share.photos(album.photos, title: album.name) }
+                    shareFor = ShareRequest(title: album.name, photos: album.photos)
                 }
                 Pill(label: L.s("save_to_photos"), systemImage: "square.and.arrow.down", kind: .secondary, height: 46, wide: true) {
-                    Task { await store.saveToPhotos(album) }
+                    Task { await store.saveToPhotos(name: album.name, photos: album.photos) }
                 }
             }
             .padding(.horizontal, 16).padding(.bottom, 16)
@@ -152,6 +153,7 @@ struct AlbumDetailView: View {
             Color.clear.frame(height: 120)
         }
         .background(Palette.bg)
+        .sheet(item: $shareFor) { ShareSheetView(request: $0) }
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

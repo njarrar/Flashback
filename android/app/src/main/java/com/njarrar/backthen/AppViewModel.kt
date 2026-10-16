@@ -14,7 +14,7 @@ import com.njarrar.backthen.core.YearGroup
 import com.njarrar.backthen.core.buildDayIndex
 import com.njarrar.backthen.core.dropDuplicates
 import com.njarrar.backthen.core.localDate
-import com.njarrar.backthen.core.mergeIndexes
+import com.njarrar.backthen.core.shortLabel
 import com.njarrar.backthen.core.yearsForDay
 import com.njarrar.backthen.data.DeviceLibrary
 import com.njarrar.backthen.data.GooglePhotos
@@ -22,6 +22,8 @@ import com.njarrar.backthen.data.Reminder
 import com.njarrar.backthen.data.Reminders
 import com.njarrar.backthen.data.SavedState
 import com.njarrar.backthen.data.StateFile
+import com.njarrar.backthen.data.YearLayout
+import com.njarrar.backthen.data.visibleIndex
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -56,20 +58,19 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     var lastDay: Pair<MonthDay, List<YearGroup>>? = null
     private var toastJob: Job? = null
     private var importJob: Job? = null
+    // One write at a time, in order, so an older snapshot never lands after a newer one.
+    private val writer = Dispatchers.IO.limitedParallelism(1)
 
     internal fun updateSaved(change: (SavedState) -> SavedState) = update(change)
 
     private fun update(change: (SavedState) -> SavedState) {
         _saved.update(change)
         val snapshot = _saved.value
-        viewModelScope.launch(Dispatchers.IO) { stateFile.write(snapshot) }
+        viewModelScope.launch(writer) { stateFile.write(snapshot) }
     }
 
-    /** Photo counts per day across every connected source. */
-    fun index(s: SavedState = _saved.value): DayIndex = mergeIndexes(
-        if (s.sources.device) s.deviceIndex else emptyMap(),
-        if (s.sources.google) buildDayIndex(s.googlePhotos.map { it.time }) else emptyMap(),
-    )
+    /** Photo counts per day across every connected source. Hidden days count as empty. */
+    fun index(s: SavedState = _saved.value): DayIndex = visibleIndex(s)
 
     fun refreshIndex() {
         if (!library.hasAccess()) return
@@ -159,10 +160,20 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun deleteAlbum(id: String) = update { s -> s.copy(albums = s.albums.filterNot { it.id == id }) }
 
-    fun saveAlbumToGallery(album: Album) = viewModelScope.launch {
-        val ok = runCatching { library.saveAlbum(album.name, album.photos) }.getOrDefault(false)
+    /** Copies photos into Pictures/Back Then/<name>. */
+    fun saveToGallery(name: String, photos: List<Photo>) = viewModelScope.launch {
+        val ok = runCatching { library.saveAlbum(name, photos) }.getOrDefault(false)
         say(L.s(if (ok) "toast_saved_gallery" else "toast_save_failed"))
     }
+
+    fun isHidden(md: MonthDay) = md.key in _saved.value.hiddenDates
+
+    fun setHidden(md: MonthDay, hidden: Boolean) {
+        update { s -> s.copy(hiddenDates = if (hidden) s.hiddenDates + md.key else s.hiddenDates - md.key) }
+        say(L.s(if (hidden) "toast_day_hidden" else "toast_day_shown", "day" to md.shortLabel()))
+    }
+
+    fun setLayout(layout: YearLayout) = update { it.copy(layout = layout) }
 
     /** Runs the Google picker with a token from Google sign-in, then adds the picks. */
     fun importFromGoogle(token: String, open: (Uri) -> Unit) {

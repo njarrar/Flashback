@@ -40,10 +40,23 @@ enum GooglePhotos {
         s.flatMap { Double($0.replacingOccurrences(of: "s", with: "")) } ?? fallback
     }
 
-    private static func call<T: Decodable>(_ token: String, _ path: String, method: String = "GET", body: Data? = nil) async throws -> T {
-        var req = URLRequest(url: URL(string: api + path)!)
-        req.httpMethod = method
+    /// True for HTTPS links on the Google hosts the Picker API uses. Only these get the sign-in token.
+    static func isGoogleHTTPS(_ url: URL) -> Bool {
+        guard url.scheme == "https", let host = url.host()?.lowercased() else { return false }
+        return host == "photospicker.googleapis.com" || host.hasSuffix(".googleusercontent.com") || host.hasSuffix(".ggpht.com")
+    }
+
+    /// A request that carries the token, only to Google, with a timeout.
+    private static func request(_ string: String, token: String) throws -> URLRequest {
+        guard let url = URL(string: string), isGoogleHTTPS(url) else { throw GooglePhotosError.http("Refusing to send the Google token to \(string)") }
+        var req = URLRequest(url: url, timeoutInterval: 30)
         req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        return req
+    }
+
+    private static func call<T: Decodable>(_ token: String, _ path: String, method: String = "GET", body: Data? = nil) async throws -> T {
+        var req = try request(api + path, token: token)
+        req.httpMethod = method
         if let body {
             req.httpBody = body
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -100,9 +113,11 @@ enum GooglePhotos {
             let name = item.id.replacingOccurrences(of: "[^A-Za-z0-9_-]", with: "_", options: .regularExpression) + ".jpg"
             let target = fileURL(name)
             if !FileManager.default.fileExists(atPath: target.path) {
-                var req = URLRequest(url: URL(string: item.mediaFile.baseUrl + "=w2048-h2048")!)
-                req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-                let (tmp, _) = try await URLSession.shared.download(for: req)
+                let req = try request(item.mediaFile.baseUrl + "=w2048-h2048", token: token)
+                let (tmp, response) = try await URLSession.shared.download(for: req)
+                guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+                    throw GooglePhotosError.http("Download failed")
+                }
                 try FileManager.default.moveItem(at: tmp, to: target)
             }
             let time = iso.date(from: item.createTime) ?? isoPlain.date(from: item.createTime) ?? Date()

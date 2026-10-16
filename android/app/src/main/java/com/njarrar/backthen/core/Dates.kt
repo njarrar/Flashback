@@ -13,6 +13,12 @@ data class MonthDay(val month: Int, val day: Int) {
     companion object {
         fun of(date: LocalDate) = MonthDay(date.monthValue - 1, date.dayOfMonth)
         fun today() = of(LocalDate.now())
+
+        /** Reads a [key] back, or null if it isn't one. */
+        fun fromKey(key: String): MonthDay? {
+            val (m, d) = key.split("-").takeIf { it.size == 2 }?.map { it.toIntOrNull() ?: return null } ?: return null
+            return if (m in 0..11 && d in 1..DAYS_IN_MONTH[m]) MonthDay(m, d) else null
+        }
     }
 }
 
@@ -67,10 +73,11 @@ fun fullDate(year: Int, md: MonthDay): String =
 fun weekdayOf(year: Int, md: MonthDay): String =
     runCatching { formatDate(LocalDate.of(year, md.month + 1, md.day), "EEEE") }.getOrDefault("")
 
-/** The reminder time, 12 or 24 hour as the language and phone prefer. */
-fun formatTime(hour: Int, minute: Int): String {
+/** The reminder time in the app's language. [use24] is the phone's 12 or 24 hour setting; null lets the language pick. */
+fun formatTime(hour: Int, minute: Int, use24: Boolean? = null): String {
     val at = Date(LocalDate.of(2024, 1, 1).atTime(hour, minute).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli())
-    return DateFormat.getInstanceForSkeleton("jmm", L.locale).format(at)
+    val skeleton = when (use24) { true -> "Hmm"; false -> "hmm"; null -> "jmm" }
+    return DateFormat.getInstanceForSkeleton(skeleton, L.locale).format(at)
 }
 
 /** Start and end (exclusive) of a local calendar day, in epoch ms. Null if the day doesn't exist that year. */

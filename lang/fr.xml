@@ -149,6 +149,27 @@
     <string name="disconnect">Déconnecter</string>
     <string name="google_no_client">Cette version n'a pas encore d'identifiant client Google. Voir le README pour en ajouter un.</string>
 
+    <!-- Hidden dates, layout and the share sheet -->
+    <string name="you_hid_date">Vous avez masqué cette date</string>
+    <string name="hide_date">Masquer la date</string>
+    <string name="hide_day">Masquer le {day}</string>
+    <string name="show_day_again">Afficher à nouveau le {day}</string>
+    <string name="hidden_note">Les dates masquées ne reviennent ni d'elles-mêmes ni dans les rappels.</string>
+    <string name="hidden_dates">Dates masquées</string>
+    <string name="show">Afficher</string>
+    <string name="day_is_hidden">Le {day} est masqué</string>
+    <string name="hidden_body">Elle ne reviendra ni d'elle-même ni dans les rappels.</string>
+    <string name="show_it_again">Afficher à nouveau</string>
+    <string name="toast_day_hidden">{day} masqué</string>
+    <string name="toast_day_shown">{day} à nouveau affiché</string>
+    <string name="layout">Disposition</string>
+    <string name="layout_all_years">Toutes les années</string>
+    <string name="layout_one_year">Une année à la fois</string>
+    <string name="newest">Plus récente</string>
+    <string name="oldest">Plus ancienne</string>
+    <string name="save_copies_photos">Enregistrer dans un album de Photos</string>
+    <string name="save_copies_gallery">Enregistrer des copies dans Images</string>
+
     <!-- Short messages at the bottom of the screen -->
     <string name="toast_reminder_set">Rappel quotidien réglé à {time}</string>
     <string name="toast_apple_connected">Apple Photos connecté</string>

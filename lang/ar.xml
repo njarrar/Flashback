@@ -164,6 +164,27 @@
     <string name="disconnect">قطع الاتصال</string>
     <string name="google_no_client">لا يحتوي هذا الإصدار على معرّف عميل Google بعد. راجع ملف README لإضافته.</string>
 
+    <!-- Hidden dates, layout and the share sheet -->
+    <string name="you_hid_date">أخفيت هذا التاريخ</string>
+    <string name="hide_date">إخفاء التاريخ</string>
+    <string name="hide_day">إخفاء {day}</string>
+    <string name="show_day_again">إظهار {day} مجددًا</string>
+    <string name="hidden_note">التواريخ المخفية لا تظهر من تلقاء نفسها ولا في التذكيرات.</string>
+    <string name="hidden_dates">التواريخ المخفية</string>
+    <string name="show">إظهار</string>
+    <string name="day_is_hidden">{day} مخفي</string>
+    <string name="hidden_body">لن يظهر من تلقاء نفسه ولا في التذكيرات.</string>
+    <string name="show_it_again">إظهاره مجددًا</string>
+    <string name="toast_day_hidden">تم إخفاء {day}</string>
+    <string name="toast_day_shown">عاد {day} للظهور</string>
+    <string name="layout">طريقة العرض</string>
+    <string name="layout_all_years">كل السنوات</string>
+    <string name="layout_one_year">سنة واحدة في كل مرة</string>
+    <string name="newest">الأحدث</string>
+    <string name="oldest">الأقدم</string>
+    <string name="save_copies_photos">حفظ في ألبوم في الصور</string>
+    <string name="save_copies_gallery">حفظ نسخ في الصور</string>
+
     <!-- Short messages at the bottom of the screen -->
     <string name="toast_reminder_set">تم ضبط التذكير اليومي على {time}</string>
     <string name="toast_apple_connected">تم ربط صور Apple</string>

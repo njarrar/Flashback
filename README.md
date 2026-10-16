@@ -92,7 +92,8 @@ the same way Google Photos picks do.)
 - **Today.** Every past year that has photos on this date, newest first. Each year
   gets a large year number, how long ago it was, a share button, and a mosaic of
   that day's photos. While you scroll, the year you are in stays pinned at the top.
-  Pull down to check the library for new photos.
+  Or switch to one year at a time. Pull down to check the library for new photos.
+  Hide a date you'd rather not see again.
 - **Pick a day.** A month-and-day calendar (no year, since every year shows at once).
   The darker a day, the more past years have photos on it. Swipe to change month. A
   day with no photos offers the closest days that have some.
@@ -101,7 +102,7 @@ the same way Google Photos picks do.)
   share it, or add it to an album.
 - **Favorites.** Every photo you've hearted, from any day, with its year on each tile.
 - **Albums.** On Today, tap Select, pick photos, then tap Album. Share an album
-  through the share sheet, or save it as a real album in Photos (iPhone) or under
+  through any app, or save it as a real album in Photos (iPhone) or under
   Pictures/Back Then (Android). Rename or delete it from the album's menu.
 - **Daily reminder.** One notification a day at a time you choose, and only on days
   that have photos from past years. Tapping it opens that day.
@@ -125,6 +126,11 @@ the same way Google Photos picks do.)
   [Languages](#languages) for how to add one.
 - **iPhone unit tests** run in CI again, with new tests for the language files on
   both apps.
+- **Everything from 1.1 in the new design.** Hidden dates, one year at a time and
+  the share sheet now sit in the 1.3 design and speak all four languages. The Hide
+  date button is in the top bar on iPhone and next to the photo count on Android.
+- **Gregorian dates everywhere.** A phone set to the Hijri calendar (the default in
+  Saudi Arabia) still sees the right day's photos, and dates read the usual way.
 
 ## What's new in 1.3
 
@@ -152,6 +158,26 @@ apps.
 - **Under the hood.** Text grows with the iPhone text size, every iPhone corner is
   smooth and on one scale, album rows answer a press at once, and light haptics mark
   picks, hearts, new albums and month or photo changes.
+
+## What's new in 1.1
+
+- **Hidden dates.** Hide a date with the "Hide date" button on Today (the eye on
+  iPhone) or from the "..." menu. It stops coming up on
+  its own: no reminder, no calendar shading, and it isn't offered as a nearby day. The
+  menu lists hidden dates so you can show any of them again.
+- **One year at a time.** A second layout from the design, picked in the "..." menu.
+  Year buttons stay at the top, each year gets a huge year number and two columns
+  of photos, and arrows step to the next or previous year.
+- **Share sheet.** Sharing a year, a selection or an album now opens a sheet with a
+  preview first. From there, send the photos through any app or save copies to an
+  album in Photos (iPhone) or under Pictures/Back Then (Android).
+- **Reminder time** shows in the phone's 12 or 24 hour style.
+- **Fixes.** Settings are saved in order, so a fast run of taps can't leave an older
+  state on disk. A failed album save on Android no longer leaves empty files in the
+  gallery. Google Photos calls time out instead of hanging, and the sign-in token is
+  only ever sent to Google. iPhone keeps recent thumbnails in memory, so scrolling
+  back up doesn't reload them.
+- **iPhone unit tests**, run in CI alongside the Android ones.
 
 ## Where the photos come from
 
@@ -213,7 +239,7 @@ add a line to `pluralForm` in `ios/BackThen/Core/Lang.swift` and
 | Run | pick your team under Signing, then Run | Run, or `cd android && ./gradlew installDebug` |
 | Tests | Product > Test (⌘U) | `./gradlew testDebugUnitTest` |
 
-GitHub Actions builds both apps on every push. The Android run also uploads a debug
+GitHub Actions builds both apps and runs their unit tests on every push. The Android run also uploads a debug
 APK you can install on a phone.
 
 ### Turning on Google Photos
@@ -257,5 +283,4 @@ uses it, once in English and once in Arabic; release builds ignore it.
 ## Not built yet
 
 - **Share an album as a link.** The design shows `backthen.app/a/...` links. That
-  needs a server to host the photos, so for now albums share as files.
-- **Hidden dates** and the year-by-year "strip" layout from the design's options.
+  needs a server to host the photos, so for now photos share as files.

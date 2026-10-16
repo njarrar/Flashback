@@ -54,23 +54,48 @@ private data class PickedPage(val mediaItems: List<PickedItem> = emptyList(), va
 private fun seconds(s: String?, fallback: Long) =
     s?.removeSuffix("s")?.toDoubleOrNull()?.let { (it * 1000).toLong() } ?: fallback
 
+/** True for HTTPS links on the Google hosts the Picker API uses. Only these get the sign-in token. */
+fun isGoogleHttps(url: String): Boolean {
+    val u = runCatching { URL(url) }.getOrNull() ?: return false
+    val host = u.host.lowercase()
+    return u.protocol == "https" &&
+        (host == "photospicker.googleapis.com" || host.endsWith(".googleusercontent.com") || host.endsWith(".ggpht.com"))
+}
+
+private fun googleUrl(url: String): URL {
+    require(isGoogleHttps(url)) { "Refusing to send the Google token to $url" }
+    return URL(url)
+}
+
 class GooglePhotos(private val context: Context) {
 
     private val dir get() = File(context.filesDir, "google-photos").apply { mkdirs() }
 
-    private fun call(token: String, path: String, method: String = "GET", body: String? = null): String {
-        val conn = URL("$API$path").openConnection() as HttpURLConnection
-        conn.requestMethod = method
+    /** Opens a connection that carries the token, only to Google over HTTPS, with timeouts. */
+    private fun open(url: String, token: String): HttpURLConnection {
+        val conn = googleUrl(url).openConnection() as HttpURLConnection
+        conn.connectTimeout = 15_000
+        conn.readTimeout = 30_000
         conn.setRequestProperty("Authorization", "Bearer $token")
-        if (body != null) {
-            conn.doOutput = true
-            conn.setRequestProperty("Content-Type", "application/json")
-            conn.outputStream.use { it.write(body.toByteArray()) }
+        return conn
+    }
+
+    private fun call(token: String, path: String, method: String = "GET", body: String? = null): String {
+        val conn = open("$API$path", token)
+        try {
+            conn.requestMethod = method
+            if (body != null) {
+                conn.doOutput = true
+                conn.setRequestProperty("Content-Type", "application/json")
+                conn.outputStream.use { it.write(body.toByteArray()) }
+            }
+            val code = conn.responseCode
+            val text = (if (code in 200..299) conn.inputStream else conn.errorStream)?.bufferedReader()?.use { it.readText() } ?: ""
+            if (code !in 200..299) throw IllegalStateException("Google Photos returned $code: $text")
+            return text
+        } finally {
+            conn.disconnect()
         }
-        val code = conn.responseCode
-        val text = (if (code in 200..299) conn.inputStream else conn.errorStream)?.bufferedReader()?.use { it.readText() } ?: ""
-        if (code !in 200..299) throw IllegalStateException("Google Photos returned $code: $text")
-        return text
     }
 
     /**
@@ -122,12 +147,15 @@ class GooglePhotos(private val context: Context) {
     }
 
     private fun download(url: String, token: String, file: File) {
-        val conn = URL(url).openConnection() as HttpURLConnection
-        conn.setRequestProperty("Authorization", "Bearer $token")
-        if (conn.responseCode !in 200..299) throw IllegalStateException("Download failed: ${conn.responseCode}")
-        val tmp = File(file.path + ".part")
-        conn.inputStream.use { input -> tmp.outputStream().use { input.copyTo(it) } }
-        tmp.renameTo(file)
+        val conn = open(url, token)
+        try {
+            if (conn.responseCode !in 200..299) throw IllegalStateException("Download failed: ${conn.responseCode}")
+            val tmp = File(file.path + ".part")
+            conn.inputStream.use { input -> tmp.outputStream().use { input.copyTo(it) } }
+            tmp.renameTo(file)
+        } finally {
+            conn.disconnect()
+        }
     }
 
     fun deleteAll() {

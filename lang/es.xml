@@ -149,6 +149,27 @@
     <string name="disconnect">Desconectar</string>
     <string name="google_no_client">Esta versión aún no tiene un ID de cliente de Google. Consulta el README para añadir uno.</string>
 
+    <!-- Hidden dates, layout and the share sheet -->
+    <string name="you_hid_date">Ocultaste esta fecha</string>
+    <string name="hide_date">Ocultar fecha</string>
+    <string name="hide_day">Ocultar {day}</string>
+    <string name="show_day_again">Volver a mostrar {day}</string>
+    <string name="hidden_note">Las fechas ocultas no aparecen solas ni en los recordatorios.</string>
+    <string name="hidden_dates">Fechas ocultas</string>
+    <string name="show">Mostrar</string>
+    <string name="day_is_hidden">{day} está oculto</string>
+    <string name="hidden_body">No aparecerá sola ni en los recordatorios.</string>
+    <string name="show_it_again">Volver a mostrar</string>
+    <string name="toast_day_hidden">{day} oculto</string>
+    <string name="toast_day_shown">{day} visible de nuevo</string>
+    <string name="layout">Diseño</string>
+    <string name="layout_all_years">Todos los años</string>
+    <string name="layout_one_year">Un año a la vez</string>
+    <string name="newest">Más reciente</string>
+    <string name="oldest">Más antiguo</string>
+    <string name="save_copies_photos">Guardar en un álbum de Fotos</string>
+    <string name="save_copies_gallery">Guardar copias en Imágenes</string>
+
     <!-- Short messages at the bottom of the screen -->
     <string name="toast_reminder_set">Recordatorio diario a las {time}</string>
     <string name="toast_apple_connected">Apple Photos conectado</string>
