@@ -1,7 +1,7 @@
 import Foundation
 
 /// Counts photos per calendar day and year from their capture times.
-func buildDayIndex(_ times: [Date], calendar: Calendar = .current) -> DayIndex {
+func buildDayIndex(_ times: [Date], calendar: Calendar = .app) -> DayIndex {
     var index: DayIndex = [:]
     for t in times {
         let c = calendar.dateComponents([.year, .month, .day], from: t)
@@ -23,7 +23,7 @@ func mergeIndexes(_ indexes: DayIndex...) -> DayIndex {
 
 /// Past years with photos on this day, newest first. This year counts only once the
 /// day has passed, so "today" never shows photos from earlier today.
-func yearsForDay(_ index: DayIndex, _ md: MonthDay, today: Date = Date(), calendar: Calendar = .current) -> [Int] {
+func yearsForDay(_ index: DayIndex, _ md: MonthDay, today: Date = Date(), calendar: Calendar = .app) -> [Int] {
     guard let byYear = index[md.key] else { return [] }
     let now = calendar.dateComponents([.year, .month, .day], from: today)
     let thisYear = now.year!
