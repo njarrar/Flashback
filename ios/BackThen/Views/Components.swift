@@ -292,9 +292,10 @@ struct YearSection: View {
                         .offset(x: (cell + gap) * CGFloat(col), y: (row + gap) * CGFloat(t.row))
                     }
                 }
-                // Tiles are placed from the left edge; the column above mirrors them.
-                .environment(\.layoutDirection, .leftToRight)
+                .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
             }
+            // Tiles are placed from the left edge, in a box as wide as the screen; the column above mirrors them.
+            .environment(\.layoutDirection, .leftToRight)
             .frame(height: {
                 let rows = CGFloat(layoutMosaic(group.photos.count).rows)
                 return rows * 54 + (rows - 1) * 4
