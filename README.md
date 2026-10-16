@@ -131,6 +131,8 @@ the same way Google Photos picks do.)
   date button is in the top bar on iPhone and next to the photo count on Android.
 - **Gregorian dates everywhere.** A phone set to the Hijri calendar (the default in
   Saudi Arabia) still sees the right day's photos, and dates read the usual way.
+- **Built apps in [`build/`](build/).** An Android APK and an iPhone Simulator app,
+  rebuilt by the Build apps workflow.
 
 ## What's new in 1.3
 
@@ -241,6 +243,14 @@ add a line to `pluralForm` in `ios/BackThen/Core/Lang.swift` and
 
 GitHub Actions builds both apps and runs their unit tests on every push. The Android run also uploads a debug
 APK you can install on a phone.
+
+### Built apps in `build/`
+
+The [build](build/) folder holds ready-made copies of both apps: an Android APK you
+can install on a phone, and an iPhone app for the iOS Simulator on a Mac. The
+[Build apps workflow](.github/workflows/build.yml) makes them; run it again from the
+Actions tab after app changes. See [build/README.md](build/README.md) for how to
+install each one.
 
 ### Turning on Google Photos
 
