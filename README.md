@@ -19,7 +19,7 @@ Google Photos.
   </tr>
   <tr>
     <td><img src="docs/screenshots/ios/today.png" width="240" alt="Today screen on iPhone: years with photos from this date, newest first"></td>
-    <td><img src="docs/screenshots/ios/calendar.png" width="240" alt="Calendar sheet on iPhone, with days shaded by how many years have photos"></td>
+    <td><img src="docs/screenshots/ios/calendar.png" width="240" alt="Calendar sheet on iPhone, with days shaded by how many photos they have"></td>
     <td><img src="docs/screenshots/ios/viewer.png" width="240" alt="Full-screen photo viewer on iPhone with a filmstrip and heart, share and album buttons"></td>
   </tr>
   <tr>
@@ -95,8 +95,9 @@ the same way Google Photos picks do.)
   Or switch to one year at a time. Pull down to check the library for new photos.
   Hide a date you'd rather not see again.
 - **Pick a day.** A month-and-day calendar (no year, since every year shows at once).
-  The darker a day, the more past years have photos on it. Swipe to change month. A
-  day with no photos offers the closest days that have some.
+  The darker a day, the more photos it has, measured against your other days, with a
+  Fewer to More key under the month. Swipe to change month. A day with no photos
+  offers the closest days that have some.
 - **Photo viewer.** Swipe through a day's photos or jump with the filmstrip. Pinch
   or double tap to zoom, swipe down to close, tap to hide the buttons. Heart a photo,
   share it, or add it to an album.
@@ -109,6 +110,43 @@ the same way Google Photos picks do.)
 - **Looks native on each phone.** The system tab bar and sheets on iPhone, with text
   that grows with the system text size; a large top app bar, navigation bar and
   Android's own date dialog on Android. Light and dark mode.
+
+## What's new in 1.5
+
+Faster loading and scrolling, a calendar that shows how full each day is, and a
+round of small fixes, on both apps.
+
+- **Calendar shows how full each day is.** Before, a day's shade came from how many
+  years had photos, so with a few years of photos almost every day looked the same.
+  Now the shade comes from how many photos the day has. Days with photos are ranked
+  and split into four even groups, from light to dark, so the shades spread out
+  whether you have a hundred photos or a hundred thousand. A Fewer to More key sits
+  under the month, and screen readers hear "October 16, 12 photos from 3 years".
+- **Faster opening.** Coming back to the app no longer reads the whole library when
+  nothing changed. A day's photos come from one library query instead of one per
+  year. The day counts, favorites and date formats are worked out once and kept,
+  instead of on every redraw.
+- **Smoother scrolling.** Photos that scroll away stop loading. Thumbnails already
+  in memory show at once with no gray flash. Google Photos files are shrunk while
+  they load instead of after. On Android, Favorites and album pages build only the
+  rows on screen, and Today's photo mosaic lays out in one pass.
+- **Pull to refresh on Android,** as on iPhone. On both apps it always reads the
+  whole library again, even when the quick check says nothing changed.
+- **Fixes.**
+  - Photo viewer: dragging up no longer moves the photo off the top, and a drag that
+    went up first no longer closes the viewer.
+  - Today reloads when new photos land on a day that already had some.
+  - Turning off Google Photos updates the daily reminder.
+  - The calendar's arrows keep up with quick taps (iPhone).
+  - Tapping the reminder closes an open photo and shows Today; turning the phone no
+    longer jumps back to the reminder's day (Android).
+  - An album named with braces, such as "{n}", shows its name as typed.
+  - Sharing skips a Google photo whose file is gone instead of failing, cleans up
+    its temporary files, and sends JPEGs as they are, with their date and place.
+  - Share album and Save are off for an empty album.
+  - Arabic: the photo stack in the share sheet stays inside its box.
+  - Adding Google photos while offline says it failed instead of opening the Google
+    sign-in page (iPhone), and a failed Google download leaves no half file behind.
 
 ## What's new in 1.4
 

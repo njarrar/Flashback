@@ -59,6 +59,20 @@ final class CoreTests: XCTestCase {
         XCTAssertEqual(near.after, MonthDay(month: 9, day: 9))
     }
 
+    func testDayLevelsRankDaysByPhotoCount() {
+        XCTAssertEqual(photoCount(index, MonthDay(month: 9, day: 2), today: today), 3)
+        // 9-2 has 3 photos, 9-9 and 8-20 have 1 each; empty days are left out.
+        XCTAssertEqual(dayLevels(index, today: today), ["9-2": 4, "9-9": 2, "8-20": 2])
+        // Eight days with 1 to 8 photos fall into four even groups.
+        var spread: DayIndex = [:]
+        for k in 1...8 { spread["0-\(k)"] = [2020: k] }
+        var want: [String: Int] = [:]
+        for k in 1...8 { want["0-\(k)"] = (k + 1) / 2 }
+        XCTAssertEqual(dayLevels(spread, today: today), want)
+        // All days the same: every one sits in the middle.
+        XCTAssertEqual(Set(dayLevels(["0-1": [2020: 5], "0-2": [2021: 5]], today: today).values), [3])
+    }
+
     func testMerges() {
         XCTAssertEqual(mergeIndexes(["1-1": [2020: 1]], ["1-1": [2020: 2, 2021: 1]]), ["1-1": [2020: 3, 2021: 1]])
     }

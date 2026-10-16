@@ -9,23 +9,38 @@ struct PhotoImage: View {
 
     var body: some View {
         GeometryReader { geo in
+            let px = contentMode == .fit
+                ? CGSize(width: 2048, height: 2048)
+                : ImageCache.bucket(CGSize(width: geo.size.width * scale, height: geo.size.height * scale))
+            // A tile scrolled back into view shows its cached image at once, with no gray flash.
+            let cached = ImageCache.get(cacheKey(px)) ?? image
             ZStack {
                 // Gray placeholder for grid tiles only; the viewer shows photos on black.
                 if contentMode == .fill { Palette.fill }
-                if let image {
-                    Image(uiImage: image)
+                if let shown = cached {
+                    Image(uiImage: shown)
                         .resizable()
                         .aspectRatio(contentMode: contentMode)
                         .frame(width: geo.size.width, height: geo.size.height)
                         .clipped()
                 }
             }
-            .task(id: "\(photo.key)-\(Int(geo.size.width))") {
-                let px = CGSize(width: geo.size.width * scale, height: geo.size.height * scale)
-                image = await loadImage(photo, size: contentMode == .fit ? CGSize(width: 2048, height: 2048) : px)
+            .task(id: "\(photo.key)-\(Int(px.width))x\(Int(px.height))") {
+                // The first layout pass can be zero by zero; wait for the real size.
+                guard contentMode == .fit || (geo.size.width > 0 && geo.size.height > 0) else { return }
+                if let hit = ImageCache.get(cacheKey(px)) {
+                    image = hit
+                    return
+                }
+                if let loaded = await loadImage(photo, size: px), !Task.isCancelled { image = loaded }
             }
         }
         .accessibilityLabel(L.s("photo_from", ["date": L.date(photo.time, "yMMMMd")]))
+    }
+
+    /// The same key `loadImage` stores under: PhotoKit id for phone photos, app key for Google ones.
+    private func cacheKey(_ px: CGSize) -> NSString {
+        ImageCache.key(photo.source == .device ? photo.ref : photo.key, px)
     }
 }
 
@@ -38,7 +53,9 @@ func loadImage(_ photo: Photo, size px: CGSize) async -> UIImage? {
         let key = ImageCache.key(photo.key, px)
         if let hit = ImageCache.get(key) { return hit }
         let url = GooglePhotos.fileURL(photo.ref)
-        let loaded = await Task.detached { UIImage(contentsOfFile: url.path)?.preparingThumbnail(of: px) ?? UIImage(contentsOfFile: url.path) }.value
+        let loaded = await Task.detached(priority: .userInitiated) {
+            ImageCache.downsampledImage(at: url, size: px)
+        }.value
         if let loaded { ImageCache.set(loaded, key) }
         return loaded
     }
@@ -266,6 +283,8 @@ struct YearSection: View {
     }
 
     var body: some View {
+        let layout = layoutMosaic(group.photos.count)
+        let rows = CGFloat(layout.rows)
         VStack(spacing: 12) {
             // One row when it fits; with large text the details drop under the year.
             ViewThatFits(in: .horizontal) {
@@ -284,7 +303,6 @@ struct YearSection: View {
             GeometryReader { geo in
                 let gap: CGFloat = 4, row: CGFloat = 54
                 let cell = (geo.size.width - gap * CGFloat(mosaicColumns - 1)) / CGFloat(mosaicColumns)
-                let layout = layoutMosaic(group.photos.count)
                 ZStack(alignment: .topLeading) {
                     ForEach(Array(group.photos.enumerated()), id: \.element.key) { i, photo in
                         let t = layout.tiles[i]
@@ -302,10 +320,7 @@ struct YearSection: View {
             }
             // Tiles are placed from the left edge, in a box as wide as the screen; the column above mirrors them.
             .environment(\.layoutDirection, .leftToRight)
-            .frame(height: {
-                let rows = CGFloat(layoutMosaic(group.photos.count).rows)
-                return rows * 54 + (rows - 1) * 4
-            }())
+            .frame(height: rows * 54 + (rows - 1) * 4)
         }
         .padding(.horizontal, 16)
         .dynamicTypeSize(...DynamicTypeSize.accessibility2)

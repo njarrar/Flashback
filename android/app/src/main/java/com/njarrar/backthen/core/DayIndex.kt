@@ -38,6 +38,46 @@ fun yearsForDay(index: DayIndex, md: MonthDay, today: LocalDate = LocalDate.now(
 fun hasPhotos(index: DayIndex, md: MonthDay, today: LocalDate = LocalDate.now()) =
     yearsForDay(index, md, today).isNotEmpty()
 
+/** Photos on this day across the past years [yearsForDay] counts. */
+fun photoCount(index: DayIndex, md: MonthDay, today: LocalDate = LocalDate.now()): Int {
+    val byYear = index[md.key] ?: return 0
+    return yearsForDay(index, md, today).sumOf { byYear[it] ?: 0 }
+}
+
+/**
+ * How full each day of the year is, for the calendar's shading: 0 for no photos, then 1 to 4.
+ * Days with photos are ranked by how many they have and split into four even groups, so the
+ * shades spread out the same way for a small library or a huge one. Keyed by [MonthDay.key].
+ */
+fun dayLevels(index: DayIndex, today: LocalDate = LocalDate.now()): Map<String, Int> {
+    val counts = HashMap<String, Int>()
+    for (m in 0..11) for (d in 1..DAYS_IN_MONTH[m]) {
+        val md = MonthDay(m, d)
+        val n = photoCount(index, md, today)
+        if (n > 0) counts[md.key] = n
+    }
+    if (counts.isEmpty()) return emptyMap()
+    val sorted = counts.values.sorted().toIntArray()
+    val total = sorted.size.toDouble()
+    return counts.mapValues { (_, n) ->
+        // Where this count sits among all days, 0 to 1. Ties share the middle of their run.
+        val below = lowerBound(sorted, n)
+        val same = lowerBound(sorted, n + 1) - below
+        val place = (below + same / 2.0) / total
+        1 + minOf(3, (place * 4).toInt())
+    }
+}
+
+private fun lowerBound(sorted: IntArray, n: Int): Int {
+    var lo = 0
+    var hi = sorted.size
+    while (lo < hi) {
+        val mid = (lo + hi) / 2
+        if (sorted[mid] < n) lo = mid + 1 else hi = mid
+    }
+    return lo
+}
+
 /** The closest earlier and later days that have photos, within 60 days. */
 fun nearbyDays(index: DayIndex, md: MonthDay, today: LocalDate = LocalDate.now()): Pair<MonthDay?, MonthDay?> {
     var before: MonthDay? = null
@@ -55,7 +95,30 @@ fun nearbyDays(index: DayIndex, md: MonthDay, today: LocalDate = LocalDate.now()
  * so a match within two seconds and the same orientation counts as the same shot.
  */
 fun dropDuplicates(device: List<Photo>, google: List<Photo>): List<Photo> {
-    fun Photo.landscape() = width >= height
-    val kept = google.filter { g -> device.none { abs(it.time - g.time) < 2000 && it.landscape() == g.landscape() } }
+    if (device.isEmpty() || google.isEmpty()) return device + google
+    val landscapeTimes = LongArray(device.count { it.width >= it.height })
+    val portraitTimes = LongArray(device.size - landscapeTimes.size)
+    var li = 0
+    var pi = 0
+    for (p in device) {
+        if (p.width >= p.height) landscapeTimes[li++] = p.time else portraitTimes[pi++] = p.time
+    }
+    landscapeTimes.sort()
+    portraitTimes.sort()
+
+    fun hasNear(sorted: LongArray, target: Long): Boolean {
+        if (sorted.isEmpty()) return false
+        val idx = sorted.binarySearch(target)
+        if (idx >= 0) return true
+        val ins = -idx - 1
+        if (ins < sorted.size && abs(sorted[ins] - target) < 2000L) return true
+        if (ins > 0 && abs(sorted[ins - 1] - target) < 2000L) return true
+        return false
+    }
+
+    val kept = google.filter { g ->
+        val bucket = if (g.width >= g.height) landscapeTimes else portraitTimes
+        !hasNear(bucket, g.time)
+    }
     return device + kept
 }

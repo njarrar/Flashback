@@ -85,11 +85,14 @@ object L {
     var english = Strings("en"); private set
     var lang = english; private set
     var locale: Locale = Locale.ENGLISH; private set
+    private var numberFormat: NumberFormat = NumberFormat.getIntegerInstance(Locale.ENGLISH).apply { isGroupingUsed = false }
 
+    @Synchronized
     fun use(english: Strings, lang: Strings, locale: Locale) {
         this.english = english
         this.lang = lang
         this.locale = locale
+        this.numberFormat = NumberFormat.getIntegerInstance(locale).apply { isGroupingUsed = false }
     }
 
     /**
@@ -109,8 +112,10 @@ object L {
     }
 
     /** A word, with its `{name}` slots filled. Numbers are written the language's way. */
-    fun s(key: String, vararg args: Pair<String, Any>): String =
-        fill(lang.strings[key] ?: english.strings[key] ?: key, args.toMap())
+    fun s(key: String, vararg args: Pair<String, Any>): String {
+        val raw = lang.strings[key] ?: english.strings[key] ?: key
+        return if (args.isEmpty()) raw else fill(raw, args.toMap())
+    }
 
     /** The plural word for [n], such as "3 photos". `{n}` is the number. */
     fun p(key: String, n: Int, vararg args: Pair<String, Any>): String {
@@ -121,12 +126,17 @@ object L {
     }
 
     /** A whole number in the language's digits, without grouping (so years read 2021). */
-    fun num(n: Int): String = NumberFormat.getIntegerInstance(locale).apply { isGroupingUsed = false }.format(n)
+    @Synchronized
+    fun num(n: Int): String = numberFormat.format(n)
 
+    /** Fills every `{name}` slot in one pass, so a value that holds a slot name (an album called "{n}") stays as typed. */
     fun fill(text: String, args: Map<String, Any>): String {
-        if ('{' !in text) return text
-        var out = text
-        for ((name, value) in args) out = out.replace("{$name}", if (value is Int) num(value) else value.toString())
-        return out
+        if (args.isEmpty() || '{' !in text) return text
+        return slot.replace(text) { m ->
+            val value = args[m.groupValues[1]] ?: return@replace m.value
+            if (value is Int) num(value) else value.toString()
+        }
     }
+
+    private val slot = Regex("""\{(\w+)\}""")
 }

@@ -57,6 +57,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -278,11 +279,14 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
         else -> L.s("today_none")
     }
     val view = LocalView.current
-    val selection = Selection(selecting, picked.map { it.key }.toSet()) { ph ->
-        Haptics.tick(view)
-        picked = if (picked.any { it.key == ph.key }) picked.filterNot { it.key == ph.key } else picked + ph
+    val pickedKeys = remember(picked) { picked.map { it.key }.toSet() }
+    val selection = remember(selecting, pickedKeys, view) {
+        Selection(selecting, pickedKeys) { ph ->
+            Haptics.tick(view)
+            picked = if (picked.any { it.key == ph.key }) picked.filterNot { it.key == ph.key } else picked + ph
+        }
     }
-    val favorites = state.favorites.map { it.key }.toSet()
+    val favorites = remember(state.favorites) { state.favorites.map { it.key }.toSet() }
 
     Box(Modifier.fillMaxSize().background(p.bg)) {
         Column(Modifier.fillMaxSize().nestedScroll(topBar.nestedScrollConnection)) {
@@ -314,67 +318,73 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
                     scrollBehavior = topBar,
                 )
             }
-            LazyColumn(state = list, contentPadding = PaddingValues(bottom = bottomPadding + 24.dp), modifier = Modifier.fillMaxSize()) {
-                item(key = "summary") {
-                    Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            T(summary, size = 15, muted = true, modifier = Modifier.weight(1f))
-                            if (!hidden) {
-                                TextButton(onClick = { vm.setHidden(day, true) }) {
-                                    Icon(Icons.Outlined.VisibilityOff, null, tint = p.muted, modifier = Modifier.size(16.dp))
-                                    Spacer(Modifier.size(6.dp))
-                                    T(L.s("hide_date"), size = 14, weight = FontWeight.SemiBold, muted = true)
+            PullToRefreshBox(
+                isRefreshing = indexing,
+                onRefresh = { vm.refreshIndex(force = true) },
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                LazyColumn(state = list, contentPadding = PaddingValues(bottom = bottomPadding + 24.dp), modifier = Modifier.fillMaxSize()) {
+                    item(key = "summary") {
+                        Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                T(summary, size = 15, muted = true, modifier = Modifier.weight(1f))
+                                if (!hidden) {
+                                    TextButton(onClick = { vm.setHidden(day, true) }) {
+                                        Icon(Icons.Outlined.VisibilityOff, null, tint = p.muted, modifier = Modifier.size(16.dp))
+                                        Spacer(Modifier.size(6.dp))
+                                        T(L.s("hide_date"), size = 14, weight = FontWeight.SemiBold, muted = true)
+                                    }
+                                }
+                            }
+                            if (day != today) {
+                                Row(Modifier.padding(top = 8.dp)) {
+                                    Pill(L.s("back_to_today"), { go(today) }, kind = Kind.Tint, height = 34.dp, icon = { Icon(Icons.AutoMirrored.Filled.Undo, null, tint = it, modifier = Modifier.size(14.dp)) })
                                 }
                             }
                         }
-                        if (day != today) {
-                            Row(Modifier.padding(top = 8.dp)) {
-                                Pill(L.s("back_to_today"), { go(today) }, kind = Kind.Tint, height = 34.dp, icon = { Icon(Icons.AutoMirrored.Filled.Undo, null, tint = it, modifier = Modifier.size(14.dp)) })
+                    }
+                    when {
+                        hidden -> item { HiddenDay(day) { vm.setHidden(day, false) } }
+                        groups == null -> item { Skeleton() }
+                        groups.isEmpty() -> item {
+                            val noSources = !state.sources.device && !state.sources.google
+                            EmptyDay(day, noSources, nearbyDays(index, day), onGo = ::go, onConnect = { settings = true })
+                        }
+                        state.layout == YearLayout.STRIP -> {
+                            val years = groups.map { it.year }
+                            val at = stripPick?.let { years.indexOf(it) }?.takeIf { it >= 0 } ?: 0
+                            val g = groups[at]
+                            stickyHeader(key = "years") { YearPills(years, g.year) { stripPick = it } }
+                            item(key = g.year) {
+                                StripYear(
+                                    g.year, g.photos, day, favorites, selection,
+                                    newer = years.getOrNull(at - 1), older = years.getOrNull(at + 1),
+                                    onOpen = { i -> vm.viewer.value = com.njarrar.backthen.Viewer(g.photos, i) },
+                                    onShare = { shareFor = ShareRequest(fullDate(g.year, day), g.photos) },
+                                    onPick = { stripPick = it },
+                                )
                             }
                         }
-                    }
-                }
-                when {
-                    hidden -> item { HiddenDay(day) { vm.setHidden(day, false) } }
-                    groups == null -> item { Skeleton() }
-                    groups.isEmpty() -> item {
-                        val noSources = !state.sources.device && !state.sources.google
-                        EmptyDay(day, noSources, nearbyDays(index, day), onGo = ::go, onConnect = { settings = true })
-                    }
-                    state.layout == YearLayout.STRIP -> {
-                        val years = groups.map { it.year }
-                        val at = stripPick?.let { years.indexOf(it) }?.takeIf { it >= 0 } ?: 0
-                        val g = groups[at]
-                        stickyHeader(key = "years") { YearPills(years, g.year) { stripPick = it } }
-                        item(key = g.year) {
-                            StripYear(
-                                g.year, g.photos, day, favorites, selection,
-                                newer = years.getOrNull(at - 1), older = years.getOrNull(at + 1),
-                                onOpen = { i -> vm.viewer.value = com.njarrar.backthen.Viewer(g.photos, i) },
-                                onShare = { shareFor = ShareRequest(fullDate(g.year, day), g.photos) },
-                                onPick = { stripPick = it },
-                            )
-                        }
-                    }
-                    else -> groups.forEach { g ->
-                        val share = { shareFor = ShareRequest(fullDate(g.year, day), g.photos) }
-                        val pinKey = "pin-${g.year}"
-                        stickyHeader(key = pinKey) {
-                            // Shown only while pinned to the top of the list; the big header covers this space otherwise.
-                            val pinned by remember {
-                                derivedStateOf {
-                                    list.layoutInfo.visibleItemsInfo.firstOrNull { it.key == pinKey }
-                                        ?.let { it.offset <= list.layoutInfo.viewportStartOffset } == true
+                        else -> groups.forEach { g ->
+                            val share = { shareFor = ShareRequest(fullDate(g.year, day), g.photos) }
+                            val pinKey = "pin-${g.year}"
+                            stickyHeader(key = pinKey) {
+                                // Shown only while pinned to the top of the list; the big header covers this space otherwise.
+                                val pinned by remember {
+                                    derivedStateOf {
+                                        list.layoutInfo.visibleItemsInfo.firstOrNull { it.key == pinKey }
+                                            ?.let { it.offset <= list.layoutInfo.viewportStartOffset } == true
+                                    }
                                 }
+                                YearBar(g.year, g.photos.size, day, pinned, onShare = share)
                             }
-                            YearBar(g.year, g.photos.size, day, pinned, onShare = share)
-                        }
-                        item(key = "head-${g.year}") { YearHeader(g.year, g.photos.size, day, onShare = share) }
-                        item(key = "photos-${g.year}") {
-                            YearMosaic(
-                                g.photos, favorites, selection,
-                                onOpen = { i -> vm.viewer.value = com.njarrar.backthen.Viewer(g.photos, i) },
-                            )
+                            item(key = "head-${g.year}") { YearHeader(g.year, g.photos.size, day, onShare = share) }
+                            item(key = "photos-${g.year}") {
+                                YearMosaic(
+                                    g.photos, favorites, selection,
+                                    onOpen = { i -> vm.viewer.value = com.njarrar.backthen.Viewer(g.photos, i) },
+                                )
+                            }
                         }
                     }
                 }
@@ -518,12 +528,13 @@ fun FavoritesScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp
     LaunchedEffect(Unit) { scrollTop.collect { list.animateScrollToItem(0) } }
     LazyColumn(state = list, modifier = Modifier.fillMaxSize().background(LocalPalette.current.bg).statusBarsPadding(), contentPadding = PaddingValues(bottom = bottomPadding + 24.dp)) {
         item {
-            val years = favs.map { localDate(it.time).year }.toSet().size
+            val years = remember(favs) { favs.map { localDate(it.time).year }.toSet().size }
             Header(L.s("tab_favorites"), if (favs.isEmpty()) L.s("favorites_none") else L.s("photos_from_years", "photos" to L.p("photos", favs.size), "years" to L.p("years", years)))
         }
-        item {
-            if (favs.isEmpty()) EmptyNote(Icons.Outlined.FavoriteBorder, L.s("favorites_empty_title"), L.s("favorites_empty_body"))
-            else SquareGrid(favs, emptySet(), showYear = true) { i -> vm.viewer.value = com.njarrar.backthen.Viewer(favs, i) }
+        if (favs.isEmpty()) {
+            item { EmptyNote(Icons.Outlined.FavoriteBorder, L.s("favorites_empty_title"), L.s("favorites_empty_body")) }
+        } else {
+            squareGridItems(favs, emptySet(), showYear = true) { i -> vm.viewer.value = com.njarrar.backthen.Viewer(favs, i) }
         }
     }
 }
@@ -598,6 +609,7 @@ fun AlbumScreen(vm: AppViewModel, album: Album, bottomPadding: androidx.compose.
             },
             colors = TopAppBarDefaults.topAppBarColors(containerColor = p.bg, scrolledContainerColor = p.bg),
         )
+        val favorites = remember(state.favorites) { state.favorites.map { it.key }.toSet() }
         LazyColumn(state = list, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = bottomPadding + 24.dp)) {
             item {
                 Column(Modifier.padding(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 16.dp)) {
@@ -606,16 +618,16 @@ fun AlbumScreen(vm: AppViewModel, album: Album, bottomPadding: androidx.compose.
                 }
                 Row(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Pill(
-                        L.s("share_album"), { sharing = true }, height = 46.dp, modifier = Modifier.weight(1f),
+                        L.s("share_album"), { sharing = true }, height = 46.dp, enabled = album.photos.isNotEmpty(), modifier = Modifier.weight(1f),
                         icon = { Icon(Icons.Outlined.IosShare, null, tint = it, modifier = Modifier.size(18.dp)) },
                     )
                     Pill(
-                        L.s("save_to_gallery"), { vm.saveToGallery(album.name, album.photos) }, kind = Kind.Secondary, height = 46.dp, modifier = Modifier.weight(1f),
+                        L.s("save_to_gallery"), { vm.saveToGallery(album.name, album.photos) }, kind = Kind.Secondary, height = 46.dp, enabled = album.photos.isNotEmpty(), modifier = Modifier.weight(1f),
                         icon = { Icon(Icons.Outlined.Download, null, tint = it, modifier = Modifier.size(18.dp)) },
                     )
                 }
-                SquareGrid(album.photos, state.favorites.map { it.key }.toSet(), showYear = false) { i -> vm.viewer.value = com.njarrar.backthen.Viewer(album.photos, i) }
             }
+            squareGridItems(album.photos, favorites, showYear = false) { i -> vm.viewer.value = com.njarrar.backthen.Viewer(album.photos, i) }
         }
     }
     if (renaming) {

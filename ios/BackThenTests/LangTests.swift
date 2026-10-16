@@ -90,6 +90,7 @@ final class LangTests: XCTestCase {
     func testEnglishWordsAndSlots() throws {
         L.use(try load("en"), locale: Locale(identifier: "en_US"))
         XCTAssertEqual(L.s("photos_from_years", ["photos": L.p("photos", 1), "years": L.p("years", 3)]), "1 photo from 3 years")
+        XCTAssertEqual(L.s("photos_from_years", ["photos": "{years}", "years": "3 years"]), "{years} from 3 years")
         XCTAssertEqual(L.num(2021), "2021")
         XCTAssertEqual(MonthDay(month: 1, day: 29).label, "February 29")
         XCTAssertEqual(agoLabel(2020, thisYear: 2026), "6 years ago")

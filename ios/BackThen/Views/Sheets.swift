@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// iPhone calendar sheet. Picks a month and day, not a year, since every year shows at
-/// once. Each day is shaded by how many past years have photos on it. A tap jumps there.
+/// once. Each day is shaded by how many photos it has next to the user's other days. A tap jumps there.
 struct CalendarSheet: View {
     @Environment(AppStore.self) private var store
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -10,6 +10,9 @@ struct CalendarSheet: View {
     @State private var month: Int
     @State private var slide: CGFloat = 0
     @State private var height: CGFloat = 400
+    @State private var turnTask: Task<Void, Never>?
+    /// The month a slide is on its way to, so a second quick tap counts from there.
+    @State private var target: Int?
 
     init(start: MonthDay, pick: @escaping (MonthDay) -> Void) {
         self.pick = pick
@@ -35,7 +38,7 @@ struct CalendarSheet: View {
                 arrow("chevron.backward", L.s("previous_month")) { turn(-1) }
                 arrow("chevron.forward", L.s("next_month")) { turn(1) }
             }
-            grid(today: today)
+            grid(today: today, levels: store.dayFullness)
                 .offset(x: slide)
                 .contentShape(Rectangle())
                 .gesture(
@@ -48,6 +51,7 @@ struct CalendarSheet: View {
                             else { withAnimation(.spring(duration: 0.4, bounce: 0)) { slide = 0 } }
                         }
                 )
+            legend
         }
         .padding(.horizontal, 20)
         .padding(.top, 20)
@@ -60,14 +64,13 @@ struct CalendarSheet: View {
         .presentationDragIndicator(.visible)
     }
 
-    private func grid(today: MonthDay) -> some View {
+    private func grid(today: MonthDay, levels: [String: Int]) -> some View {
         let index = store.index
         return LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 7), spacing: 0) {
             ForEach(1...daysInMonth[month], id: \.self) { d in
                 let md = MonthDay(month: month, day: d)
-                let years = yearsForDay(index, md).count
                 let sel = store.day == md
-                let (fill, ink) = shade(years, selected: sel)
+                let (fill, ink) = shade(levels[md.key] ?? 0, selected: sel)
                 Button { pick(md) } label: {
                     Text(L.num(d)).font(.nunito(16, .semibold)).monospacedDigit().foregroundStyle(ink)
                         .frame(width: 40, height: 40)
@@ -76,36 +79,65 @@ struct CalendarSheet: View {
                         .frame(maxWidth: .infinity, minHeight: 46)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(years == 0 ? L.s("day_no_photos", ["day": md.label])
-                                    : L.s("day_photos_from", ["day": md.label, "years": L.p("years", years)]))
+                .accessibilityLabel(label(md, index))
                 .accessibilityAddTraits(sel ? .isSelected : [])
             }
         }
     }
 
-    /// Fill and number color for a day with photos from `years` past years.
-    private func shade(_ years: Int, selected: Bool) -> (Color, Color) {
+    /// "October 16, 12 photos from 3 years", or "October 16, no photos".
+    private func label(_ md: MonthDay, _ index: DayIndex) -> String {
+        let years = yearsForDay(index, md).count
+        if years == 0 { return L.s("day_no_photos", ["day": md.label]) }
+        return L.s("day_photos_from", ["day": md.label, "photos": L.p("photos", photoCount(index, md)), "years": L.p("years", years)])
+    }
+
+    /// Fill and number color for a day at fullness `level`, 0 (no photos) to 4.
+    private func shade(_ level: Int, selected: Bool) -> (Color, Color) {
         if selected { return (Palette.accent, .white) }
-        switch years {
+        switch level {
         case 0: return (.clear, Palette.faint)
         case 1: return (Palette.cal1, Palette.cal1Ink)
-        case 2...3: return (Palette.cal2, Palette.cal2Ink)
-        default: return (Palette.cal3, Palette.cal3Ink)
+        case 2: return (Palette.cal2, Palette.cal2Ink)
+        case 3: return (Palette.cal3, Palette.cal3Ink)
+        default: return (Palette.cal4, Palette.cal4Ink)
         }
+    }
+
+    /// Fewer ○○○● More, so the shades read without the hint.
+    private var legend: some View {
+        HStack(spacing: 6) {
+            Text(L.s("calendar_fewer"))
+            ForEach(1...4, id: \.self) { level in
+                Circle().fill(shade(level, selected: false).0).frame(width: 12, height: 12)
+            }
+            Text(L.s("calendar_more"))
+        }
+        .font(.nunito(12, .semibold))
+        .foregroundStyle(Palette.muted)
+        .frame(maxWidth: .infinity)
+        .accessibilityHidden(true)
     }
 
     private var rtl: Bool { direction == .rightToLeft }
 
     private func turn(_ by: Int) {
-        let next = (month + by + 12) % 12
+        // A tap mid-slide takes over from the one before, so two quick taps move two months.
+        turnTask?.cancel()
+        let next = ((target ?? month) + by + 12) % 12
         if reduceMotion {
+            target = nil
             withAnimation(.easeInOut(duration: 0.2)) { month = next; slide = 0 }
             return
         }
+        target = next
         // Slide the old month out, then the new one in from the other side.
         let out: CGFloat = (by > 0) != rtl ? -60 : 60
         withAnimation(.easeIn(duration: 0.12)) { slide = out }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+        turnTask = Task {
+            try? await Task.sleep(for: .milliseconds(120))
+            guard !Task.isCancelled else { return }
+            target = nil
             month = next
             slide = -out
             withAnimation(.spring(duration: 0.4, bounce: 0)) { slide = 0 }
@@ -397,6 +429,7 @@ struct ShareSheetView: View {
                     }
                 }
                 .frame(width: 64, height: 64, alignment: .topLeading)
+                .environment(\.layoutDirection, .leftToRight)
                 .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(request.title).font(.nunito(18, .bold)).foregroundStyle(Palette.ink).lineLimit(2)

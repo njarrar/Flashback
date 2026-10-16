@@ -12,7 +12,10 @@ import kotlinx.serialization.json.Json
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.time.Instant
+import java.time.OffsetDateTime
 
 // Google Photos import through the Picker API.
 //
@@ -138,7 +141,11 @@ class GooglePhotos(private val context: Context) {
                     uri = Uri.fromFile(file).toString(),
                     width = item.mediaFile.mediaFileMetadata?.width ?: 1,
                     height = item.mediaFile.mediaFileMetadata?.height ?: 1,
-                    time = Instant.parse(item.createTime).toEpochMilli(),
+                    time = runCatching { Instant.parse(item.createTime).toEpochMilli() }
+                        .getOrElse {
+                            runCatching { OffsetDateTime.parse(item.createTime).toInstant().toEpochMilli() }
+                                .getOrDefault(System.currentTimeMillis())
+                        },
                 )
             }
         } finally {
@@ -148,11 +155,18 @@ class GooglePhotos(private val context: Context) {
 
     private fun download(url: String, token: String, file: File) {
         val conn = open(url, token)
+        val tmp = File(file.path + ".part")
         try {
             if (conn.responseCode !in 200..299) throw IllegalStateException("Download failed: ${conn.responseCode}")
-            val tmp = File(file.path + ".part")
             conn.inputStream.use { input -> tmp.outputStream().use { input.copyTo(it) } }
-            tmp.renameTo(file)
+            runCatching {
+                Files.move(tmp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+            }.onFailure {
+                Files.move(tmp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING)
+            }
+        } catch (e: Throwable) {
+            tmp.delete()
+            throw e
         } finally {
             conn.disconnect()
         }

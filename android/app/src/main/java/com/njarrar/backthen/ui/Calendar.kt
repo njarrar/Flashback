@@ -34,6 +34,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.selected
@@ -47,15 +48,17 @@ import com.njarrar.backthen.core.DAYS_IN_MONTH
 import com.njarrar.backthen.core.DayIndex
 import com.njarrar.backthen.core.L
 import com.njarrar.backthen.core.MonthDay
+import com.njarrar.backthen.core.dayLevels
 import com.njarrar.backthen.core.label
 import com.njarrar.backthen.core.monthName
+import com.njarrar.backthen.core.photoCount
 import com.njarrar.backthen.core.shortLabel
 import com.njarrar.backthen.core.yearsForDay
 import kotlinx.coroutines.launch
 
 /**
  * Android's centered date dialog. Picks a month and day, not a year, since every year
- * shows at once. Each day is shaded by how many past years have photos on it.
+ * shows at once. Each day is shaded by how many photos it has next to the user's other days.
  */
 @Composable
 fun CalendarDialog(start: MonthDay, index: DayIndex, onPick: (MonthDay) -> Unit, onDismiss: () -> Unit) {
@@ -63,6 +66,7 @@ fun CalendarDialog(start: MonthDay, index: DayIndex, onPick: (MonthDay) -> Unit,
     var chosen by remember { mutableStateOf(start) }
     val today = MonthDay.today()
     // One page per month, opening on the chosen month. Swipe or use the arrows.
+    val levels = remember(index) { dayLevels(index) }
     val pager = rememberPagerState(initialPage = start.month) { 12 }
     val scope = rememberCoroutineScope()
     val month = pager.currentPage
@@ -102,13 +106,14 @@ fun CalendarDialog(start: MonthDay, index: DayIndex, onPick: (MonthDay) -> Unit,
                         Row {
                             for (d in week) {
                                 val md = MonthDay(m, d)
-                                Day(md, yearsForDay(index, md).size, chosen == md, today == md, Modifier.weight(1f)) { chosen = md }
+                                Day(md, index, levels[md.key] ?: 0, chosen == md, today == md, Modifier.weight(1f)) { chosen = md }
                             }
                             repeat(7 - week.size) { Box(Modifier.weight(1f)) }
                         }
                     }
                 }
             }
+            Legend()
             Row(Modifier.align(Alignment.End)) {
                 Pill(L.s("cancel"), onDismiss, kind = Kind.Ghost, height = 40.dp)
                 Pill(L.s("ok"), { onPick(chosen) }, kind = Kind.Ghost, height = 40.dp)
@@ -117,24 +122,32 @@ fun CalendarDialog(start: MonthDay, index: DayIndex, onPick: (MonthDay) -> Unit,
     }
 }
 
+/** Fill and number color for a day at fullness [level], 0 (no photos) to 4. */
+private fun shade(p: Palette, level: Int): Pair<Color, Color> = when (level) {
+    0 -> Color.Transparent to p.faint
+    1 -> p.cal1 to p.cal1Ink
+    2 -> p.cal2 to p.cal2Ink
+    3 -> p.cal3 to p.cal3Ink
+    else -> p.cal4 to p.cal4Ink
+}
+
 @Composable
-private fun Day(md: MonthDay, years: Int, selected: Boolean, isToday: Boolean, modifier: Modifier, onClick: () -> Unit) {
+private fun Day(md: MonthDay, index: DayIndex, level: Int, selected: Boolean, isToday: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val p = LocalPalette.current
-    val (fill, ink) = when {
-        selected -> Accent to Color.White
-        years == 0 -> Color.Transparent to p.faint
-        years == 1 -> p.cal1 to p.cal1Ink
-        years <= 3 -> p.cal2 to p.cal2Ink
-        else -> p.cal3 to p.cal3Ink
-    }
+    val (fill, ink) = if (selected) Accent to Color.White else shade(p, level)
     Box(modifier.height(46.dp), contentAlignment = Alignment.Center) {
         Box(
             Modifier.size(40.dp).clip(CircleShape).background(fill)
                 .then(if (isToday && !selected) Modifier.border(1.5.dp, p.ink, CircleShape) else Modifier)
                 .clickable(onClick = onClick)
                 .semantics {
+                    // "October 16, 12 photos from 3 years", or "October 16, no photos".
+                    val years = yearsForDay(index, md).size
                     contentDescription = if (years == 0) L.s("day_no_photos", "day" to md.label())
-                    else L.s("day_photos_from", "day" to md.label(), "years" to L.p("years", years))
+                    else L.s(
+                        "day_photos_from", "day" to md.label(),
+                        "photos" to L.p("photos", photoCount(index, md)), "years" to L.p("years", years),
+                    )
                     this.selected = selected
                 },
             contentAlignment = Alignment.Center,
@@ -144,6 +157,21 @@ private fun Day(md: MonthDay, years: Int, selected: Boolean, isToday: Boolean, m
                 style = TextStyle(fontFamily = Nunito, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, fontFeatureSettings = "tnum"),
             )
         }
+    }
+}
+
+/** Fewer ○○○● More, so the shades read without the hint. */
+@Composable
+private fun Legend() {
+    val p = LocalPalette.current
+    Row(
+        Modifier.fillMaxWidth().clearAndSetSemantics {},
+        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        T(L.s("calendar_fewer"), size = 12, weight = FontWeight.SemiBold, muted = true)
+        for (level in 1..4) Box(Modifier.size(12.dp).clip(CircleShape).background(shade(p, level).first))
+        T(L.s("calendar_more"), size = 12, weight = FontWeight.SemiBold, muted = true)
     }
 }
 

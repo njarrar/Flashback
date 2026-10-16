@@ -58,6 +58,7 @@ fun BackThenApp(vm: AppViewModel) {
     // Each tab keeps its saved state (scroll place, open album) while another tab shows.
     val tabs = rememberSaveableStateHolder()
     val reselect = remember { MutableSharedFlow<Tab>(extraBufferCapacity = 1) }
+    LaunchedEffect(Unit) { vm.openToday.collect { tab = Tab.Today } }
     LaunchedEffect(demo) {
         when (demo) {
             "favorites" -> tab = Tab.Favorites
@@ -123,10 +124,11 @@ fun BackThenApp(vm: AppViewModel) {
         }
 
         viewer?.let { v ->
+            val favorites = remember(state.favorites) { state.favorites.map { it.key }.toSet() }
             ViewerScreen(
                 photos = v.photos,
                 start = v.start,
-                favorites = state.favorites.map { it.key }.toSet(),
+                favorites = favorites,
                 onFavorite = vm::toggleFavorite,
                 onShare = { sharePhotos(context, listOf(it), L.s("photo")) },
                 onAlbum = { albumFor = listOf(it.key) },

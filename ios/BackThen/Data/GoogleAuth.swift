@@ -11,6 +11,7 @@ final class GoogleAuth: NSObject, ASWebAuthenticationPresentationContextProvidin
     static let shared = GoogleAuth()
     static let scope = "https://www.googleapis.com/auth/photospicker.mediaitems.readonly"
     private let keychainKey = "google-refresh-token"
+    private var currentSession: ASWebAuthenticationSession?
 
     private var redirectURI: String { "\(GoogleConfig.redirectScheme):/oauth2redirect" }
 
@@ -20,8 +21,12 @@ final class GoogleAuth: NSObject, ASWebAuthenticationPresentationContextProvidin
 
     /// A fresh access token, signing in if needed. Nil if the user backs out.
     func accessToken() async throws -> String? {
-        if let refresh = Keychain.read(keychainKey), let token = try? await refreshToken(refresh) {
-            return token
+        if let refresh = Keychain.read(keychainKey) {
+            do {
+                return try await refreshToken(refresh)
+            } catch is GooglePhotosError {
+                Keychain.delete(keychainKey)
+            }
         }
         return try await signIn()
     }
@@ -43,7 +48,8 @@ final class GoogleAuth: NSObject, ASWebAuthenticationPresentationContextProvidin
             .init(name: "code_challenge_method", value: "S256"),
         ]
         let callback: URL? = try await withCheckedThrowingContinuation { cont in
-            let session = ASWebAuthenticationSession(url: url.url!, callbackURLScheme: GoogleConfig.redirectScheme) { url, error in
+            let session = ASWebAuthenticationSession(url: url.url!, callbackURLScheme: GoogleConfig.redirectScheme) { [weak self] url, error in
+                self?.currentSession = nil
                 if let error = error as? ASWebAuthenticationSessionError, error.code == .canceledLogin {
                     cont.resume(returning: nil)
                 } else if let error {
@@ -53,6 +59,7 @@ final class GoogleAuth: NSObject, ASWebAuthenticationPresentationContextProvidin
                 }
             }
             session.presentationContextProvider = self
+            self.currentSession = session
             session.start()
         }
         guard let callback,

@@ -100,11 +100,13 @@
     <string name="connect_photos">اربط الصور</string>
 
     <!-- Calendar -->
-    <string name="calendar_hint">الأيام الأغمق فيها صور من سنوات أكثر</string>
+    <string name="calendar_hint">الأيام الأغمق فيها صور أكثر</string>
+    <string name="calendar_fewer">أقل</string>
+    <string name="calendar_more">أكثر</string>
     <string name="previous_month">الشهر السابق</string>
     <string name="next_month">الشهر التالي</string>
     <string name="day_no_photos">{day}، لا صور</string>
-    <string name="day_photos_from">{day}، صور من {years}</string>
+    <string name="day_photos_from">{day}، {photos} من {years}</string>
 
     <!-- Photo viewer -->
     <string name="favorite">إضافة إلى المفضلة</string>

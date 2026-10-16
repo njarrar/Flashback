@@ -43,7 +43,7 @@ struct PhotoViewer: View {
                                 onTap: { withAnimation(.easeInOut(duration: 0.2)) { chrome.toggle() } },
                                 onDrag: { dy in
                                     dragging = true
-                                    drag = dy
+                                    drag = max(0, dy)
                                 },
                                 onDragEnd: endDrag
                             )
@@ -129,7 +129,7 @@ struct PhotoViewer: View {
 
     /// Close on a long enough pull or a fast flick down; otherwise spring back.
     private func endDrag(_ dy: CGFloat, _ velocity: CGFloat) {
-        if dy > 120 || velocity > 800 {
+        if dy > 0 && (dy > 120 || velocity > 800) {
             store.viewer = nil
             return
         }

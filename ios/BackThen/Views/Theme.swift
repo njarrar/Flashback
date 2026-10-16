@@ -26,13 +26,15 @@ enum Palette {
     static let glass = dynamic(ui(0xFFFFFF, 0.9), ui(0x2C2C2E, 0.88))
     static let accTint = dynamic(ui(0xFBE4DF), ui(0x3A211C))
     static let accInk = dynamic(ui(0x9A2E1E), ui(0xFF9C8A))
-    /// Calendar shading: stronger for days with photos from more past years (1, 2 to 3, 4+).
-    static let cal1 = dynamic(ui(0xFBE4DF), ui(0x3A211C))
-    static let cal2 = dynamic(ui(0xF5B9AC), ui(0x5A2A21))
-    static let cal3 = dynamic(ui(0xEC8B77), ui(0x8A3A2C))
+    /// Calendar shading, lightest to darkest: how full a day is compared with the user's other days.
+    static let cal1 = dynamic(ui(0xFCEBE7), ui(0x33201C))
+    static let cal2 = dynamic(ui(0xF8CDC3), ui(0x4E2820))
+    static let cal3 = dynamic(ui(0xF2A796), ui(0x703227))
+    static let cal4 = dynamic(ui(0xE9826D), ui(0x963F30))
     static let cal1Ink = dynamic(ui(0x9A2E1E), ui(0xFF9C8A))
-    static let cal2Ink = dynamic(ui(0x6E1E12), ui(0xFFB9AB))
-    static let cal3Ink = dynamic(ui(0x4A120A), ui(0xFFE1DA))
+    static let cal2Ink = dynamic(ui(0x7A2416), ui(0xFFB3A4))
+    static let cal3Ink = dynamic(ui(0x5A1A0F), ui(0xFFCFC5))
+    static let cal4Ink = dynamic(ui(0x3D0E07), ui(0xFFF0EC))
     /// Year chip on browse grid tiles: white text on a dark capsule, the same in both themes.
     static let chip = Color(uiColor: ui(0x000000, 0.36))
     static let chipInk = Color.white

@@ -71,7 +71,12 @@ struct Viewer: Identifiable {
 @MainActor
 @Observable
 final class AppStore {
-    var saved: SavedState { didSet { save() } }
+    var saved: SavedState {
+        didSet {
+            syncDerivedState(from: oldValue)
+            save()
+        }
+    }
     var day = MonthDay.today
     var indexing = false
     var viewer: Viewer?
@@ -88,14 +93,49 @@ final class AppStore {
     /// Google import progress: nil when idle, (0, 0) while waiting for picks.
     var googleImport: (done: Int, total: Int)?
 
+    /// Photo counts per day across every connected source. Hidden days count as empty, so
+    /// they don't show as nearby days, get calendar dots, or trigger reminders.
+    private(set) var index: DayIndex = [:]
+    /// Goes up by one each time `index` changes, so views can reload on it.
+    private(set) var indexVersion: Int = 0
+    /// Keys of favorite photos, kept here so each tile doesn't build the set again.
+    private(set) var favoriteKeys: Set<String> = []
+
+    /// How full each day is, 0 to 4, for the calendar. Worked out once per index change.
+    var dayFullness: [String: Int] {
+        if let c = fullnessCache, c.version == indexVersion { return c.levels }
+        let levels = dayLevels(index)
+        fullnessCache = (indexVersion, levels)
+        return levels
+    }
+    @ObservationIgnored private var fullnessCache: (version: Int, levels: [String: Int])?
+
     private var toastTask: Task<Void, Never>?
     private var importTask: Task<Void, Never>?
     private var saveTask: Task<Void, Never>?
+    private var refreshing = false
     nonisolated private static let file = URL.applicationSupportDirectory.appending(path: "state.json")
 
     init() {
         let data = try? Data(contentsOf: Self.file)
-        saved = data.flatMap { try? JSONDecoder().decode(SavedState.self, from: $0) } ?? SavedState()
+        let initial = data.flatMap { try? JSONDecoder().decode(SavedState.self, from: $0) } ?? SavedState()
+        saved = initial
+        index = initial.visibleIndex
+        favoriteKeys = Set(initial.favorites.map(\.key))
+    }
+
+    private func syncDerivedState(from old: SavedState) {
+        if old.favorites != saved.favorites {
+            favoriteKeys = Set(saved.favorites.map(\.key))
+        }
+        if old.sources != saved.sources
+            || old.hiddenDates != saved.hiddenDates
+            || old.googlePhotos != saved.googlePhotos
+            || old.deviceIndex != saved.deviceIndex
+        {
+            index = saved.visibleIndex
+            indexVersion &+= 1
+        }
     }
 
     /// Each write waits for the one before it, so an older snapshot never lands after a newer one.
@@ -110,29 +150,37 @@ final class AppStore {
         }
     }
 
-    /// Photo counts per day across every connected source. Hidden days count as empty, so
-    /// they don't show as nearby days, get calendar dots, or trigger reminders.
-    var index: DayIndex { saved.visibleIndex }
-
-    var favoriteKeys: Set<String> { Set(saved.favorites.map(\.key)) }
-
-    func refreshIndex() async {
-        guard PhotoLibrary.hasAccess else { return }
-        indexing = true
-        let times = await PhotoLibrary.allTimes()
-        saved.deviceIndex = buildDayIndex(times)
-        indexing = false
-        applyReminder()
+    /// Rebuilds the phone's day index. Skips the full scan when the library looks the same,
+    /// unless `force` (pull to refresh). The spinner shows only when the user is waiting on it.
+    func refreshIndex(force: Bool = false) async {
+        guard PhotoLibrary.hasAccess, !refreshing else { return }
+        refreshing = true
+        if saved.deviceIndex.isEmpty || force { indexing = true }
+        defer { refreshing = false; indexing = false }
+        if let updated = await PhotoLibrary.deviceIndex(force: force || saved.deviceIndex.isEmpty) {
+            if saved.deviceIndex != updated {
+                saved.deviceIndex = updated
+            }
+            applyReminder()
+        }
     }
 
     func photos(for md: MonthDay) async -> [YearGroup] {
         let s = saved
+        let years = yearsForDay(index, md)
+        guard !years.isEmpty else { return [] }
+        let deviceByYear = s.sources.device ? await PhotoLibrary.photos(years: years, on: md) : [:]
+        var googleByYear: [Int: [Photo]] = [:]
+        if s.sources.google {
+            for p in s.googlePhotos where MonthDay.of(p.time) == md {
+                googleByYear[yearOf(p.time), default: []].append(p)
+            }
+        }
         var groups: [YearGroup] = []
-        for year in yearsForDay(index, md) {
-            let device = s.sources.device ? await PhotoLibrary.photos(year: year, on: md) : []
-            let google = s.sources.google ? s.googlePhotos.filter {
-                yearOf($0.time) == year && MonthDay.of($0.time) == md
-            } : []
+        groups.reserveCapacity(years.count)
+        for year in years {
+            let device = deviceByYear[year] ?? []
+            let google = googleByYear[year] ?? []
             let photos = dropDuplicates(device: device, google: google).sorted { $0.time < $1.time }
             if !photos.isEmpty { groups.append(YearGroup(year: year, photos: photos)) }
         }
@@ -180,7 +228,7 @@ final class AppStore {
         }
     }
 
-    func isFavorite(_ key: String) -> Bool { saved.favorites.contains { $0.key == key } }
+    func isFavorite(_ key: String) -> Bool { favoriteKeys.contains(key) }
 
     func toggleFavorite(_ photo: Photo) {
         if isFavorite(photo.key) {
@@ -272,6 +320,7 @@ final class AppStore {
         saved.sources.google = false
         saved.favorites.removeAll { $0.source == .google }
         for i in saved.albums.indices { saved.albums[i].photos.removeAll { $0.source == .google } }
+        applyReminder()
         say(L.s("toast_google_disconnected"))
     }
 }

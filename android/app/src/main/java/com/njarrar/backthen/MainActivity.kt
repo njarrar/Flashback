@@ -24,7 +24,8 @@ class MainActivity : ComponentActivity() {
         // Debug builds also take `--es lang ar`, for the Arabic screenshots.
         startLanguage(this, intent?.getStringExtra("lang")?.takeIf { debuggable })
         enableEdgeToEdge()
-        openDayFrom(intent)
+        // Only on a fresh start: after a rotation the intent is the same, and the day may have moved on.
+        if (savedInstanceState == null) openDayFrom(intent)
         intent?.getStringExtra("scene")?.takeIf { debuggable && savedInstanceState == null }?.let { vm.runDemo(it) }
         setContent {
             BackThenTheme { BackThenApp(vm) }
@@ -46,6 +47,6 @@ class MainActivity : ComponentActivity() {
     private fun openDayFrom(intent: Intent?) {
         val m = intent?.getIntExtra(EXTRA_MONTH, -1) ?: -1
         val d = intent?.getIntExtra(EXTRA_DAY, -1) ?: -1
-        if (m >= 0 && d > 0) vm.day.value = MonthDay(m, d)
+        if (m >= 0 && d > 0) vm.openDay(MonthDay(m, d))
     }
 }

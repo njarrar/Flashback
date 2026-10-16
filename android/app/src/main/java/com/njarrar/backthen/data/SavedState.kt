@@ -9,6 +9,8 @@ import com.njarrar.backthen.core.Photo
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 
 @Serializable
 data class Sources(val device: Boolean = false, val google: Boolean = false)
@@ -53,6 +55,10 @@ class StateFile(context: Context) {
     fun write(state: SavedState) {
         val tmp = File(file.path + ".tmp")
         tmp.writeText(json.encodeToString(SavedState.serializer(), state))
-        tmp.renameTo(file)
+        runCatching {
+            Files.move(tmp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+        }.onFailure {
+            Files.move(tmp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING)
+        }
     }
 }
