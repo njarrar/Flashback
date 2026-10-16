@@ -1,5 +1,6 @@
 import SwiftUI
 import UserNotifications
+import WidgetKit
 
 @main
 struct BackThenApp: App {
@@ -26,6 +27,15 @@ struct BackThenApp: App {
                     if now == .active, store.saved.onboarded, store.saved.sources.device {
                         Task { await store.refreshIndex() }
                     }
+                    // The widget picks again, in case photos changed while the app was open.
+                    if now == .background { WidgetCenter.shared.reloadAllTimelines() }
+                }
+                // A tap on the home screen widget opens Today.
+                .onOpenURL { url in
+                    guard url.scheme == "backthen", url.host == "today" else { return }
+                    store.viewer = nil
+                    store.day = .today
+                    store.tab = .today
                 }
         }
     }

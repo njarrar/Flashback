@@ -213,6 +213,12 @@
     <string name="ios_photos_permission">يعرض Back Then الصور التي التقطتها في مثل هذا اليوم من السنوات الماضية.</string>
     <string name="ios_photos_add_permission">يحفظ Back Then ألبوماتك في الصور عندما تطلب ذلك.</string>
 
+    <!-- أداة الشاشة الرئيسية -->
+    <string name="widget_name">في مثل هذا اليوم</string>
+    <string name="widget_description">صورة من هذا اليوم في سنة مضت</string>
+    <string name="widget_empty">لا صور من هذا اليوم بعد</string>
+    <string name="widget_open_app">افتح Back Then لترى صور هذا اليوم</string>
+
     <!-- Sample albums for the README screenshots -->
     <string name="demo_album_fall">عطلات الخريف</string>
     <string name="demo_album_garden">حديقة جدتي</string>
