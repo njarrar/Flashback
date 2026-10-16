@@ -47,7 +47,7 @@ Google Photos.
 
 ### In Arabic
 
-The whole app turns right to left, with an Arabic font and Arabic digits.
+The whole app turns right to left, with an Arabic font and Arabic month names.
 
 <table>
   <tr>
@@ -120,7 +120,7 @@ the same way Google Photos picks do.)
   viewer and the tab order. Arabic text uses the Tajawal font, since Nunito has no
   Arabic letters, with normal letter spacing (tight spacing breaks joined letters)
   and taller lines. Counts use all six Arabic plural forms, such as صورتان for two
-  photos, and the digits follow the phone's region.
+  photos, and digits follow the phone's setting (Western or Arabic).
 - **One file per language** in [`lang/`](lang), shared by both apps. See
   [Languages](#languages) for how to add one.
 - **iPhone unit tests** run in CI again, with new tests for the language files on

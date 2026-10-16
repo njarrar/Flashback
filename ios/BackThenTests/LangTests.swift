@@ -74,10 +74,12 @@ final class LangTests: XCTestCase {
     }
 
     func testArabicWords() throws {
+        // Plain "ar" uses Western digits on iOS; the phone's digit choice comes in the locale.
         L.use(try load("ar"), locale: Locale(identifier: "ar"))
+        XCTAssertEqual(L.p("photos", 5), "5 صور")
+        L.use(try load("ar"), locale: Locale(identifier: "ar_SA@numbers=arab"))
         XCTAssertEqual(L.p("photos", 1), "صورة واحدة")
         XCTAssertEqual(L.p("photos", 2), "صورتان")
-        // Arabic-Indic digits for the "ar" locale.
         XCTAssertEqual(L.p("photos", 5), "٥ صور")
         XCTAssertEqual(L.p("photos", 25), "٢٥ صورة")
         XCTAssertEqual(L.num(2021), "٢٠٢١")
