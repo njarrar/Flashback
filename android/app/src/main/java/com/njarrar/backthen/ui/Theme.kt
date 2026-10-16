@@ -42,15 +42,20 @@ data class Palette(
     val accTint: Color,
     val accInk: Color,
     val navBg: Color,
-    /** Calendar shading, lightest to darkest: how full a day is compared with the user's other days. */
+    /**
+     * Calendar shading, fewest photos to most: a clear tint at the bottom, a deep brick at the top
+     * (darker than the coral accent, so a busy day never looks selected). Each ink keeps its number readable.
+     */
     val cal1: Color,
     val cal2: Color,
     val cal3: Color,
     val cal4: Color,
+    val cal5: Color,
     val cal1Ink: Color,
     val cal2Ink: Color,
     val cal3Ink: Color,
     val cal4Ink: Color,
+    val cal5Ink: Color,
 )
 
 private val Light = Palette(
@@ -58,8 +63,8 @@ private val Light = Palette(
     muted = Color(0xFF6E6E73), muted2 = Color(0xFF45454A), faint = Color(0xFFA3A3A8), fill = Color(0xFFECECE8),
     fill2 = Color(0xFFE6E6E2), line = Color(0x1A141416), accTint = Color(0xFFFBE4DF), accInk = Color(0xFF9A2E1E),
     navBg = Color(0xFFEDEDE9),
-    cal1 = Color(0xFFFCEBE7), cal2 = Color(0xFFF8CDC3), cal3 = Color(0xFFF2A796), cal4 = Color(0xFFE9826D),
-    cal1Ink = Color(0xFF9A2E1E), cal2Ink = Color(0xFF7A2416), cal3Ink = Color(0xFF5A1A0F), cal4Ink = Color(0xFF3D0E07),
+    cal1 = Color(0xFFFBE0D9), cal2 = Color(0xFFF4BBAE), cal3 = Color(0xFFEC9380), cal4 = Color(0xFFB9452F), cal5 = Color(0xFF7E2314),
+    cal1Ink = Color(0xFF7A2416), cal2Ink = Color(0xFF5A1A0F), cal3Ink = Color(0xFF3D0E07), cal4Ink = Color.White, cal5Ink = Color.White,
 )
 
 private val Dark = Palette(
@@ -67,8 +72,8 @@ private val Dark = Palette(
     muted = Color(0xFF9A9A9F), muted2 = Color(0xFFB4B4B8), faint = Color(0xFF5E5E63), fill = Color(0xFF2A2A2C),
     fill2 = Color(0xFF232325), line = Color(0x1FFFFFFF), accTint = Color(0xFF3A211C), accInk = Color(0xFFFF9C8A),
     navBg = Color(0xFF1A1A1C),
-    cal1 = Color(0xFF33201C), cal2 = Color(0xFF4E2820), cal3 = Color(0xFF703227), cal4 = Color(0xFF963F30),
-    cal1Ink = Color(0xFFFF9C8A), cal2Ink = Color(0xFFFFB3A4), cal3Ink = Color(0xFFFFCFC5), cal4Ink = Color(0xFFFFF0EC),
+    cal1 = Color(0xFF3B2420), cal2 = Color(0xFF5E2C22), cal3 = Color(0xFF8A3829), cal4 = Color(0xFFC4503B), cal5 = Color(0xFFFF9C8A),
+    cal1Ink = Color(0xFFFFB3A4), cal2Ink = Color(0xFFFFCFC5), cal3Ink = Color.White, cal4Ink = Color.White, cal5Ink = Color(0xFF3D0E07),
 )
 
 private val NunitoFamily = FontFamily(

@@ -47,15 +47,26 @@ class CoreTest {
         assertEquals(MonthDay(9, 9), after)
     }
 
-    @Test fun dayLevelsRankDaysByPhotoCount() {
+    @Test fun dayLevelsFollowPhotoCount() {
         assertEquals(3, photoCount(index, MonthDay(9, 2), today))
-        // 9-2 has 3 photos, 9-9 and 8-20 have 1 each; empty days are left out.
-        assertEquals(mapOf("9-2" to 4, "9-9" to 2, "8-20" to 2), dayLevels(index, today))
-        // Eight days with 1 to 8 photos fall into four even groups.
+        // 9-2 has 3 photos and 8-20 has 1; 9-9 comes after today, and empty days are left out.
+        assertEquals(mapOf("9-2" to 3, "8-20" to 1), dayLevels(index, today))
+        // Eight days with 1 to 8 photos: the shade grows with the count.
         val spread = (1..8).associate { "0-$it" to mapOf(2020 to it) }
-        assertEquals((1..8).associate { "0-$it" to (it + 1) / 2 }, dayLevels(spread, today))
-        // All days the same: every one sits in the middle.
-        assertEquals(setOf(3), dayLevels(mapOf("0-1" to mapOf(2020 to 5), "0-2" to mapOf(2021 to 5)), today).values.toSet())
+        assertEquals(listOf(1, 2, 3, 3, 4, 4, 4, 5), (1..8).map { dayLevels(spread, today)["0-$it"] })
+        // One huge day doesn't wash out the rest: days with 1 photo stay at the lightest shade.
+        val outlier = (1..9).associate { "0-$it" to mapOf(2020 to 1) } + ("0-10" to mapOf(2020 to 1000))
+        assertEquals(setOf(1), dayLevels(outlier, today).filterKeys { it != "0-10" }.values.toSet())
+        assertEquals(5, dayLevels(outlier, today)["0-10"])
+        // On a log scale: 1, 4, 10, 40 and 100 photos each get their own shade when 100 is the top.
+        assertEquals(listOf(1, 2, 3, 4, 5, 5), listOf(1, 4, 10, 40, 100, 5000).map { levelFor(it, 100) })
+    }
+
+    @Test fun laterDaysComeAfter() {
+        assertTrue(MonthDay(9, 3).isAfter(MonthDay(9, 2)))
+        assertTrue(MonthDay(10, 1).isAfter(MonthDay(9, 31)))
+        assertTrue(!MonthDay(9, 2).isAfter(MonthDay(9, 2)))
+        assertTrue(!MonthDay(0, 31).isAfter(MonthDay(9, 2)))
     }
 
     @Test fun merges() {

@@ -58,7 +58,7 @@ import kotlinx.coroutines.launch
 
 /**
  * Android's centered date dialog. Picks a month and day, not a year, since every year
- * shows at once. Each day is shaded by how many photos it has next to the user's other days.
+ * shows at once. Each day is shaded by how many photos it has. Days after today can't be picked.
  */
 @Composable
 fun CalendarDialog(start: MonthDay, index: DayIndex, onPick: (MonthDay) -> Unit, onDismiss: () -> Unit) {
@@ -106,7 +106,7 @@ fun CalendarDialog(start: MonthDay, index: DayIndex, onPick: (MonthDay) -> Unit,
                         Row {
                             for (d in week) {
                                 val md = MonthDay(m, d)
-                                Day(md, index, levels[md.key] ?: 0, chosen == md, today == md, Modifier.weight(1f)) { chosen = md }
+                                Day(md, index, levels[md.key] ?: 0, chosen == md, today == md, md.isAfter(today), Modifier.weight(1f)) { chosen = md }
                             }
                             repeat(7 - week.size) { Box(Modifier.weight(1f)) }
                         }
@@ -122,24 +122,33 @@ fun CalendarDialog(start: MonthDay, index: DayIndex, onPick: (MonthDay) -> Unit,
     }
 }
 
-/** Fill and number color for a day at fullness [level], 0 (no photos) to 4. */
+/** Fill and number color for a day at fullness [level], 0 (no photos) to 5. */
 private fun shade(p: Palette, level: Int): Pair<Color, Color> = when (level) {
     0 -> Color.Transparent to p.faint
     1 -> p.cal1 to p.cal1Ink
     2 -> p.cal2 to p.cal2Ink
     3 -> p.cal3 to p.cal3Ink
-    else -> p.cal4 to p.cal4Ink
+    4 -> p.cal4 to p.cal4Ink
+    else -> p.cal5 to p.cal5Ink
 }
 
 @Composable
-private fun Day(md: MonthDay, index: DayIndex, level: Int, selected: Boolean, isToday: Boolean, modifier: Modifier, onClick: () -> Unit) {
+private fun Day(
+    md: MonthDay, index: DayIndex, level: Int, selected: Boolean, isToday: Boolean, future: Boolean,
+    modifier: Modifier, onClick: () -> Unit,
+) {
     val p = LocalPalette.current
-    val (fill, ink) = if (selected) Accent to Color.White else shade(p, level)
+    // Days still to come this year stay plain and can't be tapped.
+    val (fill, ink) = when {
+        selected -> Accent to Color.White
+        future -> Color.Transparent to p.faint.copy(alpha = 0.5f)
+        else -> shade(p, level)
+    }
     Box(modifier.height(46.dp), contentAlignment = Alignment.Center) {
         Box(
             Modifier.size(40.dp).clip(CircleShape).background(fill)
                 .then(if (isToday && !selected) Modifier.border(1.5.dp, p.ink, CircleShape) else Modifier)
-                .clickable(onClick = onClick)
+                .clickable(enabled = !future, onClick = onClick)
                 .semantics {
                     // "October 16, 12 photos from 3 years", or "October 16, no photos".
                     val years = yearsForDay(index, md).size
@@ -160,7 +169,7 @@ private fun Day(md: MonthDay, index: DayIndex, level: Int, selected: Boolean, is
     }
 }
 
-/** Fewer ○○○● More, so the shades read without the hint. */
+/** Fewer ○○○○● More, so the shades read without the hint. */
 @Composable
 private fun Legend() {
     val p = LocalPalette.current
@@ -170,7 +179,7 @@ private fun Legend() {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         T(L.s("calendar_fewer"), size = 12, weight = FontWeight.SemiBold, muted = true)
-        for (level in 1..4) Box(Modifier.size(12.dp).clip(CircleShape).background(shade(p, level).first))
+        for (level in 1..5) Box(Modifier.size(12.dp).clip(CircleShape).background(shade(p, level).first))
         T(L.s("calendar_more"), size = 12, weight = FontWeight.SemiBold, muted = true)
     }
 }
