@@ -126,6 +126,9 @@ Ready for Google Play.
 - **No advertising ID.** The Android app blocks the advertising ID permission, since
   it has no ads or tracking.
 - The Screenshots workflow can shoot any set of languages (`LANGS`).
+- **Privacy policy.** [play-store/privacy-policy.md](play-store/privacy-policy.md) covers
+  what each app reads and keeps, Google Photos and Google's Limited Use rules,
+  backups, sharing, and your rights. Play links to it.
 
 ## What's new in 1.5
 
