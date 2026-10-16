@@ -3,6 +3,7 @@ package com.njarrar.backthen.core
 import java.time.LocalDate
 import java.time.ZoneId
 import kotlin.math.abs
+import kotlin.math.ln
 
 /** Counts photos per calendar day and year from their capture times. */
 fun buildDayIndex(times: Iterable<Long>, zone: ZoneId = ZoneId.systemDefault()): DayIndex {
@@ -45,37 +46,32 @@ fun photoCount(index: DayIndex, md: MonthDay, today: LocalDate = LocalDate.now()
 }
 
 /**
- * How full each day of the year is, for the calendar's shading: 0 for no photos, then 1 to 4.
- * Days with photos are ranked by how many they have and split into four even groups, so the
- * shades spread out the same way for a small library or a huge one. Keyed by [MonthDay.key].
+ * How full each day of the year is, for the calendar's shading: 0 for no photos, then 1 to 5.
+ * The level follows the photo count on a log scale, so 1, 2, 5, 20 and 100 photos each look
+ * different. The top level starts at the count that only the busiest tenth of days reach (at
+ * least 8), so one huge day doesn't wash out the rest. Days after today are left out, since the
+ * calendar doesn't open them. Keyed by [MonthDay.key].
  */
 fun dayLevels(index: DayIndex, today: LocalDate = LocalDate.now()): Map<String, Int> {
+    val now = MonthDay.of(today)
     val counts = HashMap<String, Int>()
     for (m in 0..11) for (d in 1..DAYS_IN_MONTH[m]) {
         val md = MonthDay(m, d)
+        if (md.isAfter(now)) continue
         val n = photoCount(index, md, today)
         if (n > 0) counts[md.key] = n
     }
     if (counts.isEmpty()) return emptyMap()
-    val sorted = counts.values.sorted().toIntArray()
-    val total = sorted.size.toDouble()
-    return counts.mapValues { (_, n) ->
-        // Where this count sits among all days, 0 to 1. Ties share the middle of their run.
-        val below = lowerBound(sorted, n)
-        val same = lowerBound(sorted, n + 1) - below
-        val place = (below + same / 2.0) / total
-        1 + minOf(3, (place * 4).toInt())
-    }
+    val sorted = counts.values.sorted()
+    val top = maxOf(8, sorted[(sorted.size - 1) * 9 / 10])
+    return counts.mapValues { (_, n) -> levelFor(n, top) }
 }
 
-private fun lowerBound(sorted: IntArray, n: Int): Int {
-    var lo = 0
-    var hi = sorted.size
-    while (lo < hi) {
-        val mid = (lo + hi) / 2
-        if (sorted[mid] < n) lo = mid + 1 else hi = mid
-    }
-    return lo
+/** 1 to 5 for [n] photos, where [top] or more is 5. */
+internal fun levelFor(n: Int, top: Int): Int {
+    if (n >= top) return 5
+    val t = ln(n.toDouble()) / ln(top.toDouble())
+    return 1 + minOf(3, (t * 4 + 1e-9).toInt())
 }
 
 /** The closest earlier and later days that have photos, within 60 days. */

@@ -13,6 +13,7 @@ import com.njarrar.backthen.data.EXTRA_DAY
 import com.njarrar.backthen.data.EXTRA_MONTH
 import com.njarrar.backthen.ui.BackThenApp
 import com.njarrar.backthen.ui.BackThenTheme
+import com.njarrar.backthen.widget.TodayWidget
 
 class MainActivity : ComponentActivity() {
     private val vm: AppViewModel by viewModels()
@@ -36,6 +37,12 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         // New photos may have been taken since the app was last open.
         if (vm.saved.value.onboarded && vm.saved.value.sources.device) vm.refreshIndex()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // Hidden days, sources or new photos may have changed while the app was open.
+        TodayWidget.refresh(this)
     }
 
     override fun onNewIntent(intent: Intent) {

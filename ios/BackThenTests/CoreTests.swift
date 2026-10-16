@@ -59,18 +59,30 @@ final class CoreTests: XCTestCase {
         XCTAssertEqual(near.after, MonthDay(month: 9, day: 9))
     }
 
-    func testDayLevelsRankDaysByPhotoCount() {
+    func testDayLevelsFollowPhotoCount() {
         XCTAssertEqual(photoCount(index, MonthDay(month: 9, day: 2), today: today), 3)
-        // 9-2 has 3 photos, 9-9 and 8-20 have 1 each; empty days are left out.
-        XCTAssertEqual(dayLevels(index, today: today), ["9-2": 4, "9-9": 2, "8-20": 2])
-        // Eight days with 1 to 8 photos fall into four even groups.
+        // 9-2 has 3 photos and 8-20 has 1; 9-9 comes after today, and empty days are left out.
+        XCTAssertEqual(dayLevels(index, today: today), ["9-2": 3, "8-20": 1])
+        // Eight days with 1 to 8 photos: the shade grows with the count.
         var spread: DayIndex = [:]
         for k in 1...8 { spread["0-\(k)"] = [2020: k] }
-        var want: [String: Int] = [:]
-        for k in 1...8 { want["0-\(k)"] = (k + 1) / 2 }
-        XCTAssertEqual(dayLevels(spread, today: today), want)
-        // All days the same: every one sits in the middle.
-        XCTAssertEqual(Set(dayLevels(["0-1": [2020: 5], "0-2": [2021: 5]], today: today).values), [3])
+        let levels = dayLevels(spread, today: today)
+        XCTAssertEqual((1...8).map { levels["0-\($0)"] }, [1, 2, 3, 3, 4, 4, 4, 5])
+        // One huge day doesn't wash out the rest: days with 1 photo stay at the lightest shade.
+        var outlier: DayIndex = ["0-10": [2020: 1000]]
+        for k in 1...9 { outlier["0-\(k)"] = [2020: 1] }
+        let o = dayLevels(outlier, today: today)
+        XCTAssertEqual(Set(o.filter { $0.key != "0-10" }.values), [1])
+        XCTAssertEqual(o["0-10"], 5)
+        // On a log scale: 1, 4, 10, 40 and 100 photos each get their own shade when 100 is the top.
+        XCTAssertEqual([1, 4, 10, 40, 100, 5000].map { levelFor($0, top: 100) }, [1, 2, 3, 4, 5, 5])
+    }
+
+    func testLaterDaysComeAfter() {
+        XCTAssertTrue(MonthDay(month: 9, day: 3).isAfter(MonthDay(month: 9, day: 2)))
+        XCTAssertTrue(MonthDay(month: 10, day: 1).isAfter(MonthDay(month: 9, day: 31)))
+        XCTAssertFalse(MonthDay(month: 9, day: 2).isAfter(MonthDay(month: 9, day: 2)))
+        XCTAssertFalse(MonthDay(month: 0, day: 31).isAfter(MonthDay(month: 9, day: 2)))
     }
 
     func testMerges() {

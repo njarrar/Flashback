@@ -42,36 +42,33 @@ func photoCount(_ index: DayIndex, _ md: MonthDay, today: Date = Date()) -> Int 
     return yearsForDay(index, md, today: today).reduce(0) { $0 + (byYear[$1] ?? 0) }
 }
 
-/// How full each day of the year is, for the calendar's shading: 0 for no photos, then 1 to 4.
-/// Days with photos are ranked by how many they have and split into four even groups, so the
-/// shades spread out the same way for a small library or a huge one. Keyed by `MonthDay.key`.
+/// How full each day of the year is, for the calendar's shading: 0 for no photos, then 1 to 5.
+/// The level follows the photo count on a log scale, so 1, 2, 5, 20 and 100 photos each look
+/// different. The top level starts at the count that only the busiest tenth of days reach (at
+/// least 8), so one huge day doesn't wash out the rest. Days after today are left out, since the
+/// calendar doesn't open them. Keyed by `MonthDay.key`.
 func dayLevels(_ index: DayIndex, today: Date = Date()) -> [String: Int] {
+    let now = MonthDay.of(today)
     var counts: [String: Int] = [:]
     for m in 0..<12 {
         for d in 1...daysInMonth[m] {
             let md = MonthDay(month: m, day: d)
+            if md.isAfter(now) { continue }
             let n = photoCount(index, md, today: today)
             if n > 0 { counts[md.key] = n }
         }
     }
     guard !counts.isEmpty else { return [:] }
     let sorted = counts.values.sorted()
-    let total = Double(sorted.count)
-    func lowerBound(_ n: Int) -> Int {
-        var lo = 0, hi = sorted.count
-        while lo < hi {
-            let mid = (lo + hi) / 2
-            if sorted[mid] < n { lo = mid + 1 } else { hi = mid }
-        }
-        return lo
-    }
-    return counts.mapValues { n in
-        // Where this count sits among all days, 0 to 1. Ties share the middle of their run.
-        let below = lowerBound(n)
-        let same = lowerBound(n + 1) - below
-        let place = (Double(below) + Double(same) / 2) / total
-        return 1 + min(3, Int(place * 4))
-    }
+    let top = max(8, sorted[(sorted.count - 1) * 9 / 10])
+    return counts.mapValues { levelFor($0, top: top) }
+}
+
+/// 1 to 5 for `n` photos, where `top` or more is 5.
+func levelFor(_ n: Int, top: Int) -> Int {
+    if n >= top { return 5 }
+    let t = log(Double(n)) / log(Double(top))
+    return 1 + min(3, Int(t * 4 + 1e-9))
 }
 
 /// The closest earlier and later days that have photos, within 60 days.

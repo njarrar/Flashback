@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import WidgetKit
 
 struct Sources: Codable, Equatable {
     var device = false
@@ -122,11 +123,15 @@ final class AppStore {
         saved = initial
         index = initial.visibleIndex
         favoriteKeys = Set(initial.favorites.map(\.key))
+        updateWidget()
     }
 
     private func syncDerivedState(from old: SavedState) {
         if old.favorites != saved.favorites {
             favoriteKeys = Set(saved.favorites.map(\.key))
+        }
+        if old.sources != saved.sources || old.hiddenDates != saved.hiddenDates {
+            updateWidget()
         }
         if old.sources != saved.sources
             || old.hiddenDates != saved.hiddenDates
@@ -135,6 +140,15 @@ final class AppStore {
         {
             index = saved.visibleIndex
             indexVersion &+= 1
+        }
+    }
+
+    /// Tells the home screen widget which days are hidden and whether it may show the phone's photos.
+    private func updateWidget() {
+        let info = WidgetInfo(device: saved.sources.device, hidden: saved.hiddenDates)
+        Task.detached(priority: .utility) {
+            info.write()
+            WidgetCenter.shared.reloadAllTimelines()
         }
     }
 

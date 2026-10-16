@@ -119,9 +119,19 @@ class LangTest {
         assertEquals("2021", L.num(2021))
     }
 
+    /** The widget picker's text lives in Android resources; it must say the same as lang/. */
+    @Test fun widgetDescriptionMatchesLang() {
+        for (code in LangFiles.codes) {
+            val folder = if (code == "en") "values" else "values-$code"
+            val res = File("src/main/res/$folder/strings.xml").readText()
+            val want = LangFiles.load(code).strings.getValue("widget_description")
+            assertTrue(res.contains(">$want</string>"), "$folder/strings.xml widget_description should be \"$want\"")
+        }
+    }
+
     /** Every word the Kotlin and Swift code asks for is in en.xml. */
     @Test fun everyWordTheCodeUsesExists() {
-        val sources = listOf(File("src/main/java"), File("../../ios/BackThen"))
+        val sources = listOf(File("src/main/java"), File("../../ios/BackThen"), File("../../ios/BackThenWidget"))
             .flatMap { it.walkTopDown().filter { f -> f.extension in setOf("kt", "swift") && !f.name.startsWith("Lang") }.toList() }
         assertTrue(sources.size > 20)
         var seen = 0

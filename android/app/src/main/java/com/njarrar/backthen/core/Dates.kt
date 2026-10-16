@@ -10,6 +10,9 @@ import java.util.Date
 data class MonthDay(val month: Int, val day: Int) {
     val key: String get() = "$month-$day"
 
+    /** Later in the year than [other]. */
+    fun isAfter(other: MonthDay) = month > other.month || (month == other.month && day > other.day)
+
     companion object {
         fun of(date: LocalDate) = MonthDay(date.monthValue - 1, date.dayOfMonth)
         fun today() = of(LocalDate.now())
