@@ -115,6 +115,23 @@ the same way Google Photos picks do.)
   that grows with the system text size; a large top app bar, navigation bar and
   Android's own date dialog on Android. Light and dark mode.
 
+## What's new in 1.8
+
+Google Photos sign-in.
+
+- **Google Photos turned on.** The iPhone app now carries its Google client ID, so
+  Add Google Photos opens the Google sign-in instead of saying the build has no
+  client ID. Android finds its Google client by package name and signing key.
+- **Steady signing key for the test APK.** The Build apps workflow now signs the
+  Android APK in build/ with the Play upload key when it is in GitHub secrets.
+  Before, each run made a new throwaway key, so Google could never match it.
+- **Smaller, harder to read release build.** The Android release build now runs R8,
+  which strips unused code and renames the rest. Google Play warned about the 1.6
+  bundle for skipping this. A new CI job installs the shrunk build on an emulator and
+  fails if it crashes.
+- **Setup guide.** [docs/google-photos-setup.md](docs/google-photos-setup.md) walks
+  through the Google Cloud steps, which keys to register, and how to add testers.
+
 ## What's new in 1.7
 
 - **Home screen widget, on both phones.** Add "Back Then" from the widget picker. It
@@ -346,16 +363,21 @@ secrets, run the Play Store workflow, then fill in the Play Console from the fil
 
 ### Turning on Google Photos
 
-The apps work without this, using the phone's library.
+The apps work without this, using the phone's library. Full steps are in
+[docs/google-photos-setup.md](docs/google-photos-setup.md). In short:
 
 1. In [Google Cloud Console](https://console.cloud.google.com/), create a project and
    enable the **Photos Picker API**.
-2. Set up the OAuth consent screen with the scope
-   `https://www.googleapis.com/auth/photospicker.mediaitems.readonly`.
+2. Set up the OAuth consent screen (Google Auth Platform) with the scope
+   `https://www.googleapis.com/auth/photospicker.mediaitems.readonly`. While the app
+   is in testing, add each tester's Google account as a test user.
 3. **iPhone:** create an **iOS** OAuth client for bundle ID `com.njarrar.backthen`
-   and paste its client ID into `ios/BackThen/GoogleConfig.swift`.
-4. **Android:** create an **Android** OAuth client for package `com.njarrar.backthen`
-   with your signing key's SHA-1. No code change is needed.
+   and put its client ID in `ios/BackThen/GoogleConfig.swift`. A client ID is not a
+   secret; Google gives iOS clients no secret.
+4. **Android:** create one **Android** OAuth client for package
+   `com.njarrar.backthen` per signing key: the Play app signing key (installs from
+   Google Play), the upload key (the APK in build/) and, if you build on your own
+   computer, your debug key. No code change is needed.
 
 ## How the code is laid out
 

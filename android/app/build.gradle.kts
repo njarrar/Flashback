@@ -13,15 +13,17 @@ android {
         applicationId = "com.njarrar.backthen"
         minSdk = 26
         targetSdk = 36
-        versionCode = 8
-        versionName = "1.7.0"
+        versionCode = 9
+        versionName = "1.8.0"
     }
 
     // The language files in lang/ at the top of the repo ship as app assets (en.xml, ar.xml, ...).
     sourceSets["main"].assets.srcDir("../../lang")
 
-    // Release builds sign with the Play upload key when these are set (the Play Store
-    // workflow sets them from GitHub secrets). Without them the bundle is unsigned.
+    // Builds sign with the Play upload key when these are set (the Play Store and Build
+    // apps workflows set them from GitHub secrets). Without them the release bundle is
+    // unsigned and debug builds use the usual debug key. Signing debug builds with the
+    // upload key too gives the APK in build/ a fixed SHA-1, so Google sign-in knows it.
     val uploadKey = System.getenv("UPLOAD_KEYSTORE_FILE")?.let(::file)?.takeIf { it.exists() }
     signingConfigs {
         if (uploadKey != null) {
@@ -35,10 +37,20 @@ android {
     }
 
     buildTypes {
-        release {
+        debug {
             if (uploadKey != null) signingConfig = signingConfigs.getByName("upload")
-            isMinifyEnabled = false
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+        }
+        release {
+            if (uploadKey != null) {
+                signingConfig = signingConfigs.getByName("upload")
+            } else if (project.hasProperty("signReleaseWithDebugKey")) {
+                // CI only: lets the shrunk release build install on an emulator for a smoke test.
+                signingConfig = signingConfigs.getByName("debug")
+            }
+            // R8 shrinks and renames the code. Google Play flags apps without it.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
     compileOptions {
