@@ -105,4 +105,5 @@ jobs:
           git config user.email "njarrar@gmail.com"
           git add build play-store
           git diff --cached --quiet || git commit -m "Update Play Store bundle, screenshots and graphics"
-          git push
+          # Other workflows commit to the same branch, so catch up before pushing.
+          for i in 1 2 3; do git pull --rebase -q && git push && break; sleep 10; done
