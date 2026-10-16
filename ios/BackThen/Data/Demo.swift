@@ -22,8 +22,8 @@ extension AppStore {
         let photos = await photos(for: .today).flatMap(\.photos)
         guard !photos.isEmpty else { return }
         saved.favorites = stride(from: 0, to: photos.count, by: 3).map { photos[$0] }
-        let album = Album(id: "demo", name: "Fall weekends", photos: Array(photos.prefix(9)), createdAt: Date())
-        saved.albums = [album, Album(id: "demo2", name: "Grandma's garden", photos: Array(photos.suffix(5)), createdAt: Date())]
+        let album = Album(id: "demo", name: L.s("demo_album_fall"), photos: Array(photos.prefix(9)), createdAt: Date())
+        saved.albums = [album, Album(id: "demo2", name: L.s("demo_album_garden"), photos: Array(photos.suffix(5)), createdAt: Date())]
         switch scene {
         case "calendar": demoCalendar = true
         case "viewer": viewer = Viewer(photos: photos, start: min(2, photos.count - 1))

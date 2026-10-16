@@ -1,11 +1,11 @@
 name: Screenshots
 
-# Takes README screenshots from the real apps on a simulator and an emulator,
-# then commits them to docs/screenshots.
+# Takes README screenshots from the real apps on a simulator and an emulator, in
+# English and in Arabic (files named ar-*), then commits them to docs/screenshots.
 on:
   workflow_dispatch:
   push:
-    paths: [".github/workflows/screenshots.yml", ".github/screenshots/**"]
+    paths: [".github/workflows/screenshots.yml", ".github/screenshots/**", "lang/**"]
 
 jobs:
   ios:
@@ -42,11 +42,23 @@ jobs:
           xcrun simctl launch "$DEVICE" com.njarrar.backthen
           sleep 8
           xcrun simctl io "$DEVICE" screenshot shots/ios/1-welcome.png
+          # The same app in Arabic, as if the phone were set to Arabic.
+          AR="-AppleLanguages (ar) -AppleLocale ar_SA"
+          xcrun simctl terminate "$DEVICE" com.njarrar.backthen || true
+          xcrun simctl launch "$DEVICE" com.njarrar.backthen $AR
+          sleep 8
+          xcrun simctl io "$DEVICE" screenshot shots/ios/ar-1-welcome.png
           for scene in today calendar viewer favorites album; do
             xcrun simctl terminate "$DEVICE" com.njarrar.backthen || true
             xcrun simctl launch "$DEVICE" com.njarrar.backthen -scene $scene
             sleep 10
             xcrun simctl io "$DEVICE" screenshot "shots/ios/$scene.png"
+          done
+          for scene in today calendar viewer favorites album; do
+            xcrun simctl terminate "$DEVICE" com.njarrar.backthen || true
+            xcrun simctl launch "$DEVICE" com.njarrar.backthen $AR -scene $scene
+            sleep 10
+            xcrun simctl io "$DEVICE" screenshot "shots/ios/ar-$scene.png"
           done
       - uses: actions/upload-artifact@v4
         with: { name: ios, path: shots/ios }

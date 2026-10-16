@@ -8,10 +8,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.LayoutDirection
 import com.njarrar.backthen.R
+import com.njarrar.backthen.core.L
 
 // Tokens from the design. One coral accent, kept for hearts, selection and the current day.
 val Accent = Color(0xFFE5533D)
@@ -66,7 +69,7 @@ private val Dark = Palette(
     cal1Ink = Color(0xFFFF9C8A), cal2Ink = Color(0xFFFFB9AB), cal3Ink = Color(0xFFFFE1DA),
 )
 
-val Nunito = FontFamily(
+private val NunitoFamily = FontFamily(
     Font(R.font.nunito_regular, FontWeight.Normal),
     Font(R.font.nunito_medium, FontWeight.Medium),
     Font(R.font.nunito_semibold, FontWeight.SemiBold),
@@ -74,6 +77,22 @@ val Nunito = FontFamily(
     Font(R.font.nunito_extrabold, FontWeight.ExtraBold),
     Font(R.font.nunito_black, FontWeight.Black),
 )
+
+/** Tajawal has no SemiBold, so SemiBold uses Bold: Arabic needs the extra weight to read at small sizes. */
+private val TajawalFamily = FontFamily(
+    Font(R.font.tajawal_regular, FontWeight.Normal),
+    Font(R.font.tajawal_medium, FontWeight.Medium),
+    Font(R.font.tajawal_bold, FontWeight.SemiBold),
+    Font(R.font.tajawal_bold, FontWeight.Bold),
+    Font(R.font.tajawal_extrabold, FontWeight.ExtraBold),
+    Font(R.font.tajawal_black, FontWeight.Black),
+)
+
+/** The app font: Nunito, or Tajawal for languages in Arabic script, since Nunito has no Arabic letters. */
+val Nunito: FontFamily get() = if (L.lang.arabicScript) TajawalFamily else NunitoFamily
+
+/** Tight tracking for big titles. Arabic letters join, so they keep normal spacing. */
+fun tightSpacing(size: Number): Double = if (L.lang.arabicScript) 0.0 else size.toDouble() * -0.03
 
 val LocalPalette = staticCompositionLocalOf { Light }
 
@@ -92,7 +111,11 @@ fun BackThenTheme(content: @Composable () -> Unit) {
         onSurfaceVariant = p.muted,
         outline = p.line,
     )
-    CompositionLocalProvider(LocalPalette provides p) {
+    // Right to left for Arabic, whatever the rest of the phone is set to.
+    CompositionLocalProvider(
+        LocalPalette provides p,
+        LocalLayoutDirection provides if (L.lang.rtl) LayoutDirection.Rtl else LayoutDirection.Ltr,
+    ) {
         MaterialTheme(colorScheme = scheme, content = content)
     }
 }

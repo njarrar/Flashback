@@ -8,6 +8,7 @@ struct BackThenApp: App {
     @Environment(\.scenePhase) private var phase
 
     init() {
+        L.start()
         Nunito.register()
     }
 
@@ -16,6 +17,9 @@ struct BackThenApp: App {
             RootView()
                 .environment(store)
                 .tint(Palette.accent)
+                // Right to left for Arabic, and dates and digits in the app's language.
+                .environment(\.layoutDirection, L.lang.rtl ? .rightToLeft : .leftToRight)
+                .environment(\.locale, L.locale)
                 .onAppear { delegate.store = store }
                 .onChange(of: phase) { _, now in
                     // New photos may have been taken since the app was last open.

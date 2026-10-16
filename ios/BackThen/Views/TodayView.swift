@@ -20,9 +20,9 @@ struct TodayView: View {
         let groups = result?.day == day ? result?.groups : nil
         let today = MonthDay.today
         let total = groups?.reduce(0) { $0 + $1.photos.count } ?? 0
-        let summary = groups == nil ? "Looking through your library…"
-            : groups!.isEmpty ? (store.indexing ? "Looking through your library…" : "No photos on this date")
-            : "\(plural(total, "photo")) from \(plural(groups!.count, "year"))"
+        let summary = groups == nil ? L.s("today_loading")
+            : groups!.isEmpty ? (store.indexing ? L.s("today_loading") : L.s("today_none"))
+            : L.s("photos_from_years", ["photos": L.p("photos", total), "years": L.p("years", groups!.count)])
         let selection = Selection(on: selecting, keys: Set(picked.map(\.key))) { p in
             if let i = picked.firstIndex(where: { $0.key == p.key }) { picked.remove(at: i) } else { picked.append(p) }
         }
@@ -37,11 +37,11 @@ struct TodayView: View {
                         }
                     }
                     .accessibilityAddTraits(.isHeader)
-                    .accessibilityHint("Pick another day")
+                    .accessibilityHint(L.s("pick_another_day"))
                     .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).maxY } action: { titleBottom = $0 }
                     Text(summary).font(.nunito(15)).foregroundStyle(Palette.muted)
                     if day != today {
-                        Pill(label: "Back to today", systemImage: "arrow.uturn.left", kind: .tint, height: 34) { go(today) }
+                        Pill(label: L.s("back_to_today"), systemImage: "arrow.uturn.backward", kind: .tint, height: 34) { go(today) }
                             .fixedSize().padding(.top, 8)
                     }
                 }
@@ -60,11 +60,11 @@ struct TodayView: View {
                             ForEach(groups) { g in
                                 Section {
                                     YearSection(group: g, day: day, selection: selection) {
-                                        Task { await Share.photos(g.photos, title: "\(day.label), \(g.year)") }
+                                        Task { await Share.photos(g.photos, title: fullDate(year: g.year, day)) }
                                     }
                                 } header: {
                                     PinnedYear(group: g, day: day, barBottom: barBottom, pinned: $pinnedYears) {
-                                        Task { await Share.photos(g.photos, title: "\(day.label), \(g.year)") }
+                                        Task { await Share.photos(g.photos, title: fullDate(year: g.year, day)) }
                                     }
                                 }
                             }
@@ -87,7 +87,7 @@ struct TodayView: View {
         .overlay(alignment: .bottom) {
             if selecting {
                 SelectBar(count: picked.count, share: {
-                    Task { await Share.photos(picked, title: plural(picked.count, "photo")) }
+                    Task { await Share.photos(picked, title: L.p("photos", picked.count)) }
                 }, album: { albumFor = picked })
                 .padding(.bottom, 4)
             }
@@ -127,15 +127,15 @@ struct TodayView: View {
             .allowsHitTesting(p > 0.5)
             .accessibilityHidden(p < 0.5)
             .accessibilityLabel(day.label)
-            .accessibilityHint("Pick another day")
+            .accessibilityHint(L.s("pick_another_day"))
             Spacer()
-            GlassButton(accessibility: selecting ? "Cancel" : "Select", size: size, action: toggleSelect) {
-                Text(selecting ? "Cancel" : "Select").font(.nunito(15, .semibold))
+            GlassButton(accessibility: L.s(selecting ? "cancel" : "select"), size: size, action: toggleSelect) {
+                Text(L.s(selecting ? "cancel" : "select")).font(.nunito(15, .semibold))
             }
-            GlassButton(accessibility: "Pick a day", size: size, action: { calendar = true }) {
+            GlassButton(accessibility: L.s("pick_a_day"), size: size, action: { calendar = true }) {
                 Image(systemName: "calendar").font(.system(size: 17))
             }
-            GlassButton(accessibility: "Options", size: size, action: { settings = true }) {
+            GlassButton(accessibility: L.s("options"), size: size, action: { settings = true }) {
                 Image(systemName: "ellipsis").font(.system(size: 17, weight: .bold))
             }
         }
@@ -186,7 +186,7 @@ private struct Skeleton: View {
             }
         }
         .padding(16).padding(.top, 8)
-        .accessibilityLabel("Loading")
+        .accessibilityLabel(L.s("loading"))
     }
 }
 
@@ -201,15 +201,15 @@ private struct EmptyDay: View {
         VStack(alignment: .leading, spacing: 14) {
             Image(systemName: "camera.badge.ellipsis").font(.system(size: 26)).foregroundStyle(Palette.muted)
                 .frame(width: 56, height: 56).background(Palette.fill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            Text(noSources ? "No photos connected" : "Nothing from \(day.label) yet").font(.nunito(24, .bold)).tight(24).foregroundStyle(Palette.ink)
-            Text(noSources ? "Connect Apple Photos or Google Photos to see this day in past years."
-                 : near.before != nil || near.after != nil ? "You didn't take photos on this date in past years. These nearby days have some."
-                 : "You didn't take photos on this date in past years.")
+            Text(noSources ? L.s("empty_no_sources_title") : L.s("empty_title", ["day": day.label])).font(.nunito(24, .bold)).tight(24).foregroundStyle(Palette.ink)
+            Text(noSources ? L.s("empty_no_sources_ios")
+                 : near.before != nil || near.after != nil ? L.s("empty_nearby")
+                 : L.s("empty_none"))
                 .font(.nunito(15)).foregroundStyle(Palette.muted).frame(maxWidth: 300, alignment: .leading)
             HStack(spacing: 8) {
-                if noSources { Pill(label: "Connect photos", height: 40, action: connect).fixedSize() }
-                if let b = near.before { Pill(label: b.shortLabel, systemImage: "arrow.left", kind: .secondary, height: 40) { go(b) }.fixedSize() }
-                if let a = near.after { Pill(label: a.shortLabel, systemImage: "arrow.right", kind: .secondary, height: 40) { go(a) }.fixedSize() }
+                if noSources { Pill(label: L.s("connect_photos"), height: 40, action: connect).fixedSize() }
+                if let b = near.before { Pill(label: b.shortLabel, systemImage: "arrow.backward", kind: .secondary, height: 40) { go(b) }.fixedSize() }
+                if let a = near.after { Pill(label: a.shortLabel, systemImage: "arrow.forward", kind: .secondary, height: 40) { go(a) }.fixedSize() }
             }
             .padding(.top, 4)
         }

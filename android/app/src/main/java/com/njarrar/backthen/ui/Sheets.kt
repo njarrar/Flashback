@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.Notifications
@@ -51,9 +52,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.njarrar.backthen.core.Album
+import com.njarrar.backthen.core.L
 import com.njarrar.backthen.core.Photo
 import com.njarrar.backthen.core.formatTime
-import com.njarrar.backthen.core.plural
 import com.njarrar.backthen.GoogleImport
 import com.njarrar.backthen.data.SavedState
 
@@ -84,16 +85,16 @@ fun AlbumSheet(
     val create = { if (name.isNotBlank()) { Haptics.confirm(view); onCreate(name.trim()) } }
     BottomSheet(onDismiss) {
         Column {
-            T("Add to album", size = 22, weight = FontWeight.Bold)
-            T("${plural(photos.size, "photo")} selected", size = 14, muted = true)
+            T(L.s("add_to_album"), size = 22, weight = FontWeight.Bold)
+            T(L.s("n_selected", "photos" to L.p("photos", photos.size)), size = 14, muted = true)
         }
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            T("New album name", size = 13, weight = FontWeight.SemiBold, color = p.muted2)
+            T(L.s("new_album_name"), size = 13, weight = FontWeight.SemiBold, color = p.muted2)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    placeholder = { T("e.g. Fall in the city", color = p.faint) },
+                    placeholder = { T(L.s("album_name_example"), color = p.faint) },
                     singleLine = true,
                     textStyle = TextStyle(fontFamily = Nunito, fontWeight = FontWeight.Medium, fontSize = 16.sp, color = p.ink),
                     shape = RoundedCornerShape(14.dp),
@@ -102,12 +103,12 @@ fun AlbumSheet(
                     keyboardActions = KeyboardActions(onDone = { create() }),
                     modifier = Modifier.weight(1f),
                 )
-                Pill("Create", create, height = 48.dp, enabled = name.isNotBlank())
+                Pill(L.s("create"), create, height = 48.dp, enabled = name.isNotBlank())
             }
         }
         if (albums.isNotEmpty()) {
             Column {
-                T("Or add to an existing album", size = 13, weight = FontWeight.SemiBold, color = p.muted2, modifier = Modifier.padding(bottom = 4.dp))
+                T(L.s("add_to_existing"), size = 13, weight = FontWeight.SemiBold, color = p.muted2, modifier = Modifier.padding(bottom = 4.dp))
                 LazyColumn(Modifier.heightIn(max = 240.dp)) {
                     items(albums, key = { it.id }) { a ->
                         Row(
@@ -122,9 +123,9 @@ fun AlbumSheet(
                             )
                             Column(Modifier.weight(1f)) {
                                 T(a.name, weight = FontWeight.SemiBold, maxLines = 1)
-                                T(plural(a.photos.size, "photo"), size = 13, muted = true)
+                                T(L.p("photos", a.photos.size), size = 13, muted = true)
                             }
-                            Icon(Icons.Filled.AddCircle, "Add to ${a.name}", tint = Accent)
+                            Icon(Icons.Filled.AddCircle, L.s("add_to_named", "name" to a.name), tint = Accent)
                         }
                     }
                 }
@@ -147,17 +148,17 @@ fun SettingsSheet(
 ) {
     val p = LocalPalette.current
     BottomSheet(onDismiss) {
-        T("Photo sources", size = 13, weight = FontWeight.Bold, muted = true)
-        SourceRow(Icons.Outlined.PhoneAndroid, "Photos on this phone", if (state.sources.device) "Connected" else "Not connected", state.sources.device, onConnectDevice)
+        T(L.s("photo_sources"), size = 13, weight = FontWeight.Bold, muted = true)
+        SourceRow(Icons.Outlined.PhoneAndroid, L.s("phone_photos"), L.s(if (state.sources.device) "connected" else "not_connected"), state.sources.device, onConnectDevice)
         SourceRow(
-            Icons.Outlined.PhotoLibrary, "Google Photos",
-            if (state.sources.google) "${plural(state.googlePhotos.size, "photo")} picked" else "Not connected",
+            Icons.Outlined.PhotoLibrary, L.s("google_photos"),
+            if (state.sources.google) L.s("n_picked", "photos" to L.p("photos", state.googlePhotos.size)) else L.s("not_connected"),
             state.sources.google, onGoogle,
         )
         HorizontalDivider(color = p.line)
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Icon(Icons.Outlined.Notifications, null, tint = p.ink)
-            T("Daily reminder", weight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            T(L.s("daily_reminder"), weight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
             if (state.reminder.on) {
                 Box(
                     Modifier.clip(RoundedCornerShape(50)).background(p.fill)
@@ -175,7 +176,7 @@ fun SettingsSheet(
                 colors = SwitchDefaults.colors(checkedTrackColor = Accent, checkedThumbColor = Color.White),
             )
         }
-        T("Only on days that have photos from past years. Tap the time to change it.", size = 13, muted = true)
+        T(L.s("reminder_settings_note"), size = 13, muted = true)
     }
 }
 
@@ -213,25 +214,25 @@ fun GoogleSheet(
             Icon(Icons.Outlined.PhotoLibrary, null, tint = p.ink)
         }
         if (busy != null) {
-            T(if (busy.total > 0) "Saving your picks" else "Waiting for Google Photos", size = 24, weight = FontWeight.ExtraBold, tight = true)
+            T(L.s(if (busy.total > 0) "google_saving" else "google_waiting"), size = 24, weight = FontWeight.ExtraBold, tight = true)
             T(
-                if (busy.total > 0) "${busy.done} of ${busy.total} photos" else "Pick photos in Google Photos, tap Done, then come back here.",
+                if (busy.total > 0) L.s("google_progress", "done" to busy.done, "photos" to L.p("photos", busy.total)) else L.s("google_waiting_body"),
                 size = 15, weight = FontWeight.Medium, muted = true,
             )
             LinearProgressIndicator(color = Accent, trackColor = p.fill, modifier = Modifier.fillMaxWidth())
-            Pill("Cancel", onCancel, kind = Kind.Ghost, height = 48.dp, modifier = Modifier.fillMaxWidth())
+            Pill(L.s("cancel"), onCancel, kind = Kind.Ghost, height = 48.dp, modifier = Modifier.fillMaxWidth())
         } else {
-            T(if (connected) "Google Photos is connected" else "Add Google Photos", size = 24, weight = FontWeight.ExtraBold, tight = true)
+            T(L.s(if (connected) "google_connected_title" else "google_add_title"), size = 24, weight = FontWeight.ExtraBold, tight = true)
             T(
-                if (connected) "${plural(picked, "photo")} picked. Pick more any time."
-                else "Google only lets apps see the photos you pick. Choose the ones you want Back Then to bring back, such as a whole year or a trip. Copies of shots already on this phone show once.",
+                if (connected) L.s("google_connected_body", "photos" to L.p("photos", picked))
+                else L.s("google_intro_android"),
                 size = 15, weight = FontWeight.Medium, muted = true,
             )
-            if (!connected) T("Photos backed up from this phone already show up through phone photos.", size = 13, muted = true)
+            if (!connected) T(L.s("google_backup_note"), size = 13, muted = true)
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Pill(if (connected) "Pick more photos" else "Continue with Google", onPick, modifier = Modifier.fillMaxWidth())
-                if (connected) Pill("Disconnect", onDisconnect, kind = Kind.Ghost, height = 48.dp, modifier = Modifier.fillMaxWidth())
-                else Pill("Not now", onDismiss, kind = Kind.Ghost, height = 48.dp, modifier = Modifier.fillMaxWidth())
+                Pill(L.s(if (connected) "pick_more" else "continue_google"), onPick, modifier = Modifier.fillMaxWidth())
+                if (connected) Pill(L.s("disconnect"), onDisconnect, kind = Kind.Ghost, height = 48.dp, modifier = Modifier.fillMaxWidth())
+                else Pill(L.s("not_now"), onDismiss, kind = Kind.Ghost, height = 48.dp, modifier = Modifier.fillMaxWidth())
             }
         }
     }
@@ -246,10 +247,13 @@ fun SelectBar(count: Int, onShare: () -> Unit, onAlbum: () -> Unit, modifier: Mo
         modifier.fillMaxWidth().height(62.dp).clip(RoundedCornerShape(20.dp)).background(p.ink).padding(start = 20.dp, end = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        T(if (none) "Tap photos to select" else "${plural(count, "photo")} selected", size = 15, weight = FontWeight.SemiBold, color = p.bg, modifier = Modifier.weight(1f))
+        T(if (none) L.s("select_hint") else L.s("n_selected", "photos" to L.p("photos", count)), size = 15, weight = FontWeight.SemiBold, color = p.bg, modifier = Modifier.weight(1f))
         Box(Modifier.clip(RoundedCornerShape(50)).clickable(enabled = !none, role = Role.Button, onClick = onShare).padding(horizontal = 14.dp, vertical = 12.dp)) {
-            T("Share", size = 15, weight = FontWeight.SemiBold, color = p.bg.copy(alpha = if (none) 0.4f else 1f))
+            T(L.s("share"), size = 15, weight = FontWeight.SemiBold, color = p.bg.copy(alpha = if (none) 0.4f else 1f))
         }
-        Pill("+ Album", onAlbum, kind = Kind.Accent, height = 44.dp, enabled = !none)
+        Pill(
+            L.s("album"), onAlbum, kind = Kind.Accent, height = 44.dp, enabled = !none,
+            icon = { Icon(Icons.Filled.Add, null, tint = it, modifier = Modifier.size(16.dp)) },
+        )
     }
 }

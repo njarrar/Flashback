@@ -6,6 +6,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.njarrar.backthen.core.Album
 import com.njarrar.backthen.core.DayIndex
+import com.njarrar.backthen.core.L
 import com.njarrar.backthen.core.MonthDay
 import com.njarrar.backthen.core.Photo
 import com.njarrar.backthen.core.PhotoSource
@@ -131,13 +132,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun toggleFavorite(photo: Photo) {
         val on = !isFavorite(photo.key)
         update { s -> s.copy(favorites = if (on) listOf(photo) + s.favorites else s.favorites.filterNot { it.key == photo.key }) }
-        say(if (on) "Added to Favorites" else "Removed from Favorites")
+        say(L.s(if (on) "toast_favorited" else "toast_unfavorited"))
     }
 
     fun createAlbum(name: String, photos: List<Photo>): Album {
         val album = Album("a${System.currentTimeMillis()}", name, photos, System.currentTimeMillis())
         update { it.copy(albums = listOf(album) + it.albums) }
-        say("Album created")
+        say(L.s("toast_album_created"))
         return album
     }
 
@@ -147,7 +148,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 if (a.id != id) a else a.copy(photos = a.photos + photos.filter { p -> a.photos.none { it.key == p.key } })
             })
         }
-        say("Added to ${_saved.value.albums.firstOrNull { it.id == id }?.name ?: "album"}")
+        say(L.s("toast_added_to", "name" to (_saved.value.albums.firstOrNull { it.id == id }?.name ?: "")))
     }
 
     fun renameAlbum(id: String, name: String) {
@@ -160,7 +161,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun saveAlbumToGallery(album: Album) = viewModelScope.launch {
         val ok = runCatching { library.saveAlbum(album.name, album.photos) }.getOrDefault(false)
-        say(if (ok) "Saved to Pictures/Back Then" else "Could not save the album")
+        say(L.s(if (ok) "toast_saved_gallery" else "toast_save_failed"))
     }
 
     /** Runs the Google picker with a token from Google sign-in, then adds the picks. */
@@ -171,16 +172,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 val photos = google.pick(token, open) { done, total -> googleImport.value = GoogleImport(done, total) }
                 if (photos == null) {
-                    say("No photos picked")
+                    say(L.s("toast_no_picks"))
                 } else {
                     update { s ->
                         val known = s.googlePhotos.map { it.key }.toSet()
                         s.copy(googlePhotos = s.googlePhotos + photos.filter { it.key !in known }, sources = s.sources.copy(google = true))
                     }
-                    say(if (photos.isEmpty()) "Google Photos connected" else "Added ${photos.size} from Google Photos")
+                    say(if (photos.isEmpty()) L.s("toast_google_connected") else L.s("toast_google_added", "photos" to L.p("photos", photos.size)))
                 }
             } catch (e: Exception) {
-                if (e !is kotlinx.coroutines.CancellationException) say("Could not reach Google Photos")
+                if (e !is kotlinx.coroutines.CancellationException) say(L.s("toast_google_failed"))
             } finally {
                 googleImport.value = null
             }
@@ -202,6 +203,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 albums = s.albums.map { a -> a.copy(photos = a.photos.filter { it.source != PhotoSource.GOOGLE }) },
             )
         }
-        say("Google Photos disconnected")
+        say(L.s("toast_google_disconnected"))
     }
 }

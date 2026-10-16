@@ -18,11 +18,12 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.njarrar.backthen.MainActivity
 import com.njarrar.backthen.R
+import com.njarrar.backthen.core.L
 import com.njarrar.backthen.core.MonthDay
 import com.njarrar.backthen.core.buildDayIndex
 import com.njarrar.backthen.core.label
 import com.njarrar.backthen.core.mergeIndexes
-import com.njarrar.backthen.core.plural
+import com.njarrar.backthen.core.startLanguage
 import com.njarrar.backthen.core.yearsForDay
 import java.time.Duration
 import java.time.LocalDateTime
@@ -67,8 +68,9 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
         val years = yearsForDay(index, today)
         if (years.isEmpty()) return Result.success()
 
+        startLanguage(ctx)
         val manager = ctx.getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(NotificationChannel(CHANNEL, "Daily reminder", NotificationManager.IMPORTANCE_DEFAULT))
+        manager.createNotificationChannel(NotificationChannel(CHANNEL, L.s("daily_reminder"), NotificationManager.IMPORTANCE_DEFAULT))
         val open = Intent(ctx, MainActivity::class.java)
             .putExtra(EXTRA_MONTH, today.month)
             .putExtra(EXTRA_DAY, today.day)
@@ -77,8 +79,8 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
         val note = NotificationCompat.Builder(ctx, CHANNEL)
             .setSmallIcon(R.drawable.ic_notification)
             .setColor(0xFFE5533D.toInt())
-            .setContentTitle("${today.label()} has photos from ${plural(years.size, "year")}")
-            .setContentText("The oldest is from ${years.last()}. Tap to look back.")
+            .setContentTitle(L.s("reminder_title_years", "day" to today.label(), "years" to L.p("years", years.size)))
+            .setContentText(L.s("reminder_body_oldest", "year" to years.last()))
             .setContentIntent(tap)
             .setAutoCancel(true)
             .build()

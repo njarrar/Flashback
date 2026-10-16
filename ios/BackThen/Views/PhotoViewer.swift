@@ -78,15 +78,15 @@ struct PhotoViewer: View {
                         .padding(.bottom, 24)
                 }
                 HStack {
-                    action(fav ? "heart.fill" : "heart", fav ? "Remove from favorites" : "Favorite", tint: fav ? Palette.viewerHeart : ink) {
+                    action(fav ? "heart.fill" : "heart", L.s(fav ? "unfavorite" : "favorite"), tint: fav ? Palette.viewerHeart : ink) {
                         store.toggleFavorite(photo)
                     }
                     Spacer()
-                    action("square.and.arrow.up", "Share", tint: ink) {
-                        Task { await Share.photos([photo], title: photo.time.formatted(date: .long, time: .omitted)) }
+                    action("square.and.arrow.up", L.s("share"), tint: ink) {
+                        Task { await Share.photos([photo], title: L.date(photo.time, "yMMMMd")) }
                     }
                     Spacer()
-                    action("rectangle.stack.badge.plus", "Add to album", tint: ink) { albumFor = [photo] }
+                    action("rectangle.stack.badge.plus", L.s("add_to_album"), tint: ink) { albumFor = [photo] }
                 }
                 .padding(.horizontal, 48).padding(.vertical, 8)
             }
@@ -115,10 +115,10 @@ struct PhotoViewer: View {
                 Image(systemName: "xmark").font(.system(size: 17, weight: .bold)).foregroundStyle(ink)
                     .frame(width: 44, height: 44).background(ink.opacity(0.14), in: Circle())
             }
-            .accessibilityLabel("Close")
+            .accessibilityLabel(L.s("close"))
             VStack(spacing: 1) {
-                Text(photo.time.formatted(.dateTime.month(.wide).day().year())).font(.nunito(16, .bold)).foregroundStyle(ink)
-                Text("\(agoLabel(yearOf(photo.time))) · \(photo.time.formatted(.dateTime.weekday(.wide)))")
+                Text(L.date(photo.time, "yMMMMd")).font(.nunito(16, .bold)).foregroundStyle(ink)
+                Text(L.s("ago_weekday", ["ago": agoLabel(yearOf(photo.time)), "weekday": L.date(photo.time, "EEEE")]))
                     .font(.nunito(13)).foregroundStyle(ink.opacity(0.62))
             }
             .frame(maxWidth: .infinity)
@@ -174,7 +174,7 @@ private struct Filmstrip: View {
                             }
                             .buttonStyle(.plain)
                             .id(i)
-                            .accessibilityLabel("Photo \(i + 1) of \(photos.count)")
+                            .accessibilityLabel(L.s("photo_n_of", ["n": i + 1, "total": photos.count]))
                             .accessibilityAddTraits(on ? .isSelected : [])
                         }
                     }
@@ -207,7 +207,7 @@ private struct ZoomPage: View {
         ZoomView(image: image, active: active, onZoom: onZoom, onTap: onTap, onDrag: onDrag, onDragEnd: onDragEnd)
             .task(id: photo.key) { image = await loadImage(photo, size: CGSize(width: 2048, height: 2048)) }
             .accessibilityElement()
-            .accessibilityLabel("Photo from \(photo.time.formatted(date: .long, time: .omitted))")
+            .accessibilityLabel(L.s("photo_from", ["date": L.date(photo.time, "yMMMMd")]))
             .accessibilityAddTraits(.isImage)
     }
 }

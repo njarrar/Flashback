@@ -6,16 +6,35 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXContainerItemProxy section */
+		B7000000000000000000B007 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B7000000000000000000A009 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B7000000000000000000A006;
+			remoteInfo = BackThen;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		B7000000000000000000A001 /* Back Then.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Back Then.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		B7000000000000000000B001 /* BackThenTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BackThenTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		B7000000000000000000A002 /* BackThen */ = {isa = PBXFileSystemSynchronizedRootGroup; path = BackThen; sourceTree = "<group>"; };
+		B7000000000000000000B002 /* BackThenTests */ = {isa = PBXFileSystemSynchronizedRootGroup; path = BackThenTests; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		B7000000000000000000A003 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B7000000000000000000B003 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -29,6 +48,7 @@
 			isa = PBXGroup;
 			children = (
 				B7000000000000000000A002 /* BackThen */,
+				B7000000000000000000B002 /* BackThenTests */,
 				B7000000000000000000A005 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -37,6 +57,7 @@
 			isa = PBXGroup;
 			children = (
 				B7000000000000000000A001 /* Back Then.app */,
+				B7000000000000000000B001 /* BackThenTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -51,6 +72,7 @@
 				B7000000000000000000A007 /* Sources */,
 				B7000000000000000000A003 /* Frameworks */,
 				B7000000000000000000A008 /* Resources */,
+				B7000000000000000000A010 /* Copy languages */,
 			);
 			buildRules = (
 			);
@@ -63,6 +85,27 @@
 			productName = BackThen;
 			productReference = B7000000000000000000A001 /* Back Then.app */;
 			productType = "com.apple.product-type.application";
+		};
+		B7000000000000000000B006 /* BackThenTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B7000000000000000000B009 /* Build configuration list for PBXNativeTarget "BackThenTests" */;
+			buildPhases = (
+				B7000000000000000000B004 /* Sources */,
+				B7000000000000000000B003 /* Frameworks */,
+				B7000000000000000000B005 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				B7000000000000000000B008 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				B7000000000000000000B002 /* BackThenTests */,
+			);
+			name = BackThenTests;
+			productName = BackThenTests;
+			productReference = B7000000000000000000B001 /* BackThenTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
 
@@ -77,6 +120,10 @@
 					B7000000000000000000A006 = {
 						CreatedOnToolsVersion = 16.0;
 					};
+					B7000000000000000000B006 = {
+						CreatedOnToolsVersion = 16.0;
+						TestTargetID = B7000000000000000000A006;
+					};
 				};
 			};
 			buildConfigurationList = B7000000000000000000A00A /* Build configuration list for PBXProject "BackThen" */;
@@ -85,6 +132,9 @@
 			knownRegions = (
 				en,
 				Base,
+				fr,
+				es,
+				ar,
 			);
 			mainGroup = B7000000000000000000A004;
 			minimizedProjectReferenceProxies = 1;
@@ -94,6 +144,7 @@
 			projectRoot = "";
 			targets = (
 				B7000000000000000000A006 /* BackThen */,
+				B7000000000000000000B006 /* BackThenTests */,
 			);
 		};
 /* End PBXProject section */
@@ -106,7 +157,36 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B7000000000000000000B005 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		B7000000000000000000A010 /* Copy languages */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Copy languages";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/bin/sh \"$SRCROOT/scripts/copy-lang.sh\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		B7000000000000000000A007 /* Sources */ = {
@@ -116,7 +196,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B7000000000000000000B004 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		B7000000000000000000B008 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B7000000000000000000A006 /* BackThen */;
+			targetProxy = B7000000000000000000B007 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		B7000000000000000000A00C /* Debug */ = {
@@ -172,7 +267,8 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Back Then";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.photography";
@@ -186,7 +282,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.3;
+				MARKETING_VERSION = 1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.njarrar.backthen;
 				PRODUCT_NAME = "Back Then";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -203,7 +299,8 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Back Then";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.photography";
@@ -217,7 +314,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.3;
+				MARKETING_VERSION = 1.4;
 				PRODUCT_BUNDLE_IDENTIFIER = com.njarrar.backthen;
 				PRODUCT_NAME = "Back Then";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -225,6 +322,44 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		B7000000000000000000B00A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 5;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.4;
+				PRODUCT_BUNDLE_IDENTIFIER = com.njarrar.backthen.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Back Then.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Back Then";
+			};
+			name = Debug;
+		};
+		B7000000000000000000B00B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 5;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.4;
+				PRODUCT_BUNDLE_IDENTIFIER = com.njarrar.backthen.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Back Then.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Back Then";
 			};
 			name = Release;
 		};
@@ -245,6 +380,15 @@
 			buildConfigurations = (
 				B7000000000000000000A00E /* Debug */,
 				B7000000000000000000A00F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B7000000000000000000B009 /* Build configuration list for PBXNativeTarget "BackThenTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B7000000000000000000B00A /* Debug */,
+				B7000000000000000000B00B /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

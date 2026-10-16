@@ -8,6 +8,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import com.njarrar.backthen.core.MonthDay
+import com.njarrar.backthen.core.startLanguage
 import com.njarrar.backthen.data.EXTRA_DAY
 import com.njarrar.backthen.data.EXTRA_MONTH
 import com.njarrar.backthen.ui.BackThenApp
@@ -18,9 +19,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val debuggable = applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
+        // Again here, since a language change in Settings restarts the screen but not the app.
+        // Debug builds also take `--es lang ar`, for the Arabic screenshots.
+        startLanguage(this, intent?.getStringExtra("lang")?.takeIf { debuggable })
         enableEdgeToEdge()
         openDayFrom(intent)
-        val debuggable = applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
         intent?.getStringExtra("scene")?.takeIf { debuggable && savedInstanceState == null }?.let { vm.runDemo(it) }
         setContent {
             BackThenTheme { BackThenApp(vm) }

@@ -2,9 +2,9 @@ name: iOS
 
 on:
   push:
-    paths: ["ios/**", ".github/workflows/ios.yml"]
+    paths: ["ios/**", "lang/**", ".github/workflows/ios.yml"]
   pull_request:
-    paths: ["ios/**", ".github/workflows/ios.yml"]
+    paths: ["ios/**", "lang/**", ".github/workflows/ios.yml"]
 
 jobs:
   build:
@@ -19,3 +19,10 @@ jobs:
           xcodebuild -project BackThen.xcodeproj -scheme BackThen \
             -destination 'generic/platform=iOS Simulator' \
             CODE_SIGNING_ALLOWED=NO build
+      - name: Unit tests
+        working-directory: ios
+        run: |
+          DEVICE=$(xcrun simctl list devices available | grep -E "iPhone 16 Pro \(" | head -1 | grep -oE "[0-9A-F-]{36}")
+          xcodebuild -project BackThen.xcodeproj -scheme BackThen \
+            -destination "id=$DEVICE" \
+            CODE_SIGNING_ALLOWED=NO test

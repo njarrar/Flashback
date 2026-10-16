@@ -31,12 +31,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.njarrar.backthen.AppViewModel
+import com.njarrar.backthen.core.L
 import com.njarrar.backthen.core.Photo
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.filter
 
-enum class Tab(val label: String) { Today("Today"), Favorites("Favorites"), Albums("Albums") }
+enum class Tab(private val key: String) {
+    Today("tab_today"), Favorites("tab_favorites"), Albums("tab_albums");
+
+    val label: String get() = L.s(key)
+}
 
 @Composable
 fun BackThenApp(vm: AppViewModel) {
@@ -108,7 +113,7 @@ fun BackThenApp(vm: AppViewModel) {
                                 if (album != null) AlbumScreen(vm, album, bottom, reselect.on(Tab.Albums)) { openAlbum = null }
                                 else AlbumsScreen(vm, bottom, reselect.on(Tab.Albums), onOpen = { openAlbum = it.id }, onNew = {
                                     tab = Tab.Today
-                                    vm.say("Tap Select, pick photos, then tap Album")
+                                    vm.say(L.s("toast_new_album_hint"))
                                 })
                             }
                         }
@@ -123,7 +128,7 @@ fun BackThenApp(vm: AppViewModel) {
                 start = v.start,
                 favorites = state.favorites.map { it.key }.toSet(),
                 onFavorite = vm::toggleFavorite,
-                onShare = { sharePhotos(context, listOf(it), "Photo") },
+                onShare = { sharePhotos(context, listOf(it), L.s("photo")) },
                 onAlbum = { albumFor = listOf(it.key) },
                 onClose = { vm.viewer.value = null },
             )

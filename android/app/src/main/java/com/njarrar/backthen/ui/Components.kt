@@ -38,6 +38,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,15 +64,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.njarrar.backthen.core.COLUMNS
+import com.njarrar.backthen.core.L
 import com.njarrar.backthen.core.MonthDay
 import com.njarrar.backthen.core.Photo
 import com.njarrar.backthen.core.agoLabel
+import com.njarrar.backthen.core.formatDate
 import com.njarrar.backthen.core.layoutMosaic
 import com.njarrar.backthen.core.localDate
-import com.njarrar.backthen.core.plural
-import java.time.LocalDate
-import java.time.format.TextStyle
-import java.util.Locale
+import com.njarrar.backthen.core.weekdayOf
 
 @Composable
 fun T(
@@ -83,6 +85,8 @@ fun T(
     modifier: Modifier = Modifier,
 ) {
     val p = LocalPalette.current
+    // Arabic letters reach higher and lower than Latin ones, so lines get more room.
+    val arabic = L.lang.arabicScript
     Text(
         text,
         modifier = modifier,
@@ -90,8 +94,8 @@ fun T(
         fontFamily = Nunito,
         fontWeight = weight,
         fontSize = size.sp,
-        lineHeight = (size * if (size >= 30) 1.1 else 1.4).sp,
-        letterSpacing = if (tight) (size * -0.03).sp else 0.sp,
+        lineHeight = (size * if (size >= 30) (if (arabic) 1.3 else 1.1) else (if (arabic) 1.6 else 1.4)).sp,
+        letterSpacing = if (tight) tightSpacing(size).sp else 0.sp,
         maxLines = maxLines,
         overflow = TextOverflow.Ellipsis,
     )
@@ -136,6 +140,12 @@ fun Pill(
 /** The app icon from the design: two tilted prints on blue, the front one smiling. */
 @Composable
 fun Logo(size: Dp = 36.dp) {
+    // A drawing, not text: it stays the same way round in right to left languages.
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) { LogoDrawing(size) }
+}
+
+@Composable
+private fun LogoDrawing(size: Dp) {
     val s = size.value / 180f
     fun u(v: Float) = (v * s).dp
     Box(
@@ -205,7 +215,7 @@ fun PhotoTile(
             .background(p.fill)
             .clickable(role = Role.Image) { if (selection?.on == true) selection.toggle(photo) else onOpen() },
     ) {
-        AsyncImage(model = photo.uri, contentDescription = "Photo from ${localDate(photo.time)}", contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        AsyncImage(model = photo.uri, contentDescription = L.s("photo_from", "date" to formatDate(localDate(photo.time), "yMMMMd")), contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
         if (favorite) {
             Icon(Icons.Filled.Favorite, null, tint = Color.White, modifier = Modifier.align(Alignment.BottomStart).padding(start = 8.dp, bottom = 7.dp).size(16.dp))
         }
@@ -217,7 +227,7 @@ fun PhotoTile(
             )
             Icon(
                 if (picked) Icons.Filled.CheckCircle else Icons.Outlined.Circle,
-                contentDescription = if (picked) "Selected" else "Not selected",
+                contentDescription = L.s(if (picked) "selected" else "not_selected"),
                 tint = Color.White,
                 modifier = Modifier.align(Alignment.TopEnd).padding(7.dp).size(22.dp),
             )
@@ -226,10 +236,6 @@ fun PhotoTile(
 }
 
 private val PinnedBarHeight = 44.dp
-
-private fun weekdayOf(year: Int, day: MonthDay) = runCatching {
-    LocalDate.of(year, day.month + 1, day.day).dayOfWeek.getDisplayName(TextStyle.FULL, Locale.getDefault())
-}.getOrDefault("")
 
 /**
  * The big year header: year number, how long ago, and a share button. It draws itself over
@@ -249,17 +255,17 @@ fun YearHeader(year: Int, count: Int, day: MonthDay, onShare: () -> Unit) {
             .padding(horizontal = 20.dp),
         verticalAlignment = Alignment.Bottom,
     ) {
-        T(year.toString(), size = 56, weight = FontWeight.Black, tight = true, modifier = Modifier.weight(1f).semantics { heading() })
+        T(L.num(year), size = 56, weight = FontWeight.Black, tight = true, modifier = Modifier.weight(1f).semantics { heading() })
         Row(Modifier.padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Column(horizontalAlignment = Alignment.End) {
                 T(agoLabel(year), size = 14, weight = FontWeight.SemiBold)
-                T("${weekdayOf(year, day)}, ${plural(count, "photo")}", size = 13, muted = true)
+                T(L.s("weekday_photos", "weekday" to weekdayOf(year, day), "photos" to L.p("photos", count)), size = 13, muted = true)
             }
             Box(
                 Modifier.size(36.dp).clip(CircleShape).background(p.surface).border(1.dp, p.line, CircleShape)
                     .clickable(role = Role.Button, onClick = onShare),
                 contentAlignment = Alignment.Center,
-            ) { Icon(Icons.Outlined.IosShare, "Share $year", tint = p.ink, modifier = Modifier.size(18.dp)) }
+            ) { Icon(Icons.Outlined.IosShare, L.s("share_year", "year" to year), tint = p.ink, modifier = Modifier.size(18.dp)) }
         }
     }
 }
@@ -280,10 +286,10 @@ fun YearBar(year: Int, count: Int, day: MonthDay, pinned: Boolean, onShare: () -
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            T(year.toString(), size = 26, weight = FontWeight.Black, tight = true)
-            T("${agoLabel(year)} · ${weekdayOf(year, day)}, ${plural(count, "photo")}", size = 14, weight = FontWeight.Medium, muted = true, maxLines = 1, modifier = Modifier.weight(1f))
+            T(L.num(year), size = 26, weight = FontWeight.Black, tight = true)
+            T(L.s("ago_weekday_photos", "ago" to agoLabel(year), "weekday" to weekdayOf(year, day), "photos" to L.p("photos", count)), size = 14, weight = FontWeight.Medium, muted = true, maxLines = 1, modifier = Modifier.weight(1f))
             IconButton(onClick = onShare, enabled = pinned, modifier = Modifier.size(44.dp)) {
-                Icon(Icons.Outlined.IosShare, "Share $year", tint = p.ink, modifier = Modifier.size(20.dp))
+                Icon(Icons.Outlined.IosShare, L.s("share_year", "year" to year), tint = p.ink, modifier = Modifier.size(20.dp))
             }
         }
         Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().height(1.dp).background(p.line))
@@ -338,8 +344,8 @@ fun SquareGrid(photos: List<Photo>, favorites: Set<String>, showYear: Boolean, o
 fun YearChip(year: Int, modifier: Modifier = Modifier) {
     Box(modifier.clip(RoundedCornerShape(50)).background(Chip).padding(horizontal = 7.dp, vertical = 2.dp).clearAndSetSemantics {}) {
         Text(
-            year.toString(), color = ChipInk, fontFamily = Nunito, fontWeight = FontWeight.ExtraBold,
-            fontSize = 11.sp, lineHeight = 14.sp, letterSpacing = 0.2.sp,
+            L.num(year), color = ChipInk, fontFamily = Nunito, fontWeight = FontWeight.ExtraBold,
+            fontSize = 11.sp, lineHeight = 14.sp, letterSpacing = if (L.lang.arabicScript) 0.sp else 0.2.sp,
         )
     }
 }
@@ -356,7 +362,7 @@ fun Print(year: Int, label: String, @DrawableRes drawing: Int, width: Dp, angle:
             modifier = Modifier.fillMaxWidth().aspectRatio(4f / 5f).clip(RoundedCornerShape(6.dp)),
         )
         Row(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 10.dp, start = 2.dp, end = 2.dp), verticalAlignment = Alignment.Bottom) {
-            T(year.toString(), size = if (width > 160.dp) 26 else 22, weight = FontWeight.Black, tight = true, modifier = Modifier.weight(1f))
+            T(L.num(year), size = if (width > 160.dp) 26 else 22, weight = FontWeight.Black, tight = true, modifier = Modifier.weight(1f))
             T(label, size = 11, weight = FontWeight.Medium, muted = true)
         }
     }

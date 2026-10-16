@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Spanish. -->
+<language name="Español" dir="ltr" script="latin">
+
+    <!-- Shared -->
+    <string name="app_name">Back Then</string>
+    <string name="cancel">Cancelar</string>
+    <string name="close">Cerrar</string>
+    <string name="create">Crear</string>
+    <string name="save">Guardar</string>
+    <string name="ok">Aceptar</string>
+    <string name="not_now">Ahora no</string>
+    <string name="share">Compartir</string>
+    <string name="more">Más</string>
+    <string name="options">Opciones</string>
+    <string name="loading">Cargando</string>
+    <string name="today">Hoy</string>
+    <string name="photo">Foto</string>
+
+    <plurals name="photos">
+        <item quantity="one">{n} foto</item>
+        <item quantity="other">{n} fotos</item>
+    </plurals>
+    <plurals name="years">
+        <item quantity="one">{n} año</item>
+        <item quantity="other">{n} años</item>
+    </plurals>
+    <plurals name="albums">
+        <item quantity="one">{n} álbum</item>
+        <item quantity="other">{n} álbumes</item>
+    </plurals>
+    <plurals name="ago_years">
+        <item quantity="one">Hace {n} año</item>
+        <item quantity="other">Hace {n} años</item>
+    </plurals>
+    <string name="ago_this_year">Antes este año</string>
+    <string name="photos_from_years">{photos} de {years}</string>
+    <string name="weekday_photos">{weekday}, {photos}</string>
+    <string name="ago_weekday">{ago} · {weekday}</string>
+    <string name="ago_weekday_photos">{ago} · {weekday}, {photos}</string>
+    <string name="photo_from">Foto del {date}</string>
+
+    <!-- Tabs -->
+    <string name="tab_today">Hoy</string>
+    <string name="tab_favorites">Favoritos</string>
+    <string name="tab_albums">Álbumes</string>
+
+    <!-- Welcome -->
+    <string name="welcome_title">Mira cómo fue este día, cada año.</string>
+    <string name="welcome_body">Cada mañana, Back Then busca las fotos que tomaste en la fecha de hoy en años pasados y las ordena por año.</string>
+    <string name="welcome_denied">Sin acceso a las fotos no hay nada que mostrar. Puedes permitirlo más tarde en Ajustes.</string>
+    <string name="use_apple_photos">Usar Apple Photos</string>
+    <string name="use_google_photos">Usar Google Fotos</string>
+    <string name="use_phone_photos">Usar las fotos de este teléfono</string>
+    <string name="privacy_line">Tus fotos se quedan en este teléfono. No se sube nada.</string>
+
+    <!-- Daily reminder, on the welcome screen and in the notification -->
+    <string name="reminder_title_years">El {day} tiene fotos de {years}</string>
+    <string name="reminder_title_any">El {day} tiene fotos de años pasados</string>
+    <string name="reminder_body_oldest">La más antigua es de {year}. Toca para recordar.</string>
+    <string name="reminder_body">Toca para recordar.</string>
+    <string name="reminder_onboarding_title">Un recordatorio al día</string>
+    <string name="reminder_onboarding_body">Solo los días con fotos de años pasados. Puedes cambiar la hora más tarde.</string>
+    <string name="turn_on_reminder">Activar recordatorio</string>
+
+    <!-- Today -->
+    <string name="today_loading">Buscando en tu fototeca…</string>
+    <string name="today_none">No hay fotos en esta fecha</string>
+    <string name="pick_another_day">Elegir otro día</string>
+    <string name="pick_a_day">Elegir un día</string>
+    <string name="back_to_today">Volver a hoy</string>
+    <string name="select">Seleccionar</string>
+    <string name="selected">Seleccionada</string>
+    <string name="not_selected">Sin seleccionar</string>
+    <string name="select_hint">Toca las fotos para elegirlas</string>
+    <string name="n_selected">Seleccionadas: {photos}</string>
+    <string name="album">Álbum</string>
+    <string name="share_year">Compartir {year}</string>
+    <string name="empty_no_sources_title">No hay fotos conectadas</string>
+    <string name="empty_title">Nada del {day} todavía</string>
+    <string name="empty_no_sources_ios">Conecta Apple Photos o Google Fotos para ver este día en años pasados.</string>
+    <string name="empty_no_sources_android">Conecta las fotos del teléfono o Google Fotos para ver este día en años pasados.</string>
+    <string name="empty_nearby">No tomaste fotos en esta fecha en años pasados. Estos días cercanos sí tienen.</string>
+    <string name="empty_none">No tomaste fotos en esta fecha en años pasados.</string>
+    <string name="connect_photos">Conectar fotos</string>
+
+    <!-- Calendar -->
+    <string name="calendar_hint">Los días más oscuros tienen fotos de más años</string>
+    <string name="previous_month">Mes anterior</string>
+    <string name="next_month">Mes siguiente</string>
+    <string name="day_no_photos">{day}, sin fotos</string>
+    <string name="day_photos_from">{day}, fotos de {years}</string>
+
+    <!-- Photo viewer -->
+    <string name="favorite">Añadir a favoritos</string>
+    <string name="unfavorite">Quitar de favoritos</string>
+    <string name="add_to_album">Añadir a un álbum</string>
+    <string name="photo_n_of">Foto {n} de {total}</string>
+
+    <!-- Favorites -->
+    <string name="favorites_none">Aún no hay nada guardado</string>
+    <string name="favorites_empty_title">Aún no hay favoritos</string>
+    <string name="favorites_empty_body">Abre cualquier foto y toca el corazón. Se guardará aquí, sea del día que sea.</string>
+
+    <!-- Albums -->
+    <string name="new_album">Nuevo</string>
+    <string name="albums_empty_title">Aún no hay álbumes</string>
+    <string name="albums_empty_body">En Hoy, toca Seleccionar, elige algunas fotos y luego toca Álbum.</string>
+    <string name="album_made">{photos} · creado el {date}</string>
+    <string name="share_album">Compartir álbum</string>
+    <string name="save_to_photos">Guardar en Fotos</string>
+    <string name="save_to_gallery">Guardar en la galería</string>
+    <string name="rename">Cambiar nombre</string>
+    <string name="rename_album">Cambiar nombre del álbum</string>
+    <string name="album_name">Nombre del álbum</string>
+    <string name="delete_album">Eliminar álbum</string>
+    <string name="delete_album_confirm">¿Eliminar «{name}»?</string>
+    <string name="delete_album_note">Las fotos siguen en tu fototeca.</string>
+    <string name="new_album_name">Nombre del nuevo álbum</string>
+    <string name="album_name_example">p. ej. Otoño en la ciudad</string>
+    <string name="add_to_existing">O añadir a un álbum existente</string>
+    <string name="add_to_named">Añadir a {name}</string>
+
+    <!-- Settings -->
+    <string name="photo_sources">Fuentes de fotos</string>
+    <string name="apple_photos">Apple Photos</string>
+    <string name="phone_photos">Fotos de este teléfono</string>
+    <string name="google_photos">Google Fotos</string>
+    <string name="connected">Conectado</string>
+    <string name="not_connected">Sin conectar</string>
+    <string name="n_picked">Elegidas: {photos}</string>
+    <string name="daily_reminder">Recordatorio diario</string>
+    <string name="change_reminder_time">Cambiar la hora del recordatorio</string>
+    <string name="reminder_settings_note">Solo los días con fotos de años pasados. Toca la hora para cambiarla.</string>
+
+    <!-- Google Photos -->
+    <string name="google_saving">Guardando tus fotos</string>
+    <string name="google_waiting">Esperando a Google Fotos</string>
+    <string name="google_progress">{done} de {photos}</string>
+    <string name="google_waiting_body">Elige fotos en Google Fotos, toca Listo y vuelve aquí.</string>
+    <string name="google_connected_title">Google Fotos está conectado</string>
+    <string name="google_add_title">Añadir Google Fotos</string>
+    <string name="google_connected_body">Elegidas: {photos}. Puedes elegir más cuando quieras.</string>
+    <string name="google_intro_ios">Google solo deja que las apps vean las fotos que eliges. Elige las que quieres que Back Then te recuerde, como un año entero o un viaje. Las copias de fotos que ya están en Apple Photos salen una sola vez.</string>
+    <string name="google_intro_android">Google solo deja que las apps vean las fotos que eliges. Elige las que quieres que Back Then te recuerde, como un año entero o un viaje. Las copias de fotos que ya están en este teléfono salen una sola vez.</string>
+    <string name="google_backup_note">Las fotos con copia de seguridad desde este teléfono ya aparecen con las fotos del teléfono.</string>
+    <string name="pick_more">Elegir más fotos</string>
+    <string name="continue_google">Continuar con Google</string>
+    <string name="disconnect">Desconectar</string>
+    <string name="google_no_client">Esta versión aún no tiene un ID de cliente de Google. Consulta el README para añadir uno.</string>
+
+    <!-- Short messages at the bottom of the screen -->
+    <string name="toast_reminder_set">Recordatorio diario a las {time}</string>
+    <string name="toast_apple_connected">Apple Photos conectado</string>
+    <string name="toast_notifications_off">Las notificaciones están desactivadas en Ajustes</string>
+    <string name="toast_allow_access">Permite el acceso a las fotos en Ajustes</string>
+    <string name="toast_favorited">Añadida a Favoritos</string>
+    <string name="toast_unfavorited">Quitada de Favoritos</string>
+    <string name="toast_album_created">Álbum creado</string>
+    <string name="toast_added_to">Añadido a {name}</string>
+    <string name="toast_new_album_hint">Toca Seleccionar, elige fotos y luego toca Álbum</string>
+    <string name="toast_allow_save">Permite el acceso a las fotos para guardar</string>
+    <string name="toast_saved_photos">Guardado en Fotos</string>
+    <string name="toast_saved_gallery">Guardado en Pictures/Back Then</string>
+    <string name="toast_save_failed">No se pudo guardar el álbum</string>
+    <string name="toast_no_picks">No elegiste ninguna foto</string>
+    <string name="toast_google_connected">Google Fotos conectado</string>
+    <string name="toast_google_added">Añadidas de Google Fotos: {photos}</string>
+    <string name="toast_google_failed">No se pudo conectar con Google Fotos</string>
+    <string name="toast_google_disconnected">Google Fotos desconectado</string>
+    <string name="toast_google_signin_failed">Falló el inicio de sesión con Google</string>
+    <string name="toast_google_not_setup">El inicio de sesión con Google no está configurado en esta versión</string>
+
+    <!-- iPhone photo access prompts -->
+    <string name="ios_photos_permission">Back Then muestra las fotos que tomaste en este día en años pasados.</string>
+    <string name="ios_photos_add_permission">Back Then guarda tus álbumes en Fotos cuando se lo pides.</string>
+
+    <!-- Sample albums for the README screenshots -->
+    <string name="demo_album_fall">Fines de semana de otoño</string>
+    <string name="demo_album_garden">El jardín de la abuela</string>
+</language>
