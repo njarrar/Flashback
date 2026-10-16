@@ -121,6 +121,10 @@ Google Photos sign-in.
 - **Steady signing key for the test APK.** The Build apps workflow now signs the
   Android APK in build/ with the Play upload key when it is in GitHub secrets.
   Before, each run made a new throwaway key, so Google could never match it.
+- **Smaller, harder to read release build.** The Android release build now runs R8,
+  which strips unused code and renames the rest. Google Play warned about the 1.6
+  bundle for skipping this. A new CI job installs the shrunk build on an emulator and
+  fails if it crashes.
 - **Setup guide.** [docs/google-photos-setup.md](docs/google-photos-setup.md) walks
   through the Google Cloud steps, which keys to register, and how to add testers.
 

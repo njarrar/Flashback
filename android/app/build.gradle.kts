@@ -41,9 +41,16 @@ android {
             if (uploadKey != null) signingConfig = signingConfigs.getByName("upload")
         }
         release {
-            if (uploadKey != null) signingConfig = signingConfigs.getByName("upload")
-            isMinifyEnabled = false
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
+            if (uploadKey != null) {
+                signingConfig = signingConfigs.getByName("upload")
+            } else if (project.hasProperty("signReleaseWithDebugKey")) {
+                // CI only: lets the shrunk release build install on an emulator for a smoke test.
+                signingConfig = signingConfigs.getByName("debug")
+            }
+            // R8 shrinks and renames the code. Google Play flags apps without it.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
     compileOptions {
