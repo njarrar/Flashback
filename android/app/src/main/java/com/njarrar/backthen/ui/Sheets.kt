@@ -30,6 +30,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.Notifications
@@ -54,6 +55,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -62,8 +64,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.njarrar.backthen.core.Album
+import com.njarrar.backthen.core.L
 import com.njarrar.backthen.core.Photo
-import com.njarrar.backthen.core.plural
+import com.njarrar.backthen.core.formatTime
 import com.njarrar.backthen.GoogleImport
 import com.njarrar.backthen.data.SavedState
 
@@ -89,20 +92,21 @@ fun AlbumSheet(
     onDismiss: () -> Unit,
 ) {
     val p = LocalPalette.current
+    val view = LocalView.current
     var name by remember { mutableStateOf("") }
-    val create = { if (name.isNotBlank()) onCreate(name.trim()) }
+    val create = { if (name.isNotBlank()) { Haptics.confirm(view); onCreate(name.trim()) } }
     BottomSheet(onDismiss) {
         Column {
-            T("Add to album", size = 22, weight = FontWeight.Bold)
-            T("${plural(photos.size, "photo")} selected", size = 14, muted = true)
+            T(L.s("add_to_album"), size = 22, weight = FontWeight.Bold)
+            T(L.s("n_selected", "photos" to L.p("photos", photos.size)), size = 14, muted = true)
         }
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            T("New album name", size = 13, weight = FontWeight.SemiBold, color = p.muted2)
+            T(L.s("new_album_name"), size = 13, weight = FontWeight.SemiBold, color = p.muted2)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    placeholder = { T("e.g. Fall in the city", color = p.faint) },
+                    placeholder = { T(L.s("album_name_example"), color = p.faint) },
                     singleLine = true,
                     textStyle = TextStyle(fontFamily = Nunito, fontWeight = FontWeight.Medium, fontSize = 16.sp, color = p.ink),
                     shape = RoundedCornerShape(14.dp),
@@ -111,16 +115,16 @@ fun AlbumSheet(
                     keyboardActions = KeyboardActions(onDone = { create() }),
                     modifier = Modifier.weight(1f),
                 )
-                Pill("Create", create, height = 48.dp, enabled = name.isNotBlank())
+                Pill(L.s("create"), create, height = 48.dp, enabled = name.isNotBlank())
             }
         }
         if (albums.isNotEmpty()) {
             Column {
-                T("Or add to an existing album", size = 13, weight = FontWeight.SemiBold, color = p.muted2, modifier = Modifier.padding(bottom = 4.dp))
+                T(L.s("add_to_existing"), size = 13, weight = FontWeight.SemiBold, color = p.muted2, modifier = Modifier.padding(bottom = 4.dp))
                 LazyColumn(Modifier.heightIn(max = 240.dp)) {
                     items(albums, key = { it.id }) { a ->
                         Row(
-                            Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).clickable(role = Role.Button) { onAdd(a) }.padding(6.dp),
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).clickable(role = Role.Button) { Haptics.confirm(view); onAdd(a) }.padding(6.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
@@ -131,9 +135,9 @@ fun AlbumSheet(
                             )
                             Column(Modifier.weight(1f)) {
                                 T(a.name, weight = FontWeight.SemiBold, maxLines = 1)
-                                T(plural(a.photos.size, "photo"), size = 13, muted = true)
+                                T(L.p("photos", a.photos.size), size = 13, muted = true)
                             }
-                            Icon(Icons.Filled.AddCircle, "Add to ${a.name}", tint = Accent)
+                            Icon(Icons.Filled.AddCircle, L.s("add_to_named", "name" to a.name), tint = Accent)
                         }
                     }
                 }
@@ -160,17 +164,17 @@ fun SettingsSheet(
     val p = LocalPalette.current
     BottomSheet(onDismiss) {
         Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            T("Photo sources", size = 13, weight = FontWeight.Bold, muted = true)
-            SourceRow(Icons.Outlined.PhoneAndroid, "Photos on this phone", if (state.sources.device) "Connected" else "Not connected", state.sources.device, onConnectDevice)
+            T(L.s("photo_sources"), size = 13, weight = FontWeight.Bold, muted = true)
+            SourceRow(Icons.Outlined.PhoneAndroid, L.s("phone_photos"), L.s(if (state.sources.device) "connected" else "not_connected"), state.sources.device, onConnectDevice)
             SourceRow(
-                Icons.Outlined.PhotoLibrary, "Google Photos",
-                if (state.sources.google) "${plural(state.googlePhotos.size, "photo")} picked" else "Not connected",
+                Icons.Outlined.PhotoLibrary, L.s("google_photos"),
+                if (state.sources.google) L.s("n_picked", "photos" to L.p("photos", state.googlePhotos.size)) else L.s("not_connected"),
                 state.sources.google, onGoogle,
             )
             HorizontalDivider(color = p.line)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Icon(Icons.Outlined.Notifications, null, tint = p.ink)
-                T("Daily reminder", weight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                T(L.s("daily_reminder"), weight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                 if (state.reminder.on) {
                     Box(
                         Modifier.clip(RoundedCornerShape(50)).background(p.fill)
@@ -188,14 +192,14 @@ fun SettingsSheet(
                     colors = SwitchDefaults.colors(checkedTrackColor = Accent, checkedThumbColor = Color.White),
                 )
             }
-            T("Only on days that have photos from past years. Tap the time to change it.", size = 13, muted = true)
+            T(L.s("reminder_settings_note"), size = 13, muted = true)
             HorizontalDivider(color = p.line)
-            T("Layout", size = 13, weight = FontWeight.Bold, muted = true)
+            T(L.s("layout"), size = 13, weight = FontWeight.Bold, muted = true)
             Row(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(50)).background(p.fill).padding(4.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                listOf(YearLayout.MOSAIC to "All years", YearLayout.STRIP to "One year at a time").forEach { (layout, label) ->
+                listOf(YearLayout.MOSAIC to L.s("layout_all_years"), YearLayout.STRIP to L.s("layout_one_year")).forEach { (layout, label) ->
                     val on = state.layout == layout
                     Box(
                         Modifier.weight(1f).height(40.dp).clip(RoundedCornerShape(50))
@@ -214,17 +218,17 @@ fun SettingsSheet(
             ) {
                 Icon(if (hidden) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff, null, tint = p.ink)
                 Column(Modifier.weight(1f)) {
-                    T(if (hidden) "Show ${day.label()} again" else "Hide ${day.label()}", weight = FontWeight.SemiBold)
-                    T("Hidden dates don't come up on their own or in reminders.", size = 13, muted = true)
+                    T(L.s(if (hidden) "show_day_again" else "hide_day", "day" to day.label()), weight = FontWeight.SemiBold)
+                    T(L.s("hidden_note"), size = 13, muted = true)
                 }
             }
             val others = state.hiddenDates.mapNotNull { MonthDay.fromKey(it) }.filter { it != day }.sortedWith(compareBy({ it.month }, { it.day }))
             if (others.isNotEmpty()) {
-                T("Hidden dates", size = 13, weight = FontWeight.Bold, muted = true)
+                T(L.s("hidden_dates"), size = 13, weight = FontWeight.Bold, muted = true)
                 others.forEach { md ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         T(md.label(), weight = FontWeight.Medium, modifier = Modifier.weight(1f))
-                        Pill("Show", { onHidden(md, false) }, kind = Kind.Secondary, height = 36.dp)
+                        Pill(L.s("show"), { onHidden(md, false) }, kind = Kind.Secondary, height = 36.dp)
                     }
                 }
             }
@@ -266,25 +270,25 @@ fun GoogleSheet(
             Icon(Icons.Outlined.PhotoLibrary, null, tint = p.ink)
         }
         if (busy != null) {
-            T(if (busy.total > 0) "Saving your picks" else "Waiting for Google Photos", size = 24, weight = FontWeight.ExtraBold, tight = true)
+            T(L.s(if (busy.total > 0) "google_saving" else "google_waiting"), size = 24, weight = FontWeight.ExtraBold, tight = true)
             T(
-                if (busy.total > 0) "${busy.done} of ${busy.total} photos" else "Pick photos in Google Photos, tap Done, then come back here.",
+                if (busy.total > 0) L.s("google_progress", "done" to busy.done, "photos" to L.p("photos", busy.total)) else L.s("google_waiting_body"),
                 size = 15, weight = FontWeight.Medium, muted = true,
             )
             LinearProgressIndicator(color = Accent, trackColor = p.fill, modifier = Modifier.fillMaxWidth())
-            Pill("Cancel", onCancel, kind = Kind.Ghost, height = 48.dp, modifier = Modifier.fillMaxWidth())
+            Pill(L.s("cancel"), onCancel, kind = Kind.Ghost, height = 48.dp, modifier = Modifier.fillMaxWidth())
         } else {
-            T(if (connected) "Google Photos is connected" else "Add Google Photos", size = 24, weight = FontWeight.ExtraBold, tight = true)
+            T(L.s(if (connected) "google_connected_title" else "google_add_title"), size = 24, weight = FontWeight.ExtraBold, tight = true)
             T(
-                if (connected) "${plural(picked, "photo")} picked. Pick more any time."
-                else "Google only lets apps see the photos you pick. Choose the ones you want Back Then to bring back, such as a whole year or a trip. Copies of shots already on this phone show once.",
+                if (connected) L.s("google_connected_body", "photos" to L.p("photos", picked))
+                else L.s("google_intro_android"),
                 size = 15, weight = FontWeight.Medium, muted = true,
             )
-            if (!connected) T("Photos backed up from this phone already show up through phone photos.", size = 13, muted = true)
+            if (!connected) T(L.s("google_backup_note"), size = 13, muted = true)
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Pill(if (connected) "Pick more photos" else "Continue with Google", onPick, modifier = Modifier.fillMaxWidth())
-                if (connected) Pill("Disconnect", onDisconnect, kind = Kind.Ghost, height = 48.dp, modifier = Modifier.fillMaxWidth())
-                else Pill("Not now", onDismiss, kind = Kind.Ghost, height = 48.dp, modifier = Modifier.fillMaxWidth())
+                Pill(L.s(if (connected) "pick_more" else "continue_google"), onPick, modifier = Modifier.fillMaxWidth())
+                if (connected) Pill(L.s("disconnect"), onDisconnect, kind = Kind.Ghost, height = 48.dp, modifier = Modifier.fillMaxWidth())
+                else Pill(L.s("not_now"), onDismiss, kind = Kind.Ghost, height = 48.dp, modifier = Modifier.fillMaxWidth())
             }
         }
     }
@@ -299,16 +303,16 @@ fun SelectBar(count: Int, onShare: () -> Unit, onAlbum: () -> Unit, modifier: Mo
         modifier.fillMaxWidth().height(62.dp).clip(RoundedCornerShape(20.dp)).background(p.ink).padding(start = 20.dp, end = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        T(if (none) "Tap photos to select" else "${plural(count, "photo")} selected", size = 15, weight = FontWeight.SemiBold, color = p.bg, modifier = Modifier.weight(1f))
+        T(if (none) L.s("select_hint") else L.s("n_selected", "photos" to L.p("photos", count)), size = 15, weight = FontWeight.SemiBold, color = p.bg, modifier = Modifier.weight(1f))
         Box(Modifier.clip(RoundedCornerShape(50)).clickable(enabled = !none, role = Role.Button, onClick = onShare).padding(horizontal = 14.dp, vertical = 12.dp)) {
-            T("Share", size = 15, weight = FontWeight.SemiBold, color = p.bg.copy(alpha = if (none) 0.4f else 1f))
+            T(L.s("share"), size = 15, weight = FontWeight.SemiBold, color = p.bg.copy(alpha = if (none) 0.4f else 1f))
         }
-        Pill("+ Album", onAlbum, kind = Kind.Accent, height = 44.dp, enabled = !none)
+        Pill(
+            L.s("album"), onAlbum, kind = Kind.Accent, height = 44.dp, enabled = !none,
+            icon = { Icon(Icons.Filled.Add, null, tint = it, modifier = Modifier.size(16.dp)) },
+        )
     }
 }
-
-@Composable
-fun Dot(color: Color) = Box(Modifier.size(5.dp).clip(RoundedCornerShape(50)).background(color))
 
 /** What to share: a year, a selection, or an album. */
 data class ShareRequest(val title: String, val photos: List<Photo>)
@@ -336,10 +340,10 @@ fun ShareSheet(request: ShareRequest, onSend: () -> Unit, onSave: () -> Unit, on
             }
             Column(Modifier.weight(1f)) {
                 T(request.title, size = 18, weight = FontWeight.Bold, maxLines = 2)
-                T(plural(request.photos.size, "photo"), size = 14, muted = true)
+                T(L.p("photos", request.photos.size), size = 14, muted = true)
             }
         }
-        Pill("Share", onSend, modifier = Modifier.fillMaxWidth(), icon = { Icon(Icons.Outlined.IosShare, null, tint = it, modifier = Modifier.size(18.dp)) })
+        Pill(L.s("share"), onSend, modifier = Modifier.fillMaxWidth(), icon = { Icon(Icons.Outlined.IosShare, null, tint = it, modifier = Modifier.size(18.dp)) })
         HorizontalDivider(color = p.line)
         Row(
             Modifier.fillMaxWidth().height(52.dp).clip(RoundedCornerShape(12.dp)).clickable(role = Role.Button, onClick = onSave).padding(horizontal = 4.dp),
@@ -347,7 +351,7 @@ fun ShareSheet(request: ShareRequest, onSend: () -> Unit, onSave: () -> Unit, on
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Icon(Icons.Outlined.Download, null, tint = p.ink)
-            T("Save copies to Pictures", weight = FontWeight.Medium)
+            T(L.s("save_copies_gallery"), weight = FontWeight.Medium)
         }
     }
 }

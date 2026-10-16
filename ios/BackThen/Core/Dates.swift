@@ -1,5 +1,10 @@
 import Foundation
 
+extension Calendar {
+    /// The app matches photos by Gregorian date, whatever calendar the phone shows.
+    static var app: Calendar { Calendar(identifier: .gregorian) }
+}
+
 /// A calendar day without a year. `month` is 0-based, to match the design's logic.
 struct MonthDay: Hashable, Codable {
     let month: Int
@@ -7,7 +12,7 @@ struct MonthDay: Hashable, Codable {
 
     var key: String { "\(month)-\(day)" }
 
-    static func of(_ date: Date, calendar: Calendar = .current) -> MonthDay {
+    static func of(_ date: Date, calendar: Calendar = .app) -> MonthDay {
         let c = calendar.dateComponents([.month, .day], from: date)
         return MonthDay(month: c.month! - 1, day: c.day!)
     }
@@ -29,8 +34,10 @@ struct MonthDay: Hashable, Codable {
         return MonthDay(month: m, day: d)
     }
 
-    var label: String { "\(months[month]) \(day)" }
-    var shortLabel: String { "\(monthsShort[month]) \(day)" }
+    /// "October 16" in the app's language.
+    var label: String { L.monthDay(self, "MMMMd") }
+    /// "Oct 16" in the app's language.
+    var shortLabel: String { L.monthDay(self, "MMMd") }
 }
 
 // In an extension, so MonthDay keeps its memberwise init.
@@ -43,46 +50,34 @@ extension MonthDay {
     }
 }
 
-let months = ["January", "February", "March", "April", "May", "June",
-              "July", "August", "September", "October", "November", "December"]
-let monthsShort = months.map { String($0.prefix(3)) }
-
 /// February has 29 so Feb 29 can always be picked.
 let daysInMonth = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
-func plural(_ n: Int, _ word: String) -> String { "\(n) \(word)\(n == 1 ? "" : "s")" }
-
-func agoLabel(_ year: Int, thisYear: Int = Calendar.current.component(.year, from: Date())) -> String {
-    switch thisYear - year {
-    case 0: return "Earlier this year"
-    case 1: return "1 year ago"
-    case let diff: return "\(diff) years ago"
-    }
+func agoLabel(_ year: Int, thisYear: Int = Calendar.app.component(.year, from: Date())) -> String {
+    let diff = thisYear - year
+    return diff == 0 ? L.s("ago_this_year") : L.p("ago_years", diff)
 }
 
-/// A reminder time in the phone's 12 or 24 hour style.
-func formatTime(hour: Int, minute: Int, locale: Locale = .autoupdatingCurrent) -> String {
-    var cal = Calendar(identifier: .gregorian)
-    cal.timeZone = TimeZone(identifier: "UTC")!
-    let date = cal.date(from: DateComponents(year: 2000, month: 1, day: 1, hour: hour, minute: minute))!
-    var style = Date.FormatStyle(date: .omitted, time: .shortened, locale: locale, calendar: cal)
-    style.timeZone = cal.timeZone
-    return date.formatted(style)
-}
+/// The reminder time, 12 or 24 hour as the language and phone prefer.
+func formatTime(hour: Int, minute: Int) -> String { L.time(hour: hour, minute: minute) }
 
 /// Start and end (exclusive) of a local calendar day. Nil if the day doesn't exist that year.
-func dayRange(year: Int, _ md: MonthDay, calendar: Calendar = .current) -> (Date, Date)? {
+func dayRange(year: Int, _ md: MonthDay, calendar: Calendar = .app) -> (Date, Date)? {
     let comps = DateComponents(year: year, month: md.month + 1, day: md.day)
     guard comps.isValidDate(in: calendar), let start = calendar.date(from: comps),
           let end = calendar.date(byAdding: .day, value: 1, to: start) else { return nil }
     return (start, end)
 }
 
-func yearOf(_ date: Date) -> Int { Calendar.current.component(.year, from: date) }
+func yearOf(_ date: Date) -> Int { Calendar.app.component(.year, from: date) }
 
 func weekday(year: Int, _ md: MonthDay) -> String {
     guard let (start, _) = dayRange(year: year, md) else { return "" }
-    let f = DateFormatter()
-    f.dateFormat = "EEEE"
-    return f.string(from: start)
+    return L.date(start, "EEEE")
+}
+
+/// "October 16, 2021" in the app's language.
+func fullDate(year: Int, _ md: MonthDay) -> String {
+    guard let (start, _) = dayRange(year: year, md) else { return md.label }
+    return L.date(start, "yMMMMd")
 }

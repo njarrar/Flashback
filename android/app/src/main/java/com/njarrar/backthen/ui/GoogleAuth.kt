@@ -11,6 +11,7 @@ import com.google.android.gms.auth.api.identity.AuthorizationRequest
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.android.gms.common.api.Scope
 import com.njarrar.backthen.AppViewModel
+import com.njarrar.backthen.core.L
 import com.njarrar.backthen.data.PICKER_SCOPE
 
 /**
@@ -28,7 +29,7 @@ fun rememberGoogleImport(vm: AppViewModel): () -> Unit {
         if (result.resultCode != Activity.RESULT_OK) return@rememberLauncherForActivityResult
         runCatching { client.getAuthorizationResultFromIntent(result.data) }
             .onSuccess { auth -> auth.accessToken?.let { vm.importFromGoogle(it, openPicker) } }
-            .onFailure { vm.say("Google sign-in failed") }
+            .onFailure { vm.say(L.s("toast_google_signin_failed")) }
     }
 
     return {
@@ -42,6 +43,6 @@ fun rememberGoogleImport(vm: AppViewModel): () -> Unit {
                     auth.accessToken?.let { vm.importFromGoogle(it, openPicker) }
                 }
             }
-            .addOnFailureListener { vm.say("Google sign-in is not set up for this build") }
+            .addOnFailureListener { vm.say(L.s("toast_google_not_setup")) }
     }
 }

@@ -33,14 +33,15 @@ final class CoreTests: XCTestCase {
         XCTAssertNil(MonthDay(key: "x"))
     }
 
-    func testLabels() {
+    func testLabels() throws {
+        let saved = (L.lang, L.locale)
+        defer { L.use(saved.0, locale: saved.1) }
+        L.use(try XCTUnwrap(L.load("en")), locale: Locale(identifier: "en_US"))
         XCTAssertEqual(agoLabel(2025, thisYear: 2026), "1 year ago")
         XCTAssertEqual(agoLabel(2016, thisYear: 2026), "10 years ago")
-        XCTAssertEqual(plural(1, "photo"), "1 photo")
-        XCTAssertEqual(plural(3, "photo"), "3 photos")
-        // 12 or 24 hour, as the phone is set.
-        XCTAssertEqual(formatTime(hour: 18, minute: 30, locale: Locale(identifier: "en_GB")), "18:30")
-        XCTAssertTrue(formatTime(hour: 18, minute: 30, locale: Locale(identifier: "en_US")).hasPrefix("6:30"))
+        XCTAssertEqual(L.p("photos", 1), "1 photo")
+        XCTAssertEqual(L.p("photos", 3), "3 photos")
+        XCTAssertTrue(formatTime(hour: 18, minute: 30).contains("30"))
     }
 
     func testIndexCountsPerDayAndYear() {

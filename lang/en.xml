@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  English. Every other language starts from this file.
+
+  To add a language, copy this file to lang/<code>.xml (such as de.xml or pt-BR.xml),
+  set name, dir ("rtl" for right to left) and script ("arabic" for Arabic script), and
+  translate the text between the tags. Keep the {slots}: the app fills them in.
+  Plurals take one <item> per form the language uses: zero, one, two, few, many, other.
+  Any word left out comes from English.
+-->
+<language name="English" dir="ltr" script="latin">
+
+    <!-- Shared -->
+    <string name="app_name">Back Then</string>
+    <string name="cancel">Cancel</string>
+    <string name="close">Close</string>
+    <string name="create">Create</string>
+    <string name="save">Save</string>
+    <string name="ok">OK</string>
+    <string name="not_now">Not now</string>
+    <string name="share">Share</string>
+    <string name="more">More</string>
+    <string name="options">Options</string>
+    <string name="loading">Loading</string>
+    <string name="today">Today</string>
+    <string name="photo">Photo</string>
+
+    <plurals name="photos">
+        <item quantity="one">{n} photo</item>
+        <item quantity="other">{n} photos</item>
+    </plurals>
+    <plurals name="years">
+        <item quantity="one">{n} year</item>
+        <item quantity="other">{n} years</item>
+    </plurals>
+    <plurals name="albums">
+        <item quantity="one">{n} album</item>
+        <item quantity="other">{n} albums</item>
+    </plurals>
+    <plurals name="ago_years">
+        <item quantity="one">{n} year ago</item>
+        <item quantity="other">{n} years ago</item>
+    </plurals>
+    <string name="ago_this_year">Earlier this year</string>
+    <string name="photos_from_years">{photos} from {years}</string>
+    <string name="weekday_photos">{weekday}, {photos}</string>
+    <string name="ago_weekday">{ago} · {weekday}</string>
+    <string name="ago_weekday_photos">{ago} · {weekday}, {photos}</string>
+    <string name="photo_from">Photo from {date}</string>
+
+    <!-- Tabs -->
+    <string name="tab_today">Today</string>
+    <string name="tab_favorites">Favorites</string>
+    <string name="tab_albums">Albums</string>
+
+    <!-- Welcome -->
+    <string name="welcome_title">See what this day looked like, every year.</string>
+    <string name="welcome_body">Each morning, Back Then finds the photos you took on today's date in past years and sorts them by year.</string>
+    <string name="welcome_denied">Without photo access there is nothing to show. You can allow it later in Settings.</string>
+    <string name="use_apple_photos">Use Apple Photos</string>
+    <string name="use_google_photos">Use Google Photos</string>
+    <string name="use_phone_photos">Use photos on this phone</string>
+    <string name="privacy_line">Your photos stay on this phone. Nothing is uploaded.</string>
+
+    <!-- Daily reminder, on the welcome screen and in the notification -->
+    <string name="reminder_title_years">{day} has photos from {years}</string>
+    <string name="reminder_title_any">{day} has photos from past years</string>
+    <string name="reminder_body_oldest">The oldest is from {year}. Tap to look back.</string>
+    <string name="reminder_body">Tap to look back.</string>
+    <string name="reminder_onboarding_title">One reminder a day</string>
+    <string name="reminder_onboarding_body">Only on days that have photos from past years. You can change the time later.</string>
+    <string name="turn_on_reminder">Turn on reminder</string>
+
+    <!-- Today -->
+    <string name="today_loading">Looking through your library…</string>
+    <string name="today_none">No photos on this date</string>
+    <string name="pick_another_day">Pick another day</string>
+    <string name="pick_a_day">Pick a day</string>
+    <string name="back_to_today">Back to today</string>
+    <string name="select">Select</string>
+    <string name="selected">Selected</string>
+    <string name="not_selected">Not selected</string>
+    <string name="select_hint">Tap photos to select</string>
+    <string name="n_selected">{photos} selected</string>
+    <string name="album">Album</string>
+    <string name="share_year">Share {year}</string>
+    <string name="empty_no_sources_title">No photos connected</string>
+    <string name="empty_title">Nothing from {day} yet</string>
+    <string name="empty_no_sources_ios">Connect Apple Photos or Google Photos to see this day in past years.</string>
+    <string name="empty_no_sources_android">Connect your phone's photos or Google Photos to see this day in past years.</string>
+    <string name="empty_nearby">You didn't take photos on this date in past years. These nearby days have some.</string>
+    <string name="empty_none">You didn't take photos on this date in past years.</string>
+    <string name="connect_photos">Connect photos</string>
+
+    <!-- Calendar -->
+    <string name="calendar_hint">Darker days have photos from more years</string>
+    <string name="previous_month">Previous month</string>
+    <string name="next_month">Next month</string>
+    <string name="day_no_photos">{day}, no photos</string>
+    <string name="day_photos_from">{day}, photos from {years}</string>
+
+    <!-- Photo viewer -->
+    <string name="favorite">Favorite</string>
+    <string name="unfavorite">Remove from favorites</string>
+    <string name="add_to_album">Add to album</string>
+    <string name="photo_n_of">Photo {n} of {total}</string>
+
+    <!-- Favorites -->
+    <string name="favorites_none">Nothing saved yet</string>
+    <string name="favorites_empty_title">No favorites yet</string>
+    <string name="favorites_empty_body">Open any photo and tap the heart. It will be kept here, whatever day it's from.</string>
+
+    <!-- Albums -->
+    <string name="new_album">New</string>
+    <string name="albums_empty_title">No albums yet</string>
+    <string name="albums_empty_body">On Today, tap Select, pick a few photos, then tap Album.</string>
+    <string name="album_made">{photos} · made {date}</string>
+    <string name="share_album">Share album</string>
+    <string name="save_to_photos">Save to Photos</string>
+    <string name="save_to_gallery">Save to gallery</string>
+    <string name="rename">Rename</string>
+    <string name="rename_album">Rename album</string>
+    <string name="album_name">Album name</string>
+    <string name="delete_album">Delete album</string>
+    <string name="delete_album_confirm">Delete "{name}"?</string>
+    <string name="delete_album_note">The photos stay in your library.</string>
+    <string name="new_album_name">New album name</string>
+    <string name="album_name_example">e.g. Fall in the city</string>
+    <string name="add_to_existing">Or add to an existing album</string>
+    <string name="add_to_named">Add to {name}</string>
+
+    <!-- Settings -->
+    <string name="photo_sources">Photo sources</string>
+    <string name="apple_photos">Apple Photos</string>
+    <string name="phone_photos">Photos on this phone</string>
+    <string name="google_photos">Google Photos</string>
+    <string name="connected">Connected</string>
+    <string name="not_connected">Not connected</string>
+    <string name="n_picked">{photos} picked</string>
+    <string name="daily_reminder">Daily reminder</string>
+    <string name="change_reminder_time">Change reminder time</string>
+    <string name="reminder_settings_note">Only on days that have photos from past years. Tap the time to change it.</string>
+
+    <!-- Google Photos -->
+    <string name="google_saving">Saving your picks</string>
+    <string name="google_waiting">Waiting for Google Photos</string>
+    <string name="google_progress">{done} of {photos}</string>
+    <string name="google_waiting_body">Pick photos in Google Photos, tap Done, then come back here.</string>
+    <string name="google_connected_title">Google Photos is connected</string>
+    <string name="google_add_title">Add Google Photos</string>
+    <string name="google_connected_body">{photos} picked. Pick more any time.</string>
+    <string name="google_intro_ios">Google only lets apps see the photos you pick. Choose the ones you want Back Then to bring back, such as a whole year or a trip. Copies of shots already in Apple Photos show once.</string>
+    <string name="google_intro_android">Google only lets apps see the photos you pick. Choose the ones you want Back Then to bring back, such as a whole year or a trip. Copies of shots already on this phone show once.</string>
+    <string name="google_backup_note">Photos backed up from this phone already show up through phone photos.</string>
+    <string name="pick_more">Pick more photos</string>
+    <string name="continue_google">Continue with Google</string>
+    <string name="disconnect">Disconnect</string>
+    <string name="google_no_client">This build has no Google client ID yet. See the README to add one.</string>
+
+    <!-- Hidden dates, layout and the share sheet -->
+    <string name="you_hid_date">You hid this date</string>
+    <string name="hide_date">Hide date</string>
+    <string name="hide_day">Hide {day}</string>
+    <string name="show_day_again">Show {day} again</string>
+    <string name="hidden_note">Hidden dates don't come up on their own or in reminders.</string>
+    <string name="hidden_dates">Hidden dates</string>
+    <string name="show">Show</string>
+    <string name="day_is_hidden">{day} is hidden</string>
+    <string name="hidden_body">It won't come up on its own or in reminders.</string>
+    <string name="show_it_again">Show it again</string>
+    <string name="toast_day_hidden">{day} hidden</string>
+    <string name="toast_day_shown">{day} shown again</string>
+    <string name="layout">Layout</string>
+    <string name="layout_all_years">All years</string>
+    <string name="layout_one_year">One year at a time</string>
+    <string name="newest">Newest</string>
+    <string name="oldest">Oldest</string>
+    <string name="save_copies_photos">Save to an album in Photos</string>
+    <string name="save_copies_gallery">Save copies to Pictures</string>
+
+    <!-- Short messages at the bottom of the screen -->
+    <string name="toast_reminder_set">Daily reminder set for {time}</string>
+    <string name="toast_apple_connected">Apple Photos connected</string>
+    <string name="toast_notifications_off">Notifications are off in Settings</string>
+    <string name="toast_allow_access">Allow photo access in Settings</string>
+    <string name="toast_favorited">Added to Favorites</string>
+    <string name="toast_unfavorited">Removed from Favorites</string>
+    <string name="toast_album_created">Album created</string>
+    <string name="toast_added_to">Added to {name}</string>
+    <string name="toast_new_album_hint">Tap Select, pick photos, then tap Album</string>
+    <string name="toast_allow_save">Allow photo access to save</string>
+    <string name="toast_saved_photos">Saved to Photos</string>
+    <string name="toast_saved_gallery">Saved to Pictures/Back Then</string>
+    <string name="toast_save_failed">Could not save the album</string>
+    <string name="toast_no_picks">No photos picked</string>
+    <string name="toast_google_connected">Google Photos connected</string>
+    <string name="toast_google_added">Added {photos} from Google Photos</string>
+    <string name="toast_google_failed">Could not reach Google Photos</string>
+    <string name="toast_google_disconnected">Google Photos disconnected</string>
+    <string name="toast_google_signin_failed">Google sign-in failed</string>
+    <string name="toast_google_not_setup">Google sign-in is not set up for this build</string>
+
+    <!-- iPhone photo access prompts -->
+    <string name="ios_photos_permission">Back Then shows the photos you took on this day in past years.</string>
+    <string name="ios_photos_add_permission">Back Then saves your albums to Photos when you ask it to.</string>
+
+    <!-- Sample albums for the README screenshots -->
+    <string name="demo_album_fall">Fall weekends</string>
+    <string name="demo_album_garden">Grandma's garden</string>
+</language>

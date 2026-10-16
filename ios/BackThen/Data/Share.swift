@@ -16,6 +16,7 @@ enum Share {
                 guard let data = await PhotoLibrary.data(id: p.ref) else { continue }
                 // Name files by date so they make sense where they land.
                 let f = DateFormatter()
+                f.locale = Locale(identifier: "en_US_POSIX")
                 f.dateFormat = "yyyy-MM-dd"
                 let url = dir.appending(path: "\(f.string(from: p.time))-\(i + 1).jpg")
                 let jpeg = UIImage(data: data)?.jpegData(compressionQuality: 0.92) ?? data

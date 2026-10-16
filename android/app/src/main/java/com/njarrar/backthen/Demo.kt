@@ -2,6 +2,7 @@ package com.njarrar.backthen
 
 import androidx.lifecycle.viewModelScope
 import com.njarrar.backthen.core.Album
+import com.njarrar.backthen.core.L
 import com.njarrar.backthen.core.MonthDay
 import com.njarrar.backthen.core.buildDayIndex
 import kotlinx.coroutines.launch
@@ -16,11 +17,11 @@ fun AppViewModel.runDemo(scene: String) = viewModelScope.launch {
     val photos = photosFor(MonthDay.today()).flatMap { it.photos }
     if (photos.isEmpty()) return@launch
     val now = System.currentTimeMillis()
-    val album = Album("demo", "Fall weekends", photos.take(9), now)
+    val album = Album("demo", L.s("demo_album_fall"), photos.take(9), now)
     updateSaved {
         it.copy(
             favorites = photos.filterIndexed { i, _ -> i % 3 == 0 },
-            albums = listOf(album, Album("demo2", "Grandma's garden", photos.takeLast(5), now)),
+            albums = listOf(album, Album("demo2", L.s("demo_album_garden"), photos.takeLast(5), now)),
         )
     }
     if (scene == "viewer") viewer.value = Viewer(photos, minOf(2, photos.size - 1))

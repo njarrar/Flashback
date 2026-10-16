@@ -13,9 +13,12 @@ android {
         applicationId = "com.njarrar.backthen"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.1.0"
+        versionCode = 5
+        versionName = "1.4.0"
     }
+
+    // The language files in lang/ at the top of the repo ship as app assets (en.xml, ar.xml, ...).
+    sourceSets["main"].assets.srcDir("../../lang")
 
     buildTypes {
         release {
@@ -54,6 +57,7 @@ dependencies {
     implementation("androidx.browser:browser:1.8.0")
     implementation("com.google.android.gms:play-services-auth:21.3.0")
     implementation("io.coil-kt.coil3:coil-compose:3.2.0")
+    implementation("me.saket.telephoto:zoomable-image-coil3:0.16.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
 

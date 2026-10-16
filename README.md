@@ -19,8 +19,8 @@ Google Photos.
   </tr>
   <tr>
     <td><img src="docs/screenshots/ios/today.png" width="240" alt="Today screen on iPhone: years with photos from this date, newest first"></td>
-    <td><img src="docs/screenshots/ios/calendar.png" width="240" alt="Calendar sheet on iPhone, with dots on days that have photos"></td>
-    <td><img src="docs/screenshots/ios/viewer.png" width="240" alt="Full-screen photo viewer on iPhone with heart, share and album buttons"></td>
+    <td><img src="docs/screenshots/ios/calendar.png" width="240" alt="Calendar sheet on iPhone, with days shaded by how many years have photos"></td>
+    <td><img src="docs/screenshots/ios/viewer.png" width="240" alt="Full-screen photo viewer on iPhone with a filmstrip and heart, share and album buttons"></td>
   </tr>
   <tr>
     <th>Favorites</th>
@@ -45,17 +45,125 @@ Google Photos.
   </tr>
 </table>
 
+### In Arabic
+
+The whole app turns right to left, with an Arabic font and Arabic month names.
+
+<table>
+  <tr>
+    <th>iPhone: Today</th>
+    <th>iPhone: Pick a day</th>
+    <th>iPhone: First launch</th>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/ios/ar-today.png" width="240" alt="Today screen on iPhone in Arabic, laid out right to left"></td>
+    <td><img src="docs/screenshots/ios/ar-calendar.png" width="240" alt="Calendar sheet on iPhone in Arabic, with the first day on the right"></td>
+    <td><img src="docs/screenshots/ios/ar-1-welcome.png" width="240" alt="Welcome screen on iPhone in Arabic"></td>
+  </tr>
+  <tr>
+    <th>iPhone: Photo viewer</th>
+    <th>iPhone: Favorites</th>
+    <th>iPhone: An album</th>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/ios/ar-viewer.png" width="240" alt="Photo viewer on iPhone in Arabic"></td>
+    <td><img src="docs/screenshots/ios/ar-favorites.png" width="240" alt="Favorites on iPhone in Arabic"></td>
+    <td><img src="docs/screenshots/ios/ar-album.png" width="240" alt="An album on iPhone in Arabic"></td>
+  </tr>
+</table>
+
+<table>
+  <tr>
+    <td><img src="docs/screenshots/android/ar-today.png" width="200" alt="Today screen on Android in Arabic"></td>
+    <td><img src="docs/screenshots/android/ar-calendar.png" width="200" alt="Date picker on Android in Arabic"></td>
+    <td><img src="docs/screenshots/android/ar-viewer.png" width="200" alt="Photo viewer on Android in Arabic"></td>
+    <td><img src="docs/screenshots/android/ar-1-welcome.png" width="200" alt="Welcome screen on Android in Arabic"></td>
+  </tr>
+</table>
+
 The photos in these screenshots are samples from [Lorem Picsum](https://picsum.photos),
 stamped with past dates. The [Screenshots workflow](.github/workflows/screenshots.yml)
 takes them from the real apps on an iPhone simulator and an Android emulator. (A
 simulator can't be given photo access without a tap, so on iPhone the samples load
 the same way Google Photos picks do.)
 
+## What it does
+
+- **Today.** Every past year that has photos on this date, newest first. Each year
+  gets a large year number, how long ago it was, a share button, and a mosaic of
+  that day's photos. While you scroll, the year you are in stays pinned at the top.
+  Or switch to one year at a time. Pull down to check the library for new photos.
+  Hide a date you'd rather not see again.
+- **Pick a day.** A month-and-day calendar (no year, since every year shows at once).
+  The darker a day, the more past years have photos on it. Swipe to change month. A
+  day with no photos offers the closest days that have some.
+- **Photo viewer.** Swipe through a day's photos or jump with the filmstrip. Pinch
+  or double tap to zoom, swipe down to close, tap to hide the buttons. Heart a photo,
+  share it, or add it to an album.
+- **Favorites.** Every photo you've hearted, from any day, with its year on each tile.
+- **Albums.** On Today, tap Select, pick photos, then tap Album. Share an album
+  through any app, or save it as a real album in Photos (iPhone) or under
+  Pictures/Back Then (Android). Rename or delete it from the album's menu.
+- **Daily reminder.** One notification a day at a time you choose, and only on days
+  that have photos from past years. Tapping it opens that day.
+- **Looks native on each phone.** The system tab bar and sheets on iPhone, with text
+  that grows with the system text size; a large top app bar, navigation bar and
+  Android's own date dialog on Android. Light and dark mode.
+
+## What's new in 1.4
+
+- **Four languages.** English, French, Spanish and Arabic. The app follows the
+  phone's language (on iPhone, also the app's own language in Settings). Dates,
+  times and numbers are written the way that language writes them, so French gets
+  "16 octobre" and a 24 hour clock.
+- **Arabic, right to left.** Every screen flips: the back arrow, the calendar (the
+  first day sits on the right and swipes go the other way), the photo mosaic, the
+  viewer and the tab order. Arabic text uses the Tajawal font, since Nunito has no
+  Arabic letters, with normal letter spacing (tight spacing breaks joined letters)
+  and taller lines. Counts use all six Arabic plural forms, such as صورتان for two
+  photos, and digits follow the phone's setting (Western or Arabic).
+- **One file per language** in [`lang/`](lang), shared by both apps. See
+  [Languages](#languages) for how to add one.
+- **iPhone unit tests** run in CI again, with new tests for the language files on
+  both apps.
+- **Everything from 1.1 in the new design.** Hidden dates, one year at a time and
+  the share sheet now sit in the 1.3 design and speak all four languages. The Hide
+  date button is in the top bar on iPhone and next to the photo count on Android.
+- **Gregorian dates everywhere.** A phone set to the Hijri calendar (the default in
+  Saudi Arabia) still sees the right day's photos, and dates read the usual way.
+
+## What's new in 1.3
+
+A design pass to make the app calmer and easier to use. Every change is on both
+apps.
+
+- **Tabs keep their place.** Switching tabs keeps each tab's scroll position and
+  open album. Tap the active tab again to go back to the top. On iPhone the tab bar
+  is now the system one, and an album page has the normal back swipe.
+- **Today header.** The buttons read Select, calendar, then the menu. Share moved
+  into each year's header as a round button, and there is less empty space above the
+  first year. On Android the date is the title of the top bar.
+- **The year stays in view.** While you scroll, the top bar blurs and shows a small
+  date title, and the current year pins under it until the next year pushes it out.
+- **Photo grids.** Favorites and album pages run edge to edge with thin gaps. The
+  year on Favorites tiles is a small chip instead of a dark gradient.
+- **Photo viewer.** Zoom, swipe down to close, tap to hide the buttons, and a
+  filmstrip in place of the page dots and "3 of 23".
+- **Calendar.** Days are shaded by how many years have photos instead of dotted.
+  Swipe to change month; a Today button shows when you are away from today.
+- **Album page.** Two clear buttons, Share album and Save, with Rename and Delete in
+  the menu. Rename is new.
+- **Welcome.** The three prints show small drawings, and a line says your photos
+  stay on the phone.
+- **Under the hood.** Text grows with the iPhone text size, every iPhone corner is
+  smooth and on one scale, album rows answer a press at once, and light haptics mark
+  picks, hearts, new albums and month or photo changes.
+
 ## What's new in 1.1
 
 - **Hidden dates.** Hide a date with the "Hide date" button on Today (the eye on
   iPhone) or from the "..." menu. It stops coming up on
-  its own: no reminder, no calendar dot, and it isn't offered as a nearby day. The
+  its own: no reminder, no calendar shading, and it isn't offered as a nearby day. The
   menu lists hidden dates so you can show any of them again.
 - **One year at a time.** A second layout from the design, picked in the "..." menu.
   Year buttons stay at the top, each year gets a huge year number and two columns
@@ -70,24 +178,6 @@ the same way Google Photos picks do.)
   only ever sent to Google. iPhone keeps recent thumbnails in memory, so scrolling
   back up doesn't reload them.
 - **iPhone unit tests**, run in CI alongside the Android ones.
-
-## What it does
-
-- **Today.** Every past year that has photos on this date, newest first. Each year
-  gets a large year number, how long ago it was, and a mosaic of that day's photos.
-  Or switch to one year at a time. Pull down to check the library for new photos.
-  Hide a date you'd rather not see again.
-- **Pick a day.** A month-and-day calendar (no year, since every year shows at once).
-  Dots mark days with photos. A day with no photos offers the closest days that have some.
-- **Photo viewer.** Swipe through a day's photos. Heart one, share it, or add it to an album.
-- **Favorites.** Every photo you've hearted, from any day.
-- **Albums.** On Today, tap Select, pick photos, then tap Album. Share an album
-  through any app, or save it as a real album in Photos (iPhone) or under
-  Pictures/Back Then (Android).
-- **Daily reminder.** One notification a day at a time you choose, and only on days
-  that have photos from past years. Tapping it opens that day.
-- **Looks native on each phone.** A floating tab bar and sheets on iPhone; a
-  navigation bar and Android's own date dialog on Android. Light and dark mode.
 
 ## Where the photos come from
 
@@ -104,6 +194,42 @@ phone, adds it to the day-by-day view, and skips shots that are already in the
 phone's library. You can pick more at any time from the "..." menu, or disconnect
 Google Photos to delete the copies.
 
+## Languages
+
+Every word the apps show lives in one XML file per language in [`lang/`](lang):
+`en.xml`, `fr.xml`, `es.xml` and `ar.xml`. Both apps read the same files. Android
+packs the folder as app assets; on iPhone a build step copies it into the app.
+
+```xml
+<language name="Français" dir="ltr" script="latin">
+    <string name="tab_today">Aujourd'hui</string>
+    <string name="photos_from_years">{photos} sur {years}</string>
+    <plurals name="photos">
+        <item quantity="one">{n} photo</item>
+        <item quantity="other">{n} photos</item>
+    </plurals>
+</language>
+```
+
+At launch each app picks the first language in the phone's list that has a file,
+and falls back to English. A word missing from a file also comes from English.
+Words hold `{slots}` that the app fills in, so each language can put them in its
+own order. In code, `L.s("tab_today")` gets a word and `L.p("photos", 3)` gets a
+plural, the same on both apps.
+
+**To add a language:**
+
+1. Copy `lang/en.xml` to `lang/<code>.xml`, such as `de.xml` or `pt-BR.xml`.
+2. Set `name`, `dir="rtl"` for a right to left language, and `script="arabic"` for
+   one written in Arabic script (Persian, Urdu).
+3. Translate the text between the tags, keeping the `{slots}`. Give each plural the
+   forms the language uses (`zero`, `one`, `two`, `few`, `many`, `other`).
+4. Run the tests. They check that the file has every word and the same slots.
+
+That's all for both apps. If the language has plural rules the apps don't know yet,
+add a line to `pluralForm` in `ios/BackThen/Core/Lang.swift` and
+`android/.../core/Lang.kt`; the common ones are already there.
+
 ## Running the apps
 
 | | iPhone | Android |
@@ -111,7 +237,7 @@ Google Photos to delete the copies.
 | Needs | Xcode 16, iOS 17 or later | Android Studio, Android 8 or later |
 | Open | `ios/BackThen.xcodeproj` | the `android/` folder |
 | Run | pick your team under Signing, then Run | Run, or `cd android && ./gradlew installDebug` |
-| Tests | Product, Test | `./gradlew testDebugUnitTest` |
+| Tests | Product > Test (⌘U) | `./gradlew testDebugUnitTest` |
 
 GitHub Actions builds both apps and runs their unit tests on every push. The Android run also uploads a debug
 APK you can install on a phone.
@@ -136,21 +262,23 @@ a day index that counts photos per day and year, the nearby-days search, the che
 that drops Google copies of phone photos, and the mosaic patterns.
 
 ```
+lang/        one XML file per language, read by both apps
 ios/BackThen/
-  Core/      dates, day index, mosaic layout
+  Core/      dates, day index, mosaic layout, language files
   Data/      PhotoKit, Google sign-in and picker, reminders, app state
   Views/     Today, calendar, viewer, Favorites, Albums, onboarding
-ios/BackThenTests/  unit tests for the iPhone core logic
+ios/BackThenTests/  unit tests
+ios/scripts/        build step that copies lang/ into the app
 android/app/src/main/java/com/njarrar/backthen/
   core/      the same core logic, with unit tests
   data/      MediaStore, Google picker, reminders, saved state
   ui/        Compose screens
-design/      the source design (open "On This Day.dc.html") and the Nunito font license
+design/      the source design (open "On This Day.dc.html") and the Nunito and Tajawal font licenses
 ```
 
 Debug builds accept a `scene` launch argument (`today`, `calendar`, `viewer`,
 `favorites`, `album`) that fills the app with sample data. The Screenshots workflow
-uses it; release builds ignore it.
+uses it, once in English and once in Arabic; release builds ignore it.
 
 ## Not built yet
 
