@@ -1,0 +1,25 @@
+Back Then shows you the photos you took on today's date in past years, one year at a time.
+
+Open the app and see what you were doing on this day 1, 5 or 10 years ago. Each year gets a big year number, how long ago it was, and a neat grid of that day's photos.
+
+WHAT YOU CAN DO
+• Today: photos from this date in every past year, newest year first.
+• Calendar: pick any other day. Days with more photos show a darker shade, so you can spot the big days at a glance.
+• Full screen viewer: swipe through a day, pinch to zoom, heart a photo or share it.
+• Favorites: every photo you heart, in one place.
+• Albums: select photos and make an album. Share it through any app, or save it as a real album in your gallery.
+• Daily reminder: one gentle note a day, at a time you choose, and only on days that have photos.
+• Hide a date: keep a hard day out of the app. No reminder, no shade on the calendar.
+• Google Photos: add photos from Google Photos with Google's own photo picker. You choose which photos the app can see.
+
+PRIVATE BY DESIGN
+• Your photos stay on your phone. Back Then has no account, no server and no ads.
+• The app reads your photo library only to find photos by date.
+• Nothing is uploaded, tracked or sold.
+
+MADE FOR EVERYONE
+• English, French, Spanish and Arabic, with full right to left layout in Arabic.
+• Light and dark mode.
+• Large text and screen reader support.
+
+Back Then is a calm way to look back. Open it each morning and see what this day looked like, every year.

@@ -7,21 +7,36 @@ plugins {
 
 android {
     namespace = "com.njarrar.backthen"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.njarrar.backthen"
         minSdk = 26
-        targetSdk = 35
-        versionCode = 6
-        versionName = "1.5.0"
+        targetSdk = 36
+        versionCode = 7
+        versionName = "1.6.0"
     }
 
     // The language files in lang/ at the top of the repo ship as app assets (en.xml, ar.xml, ...).
     sourceSets["main"].assets.srcDir("../../lang")
 
+    // Release builds sign with the Play upload key when these are set (the Play Store
+    // workflow sets them from GitHub secrets). Without them the bundle is unsigned.
+    val uploadKey = System.getenv("UPLOAD_KEYSTORE_FILE")?.let(::file)?.takeIf { it.exists() }
+    signingConfigs {
+        if (uploadKey != null) {
+            create("upload") {
+                storeFile = uploadKey
+                storePassword = System.getenv("UPLOAD_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("UPLOAD_KEY_ALIAS")
+                keyPassword = System.getenv("UPLOAD_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            if (uploadKey != null) signingConfig = signingConfigs.getByName("upload")
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
         }
