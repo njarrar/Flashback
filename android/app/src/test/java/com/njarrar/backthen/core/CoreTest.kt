@@ -47,6 +47,17 @@ class CoreTest {
         assertEquals(MonthDay(9, 9), after)
     }
 
+    @Test fun dayLevelsRankDaysByPhotoCount() {
+        assertEquals(3, photoCount(index, MonthDay(9, 2), today))
+        // 9-2 has 3 photos, 9-9 and 8-20 have 1 each; empty days are left out.
+        assertEquals(mapOf("9-2" to 4, "9-9" to 2, "8-20" to 2), dayLevels(index, today))
+        // Eight days with 1 to 8 photos fall into four even groups.
+        val spread = (1..8).associate { "0-$it" to mapOf(2020 to it) }
+        assertEquals((1..8).associate { "0-$it" to (it + 1) / 2 }, dayLevels(spread, today))
+        // All days the same: every one sits in the middle.
+        assertEquals(setOf(3), dayLevels(mapOf("0-1" to mapOf(2020 to 5), "0-2" to mapOf(2021 to 5)), today).values.toSet())
+    }
+
     @Test fun merges() {
         assertEquals(
             mapOf("1-1" to mapOf(2020 to 3, 2021 to 1)),

@@ -85,11 +85,13 @@
     <string name="connect_photos">Connecter des photos</string>
 
     <!-- Calendar -->
-    <string name="calendar_hint">Plus un jour est foncé, plus il a d'années de photos</string>
+    <string name="calendar_hint">Plus un jour est foncé, plus il a de photos</string>
+    <string name="calendar_fewer">Moins</string>
+    <string name="calendar_more">Plus</string>
     <string name="previous_month">Mois précédent</string>
     <string name="next_month">Mois suivant</string>
     <string name="day_no_photos">{day}, aucune photo</string>
-    <string name="day_photos_from">{day}, des photos sur {years}</string>
+    <string name="day_photos_from">{day}, {photos} sur {years}</string>
 
     <!-- Photo viewer -->
     <string name="favorite">Ajouter aux favoris</string>

@@ -38,16 +38,26 @@ func spans(for count: Int) -> [(Int, Int)] {
 
 /// Places tiles in reading order, each at the first free spot that fits.
 func layoutMosaic(_ count: Int) -> (tiles: [Tile], rows: Int) {
-    var used = Set<[Int]>()
+    let allSpans = spans(for: count)
+    guard !allSpans.isEmpty else { return ([], 0) }
+    var rowMasks: [UInt8] = []
     var tiles: [Tile] = []
+    tiles.reserveCapacity(allSpans.count)
     var rows = 0
-    for (cols, rs) in spans(for: count) {
+    for (cols, rs) in allSpans {
+        let spanMask = UInt8((1 << cols) - 1)
         var r = 0
         placing: while true {
+            while rowMasks.count < r + rs { rowMasks.append(0) }
             for c in 0...(mosaicColumns - cols) {
-                let cells = (0..<rs).flatMap { dr in (0..<cols).map { dc in [r + dr, c + dc] } }
-                if cells.contains(where: used.contains) { continue }
-                cells.forEach { used.insert($0) }
+                let mask = spanMask << c
+                var free = true
+                for dr in 0..<rs where (rowMasks[r + dr] & mask) != 0 {
+                    free = false
+                    break
+                }
+                if !free { continue }
+                for dr in 0..<rs { rowMasks[r + dr] |= mask }
                 tiles.append(Tile(col: c, row: r, cols: cols, rows: rs))
                 rows = max(rows, r + rs)
                 break placing

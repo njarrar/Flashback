@@ -50,9 +50,17 @@ fun agoLabel(year: Int, thisYear: Int = LocalDate.now().year): String {
 // Always the Gregorian calendar: the app matches photos by Gregorian date, and a phone set to
 // Saudi Arabia would otherwise write the Hijri date.
 
+private val dateFormats = HashMap<String, DateFormat>()
+private val timeFormats = HashMap<String, DateFormat>()
+
 fun formatDate(date: LocalDate, skeleton: String): String {
+    val locale = L.locale
     val at = Date(date.atTime(12, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli())
-    return DateFormat.getInstanceForSkeleton(GregorianCalendar(L.locale), skeleton, L.locale).format(at)
+    return synchronized(dateFormats) {
+        dateFormats.getOrPut("${locale.toLanguageTag()}|$skeleton") {
+            DateFormat.getInstanceForSkeleton(GregorianCalendar(locale), skeleton, locale)
+        }.format(at)
+    }
 }
 
 /** A month and day with no year, in a leap year so February 29 works. */
@@ -75,9 +83,14 @@ fun weekdayOf(year: Int, md: MonthDay): String =
 
 /** The reminder time in the app's language. [use24] is the phone's 12 or 24 hour setting; null lets the language pick. */
 fun formatTime(hour: Int, minute: Int, use24: Boolean? = null): String {
+    val locale = L.locale
     val at = Date(LocalDate.of(2024, 1, 1).atTime(hour, minute).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli())
     val skeleton = when (use24) { true -> "Hmm"; false -> "hmm"; null -> "jmm" }
-    return DateFormat.getInstanceForSkeleton(skeleton, L.locale).format(at)
+    return synchronized(timeFormats) {
+        timeFormats.getOrPut("${locale.toLanguageTag()}|$skeleton") {
+            DateFormat.getInstanceForSkeleton(skeleton, locale)
+        }.format(at)
+    }
 }
 
 /** Start and end (exclusive) of a local calendar day, in epoch ms. Null if the day doesn't exist that year. */

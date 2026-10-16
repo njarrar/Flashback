@@ -144,9 +144,11 @@ struct AlbumDetailView: View {
                 Pill(label: L.s("share_album"), systemImage: "square.and.arrow.up", height: 46, wide: true) {
                     shareFor = ShareRequest(title: album.name, photos: album.photos)
                 }
+                .disabled(album.photos.isEmpty)
                 Pill(label: L.s("save_to_photos"), systemImage: "square.and.arrow.down", kind: .secondary, height: 46, wide: true) {
                     Task { await store.saveToPhotos(name: album.name, photos: album.photos) }
                 }
+                .disabled(album.photos.isEmpty)
             }
             .padding(.horizontal, 16).padding(.bottom, 16)
             SquareGrid(photos: album.photos)

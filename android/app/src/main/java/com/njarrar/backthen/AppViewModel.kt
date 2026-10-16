@@ -21,12 +21,14 @@ import com.njarrar.backthen.data.GooglePhotos
 import com.njarrar.backthen.data.Reminder
 import com.njarrar.backthen.data.Reminders
 import com.njarrar.backthen.data.SavedState
+import com.njarrar.backthen.data.Sources
 import com.njarrar.backthen.data.StateFile
 import com.njarrar.backthen.data.YearLayout
 import com.njarrar.backthen.data.visibleIndex
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -52,14 +54,30 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val viewer = MutableStateFlow<Viewer?>(null)
     val toast = MutableStateFlow<String?>(null)
     val googleImport = MutableStateFlow<GoogleImport?>(null)
+    /** Fires when a reminder opens a day, so the app switches to Today. */
+    val openToday = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     /** Debug screenshots only: the scene to show, see Demo.kt. */
     val demoScene = MutableStateFlow<String?>(null)
     /** The last day Today showed, so it can come back with photos in place. */
     var lastDay: Pair<MonthDay, List<YearGroup>>? = null
     private var toastJob: Job? = null
     private var importJob: Job? = null
+    private var refreshJob: Job? = null
     // One write at a time, in order, so an older snapshot never lands after a newer one.
     private val writer = Dispatchers.IO.limitedParallelism(1)
+
+    // The last index built and what it was built from, so screens don't rebuild it on every frame.
+    @Volatile
+    private var cachedIndexInputs: IndexInputs? = null
+    @Volatile
+    private var cachedIndex: DayIndex = emptyMap()
+
+    private data class IndexInputs(
+        val sources: Sources,
+        val deviceIndex: Map<String, Map<Int, Int>>,
+        val googlePhotos: List<Photo>,
+        val hiddenDates: Set<String>,
+    )
 
     internal fun updateSaved(change: (SavedState) -> SavedState) = update(change)
 
@@ -69,16 +87,36 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch(writer) { stateFile.write(snapshot) }
     }
 
-    /** Photo counts per day across every connected source. Hidden days count as empty. */
-    fun index(s: SavedState = _saved.value): DayIndex = visibleIndex(s)
+    /** A tap on the daily reminder: show that day on Today, over any open photo. */
+    fun openDay(md: MonthDay) {
+        day.value = md
+        viewer.value = null
+        openToday.tryEmit(Unit)
+    }
 
-    fun refreshIndex() {
-        if (!library.hasAccess()) return
-        viewModelScope.launch {
+    /** Photo counts per day across every connected source. Hidden days count as empty. */
+    fun index(s: SavedState = _saved.value): DayIndex {
+        val inputs = IndexInputs(s.sources, s.deviceIndex, s.googlePhotos, s.hiddenDates)
+        if (inputs == cachedIndexInputs) return cachedIndex
+        return visibleIndex(s).also {
+            cachedIndexInputs = inputs
+            cachedIndex = it
+        }
+    }
+
+    /** Rebuilds the phone's day index. Skips the full scan when the library looks the same, unless [force]. */
+    fun refreshIndex(force: Boolean = false) {
+        if (!library.hasAccess() || refreshJob?.isActive == true) return
+        refreshJob = viewModelScope.launch {
+            val sig = runCatching { library.signature() }.getOrNull()
+            if (!force && _saved.value.deviceIndex.isNotEmpty() && library.isUnchanged(sig)) return@launch
             indexing.value = true
             try {
                 val index = buildDayIndex(library.readAllTimes())
-                update { it.copy(deviceIndex = index) }
+                library.recordSignature(sig)
+                if (index != _saved.value.deviceIndex) {
+                    update { it.copy(deviceIndex = index) }
+                }
             } finally {
                 indexing.value = false
             }
@@ -87,14 +125,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     suspend fun photosFor(md: MonthDay): List<YearGroup> {
         val s = _saved.value
-        return yearsForDay(index(s), md).map { year ->
-            val device = if (s.sources.device) runCatching { library.photosOn(year, md) }.getOrDefault(emptyList()) else emptyList()
-            val google = if (s.sources.google) {
-                s.googlePhotos.filter { p ->
-                    val d = localDate(p.time)
-                    d.year == year && d.monthValue - 1 == md.month && d.dayOfMonth == md.day
-                }
-            } else emptyList()
+        val years = yearsForDay(index(s), md)
+        if (years.isEmpty()) return emptyList()
+        val deviceByYear = if (s.sources.device) runCatching { library.photosOn(years, md) }.getOrDefault(emptyMap()) else emptyMap()
+        val googleByYear = if (s.sources.google) {
+            s.googlePhotos.mapNotNull { p ->
+                val d = localDate(p.time)
+                if (d.monthValue - 1 == md.month && d.dayOfMonth == md.day) d.year to p else null
+            }.groupBy({ it.first }, { it.second })
+        } else emptyMap()
+        return years.map { year ->
+            val device = deviceByYear[year].orEmpty()
+            val google = googleByYear[year].orEmpty()
             YearGroup(year, dropDuplicates(device, google).sortedBy { it.time })
         }.filter { it.photos.isNotEmpty() }
     }

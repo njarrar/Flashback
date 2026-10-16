@@ -116,7 +116,11 @@ enum GooglePhotos {
                 let req = try request(item.mediaFile.baseUrl + "=w2048-h2048", token: token)
                 let (tmp, response) = try await URLSession.shared.download(for: req)
                 guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+                    try? FileManager.default.removeItem(at: tmp)
                     throw GooglePhotosError.http("Download failed")
+                }
+                if FileManager.default.fileExists(atPath: target.path) {
+                    try? FileManager.default.removeItem(at: target)
                 }
                 try FileManager.default.moveItem(at: tmp, to: target)
             }

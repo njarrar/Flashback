@@ -19,6 +19,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import kotlin.math.roundToInt
 import com.njarrar.backthen.core.masonryColumns
 import com.njarrar.backthen.core.tileAspect
 import androidx.compose.foundation.layout.Arrangement
@@ -42,12 +43,17 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material.icons.outlined.IosShare
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -55,6 +61,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.heading
@@ -206,7 +213,8 @@ fun Toast(message: String?, modifier: Modifier = Modifier) {
 }
 
 /** Selection state shared by the photo grids. */
-class Selection(val on: Boolean, val keys: Set<String>, val toggle: (Photo) -> Unit)
+@Immutable
+data class Selection(val on: Boolean, val keys: Set<String>, val toggle: (Photo) -> Unit)
 
 @Composable
 fun PhotoTile(
@@ -310,41 +318,63 @@ fun YearBar(year: Int, count: Int, day: MonthDay, pinned: Boolean, onShare: () -
 /** One year's photos for the chosen day, as a mosaic of rounded tiles. */
 @Composable
 fun YearMosaic(photos: List<Photo>, favorites: Set<String>, selection: Selection, onOpen: (Int) -> Unit) {
-    BoxWithConstraints(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 28.dp)) {
-        val gap = 4.dp
-        val row = 54.dp
-        val cell = (maxWidth - gap * (COLUMNS - 1)) / COLUMNS
-        val (tiles, rows) = layoutMosaic(photos.size)
-        Box(Modifier.fillMaxWidth().height(row * rows + gap * (rows - 1))) {
+    val (tiles, rows) = remember(photos.size) { layoutMosaic(photos.size) }
+    if (rows == 0) return
+    val gap = 4.dp
+    val row = 54.dp
+    Layout(
+        content = {
             photos.forEachIndexed { i, photo ->
+                PhotoTile(photo, 12.dp, photo.key in favorites, selection, onOpen = { onOpen(i) }, modifier = Modifier.fillMaxSize())
+            }
+        },
+        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 28.dp),
+    ) { measurables, constraints ->
+        // One pass, no subcomposition. Column edges are rounded once so tiles meet both sides exactly.
+        val gapPx = gap.toPx()
+        val rowPx = row.roundToPx()
+        val step = (constraints.maxWidth + gapPx) / COLUMNS
+        fun edge(col: Int) = (col * step).roundToInt()
+        val gapInt = gapPx.roundToInt()
+        val placeables = measurables.mapIndexed { i, measurable ->
+            val t = tiles[i]
+            val w = edge(t.col + t.cols) - gapInt - edge(t.col)
+            val h = rowPx * t.rows + gapInt * (t.rows - 1)
+            measurable.measure(Constraints.fixed(w.coerceAtLeast(0), h.coerceAtLeast(0)))
+        }
+        val height = rowPx * rows + gapInt * (rows - 1)
+        layout(constraints.maxWidth, height.coerceAtLeast(0)) {
+            // placeRelative mirrors the tiles right to left, as the design asks for Arabic.
+            placeables.forEachIndexed { i, placeable ->
                 val t = tiles[i]
-                PhotoTile(
-                    photo, 12.dp, photo.key in favorites, selection, onOpen = { onOpen(i) },
-                    modifier = Modifier
-                        .offset((cell + gap) * t.col, (row + gap) * t.row)
-                        .size(cell * t.cols + gap * (t.cols - 1), row * t.rows + gap * (t.rows - 1)),
-                )
+                placeable.placeRelative(edge(t.col), t.row * (rowPx + gapInt))
             }
         }
     }
 }
 
-/** A browse grid, used for Favorites and album pages: 3 columns, edge to edge, square tiles. */
-@Composable
-fun SquareGrid(photos: List<Photo>, favorites: Set<String>, showYear: Boolean, onOpen: (Int) -> Unit) {
-    BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val gap = 2.dp
-        val size = (maxWidth - gap * 2) / 3
-        Column(verticalArrangement = Arrangement.spacedBy(gap)) {
-            photos.chunked(3).forEachIndexed { r, rowPhotos ->
-                Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
-                    rowPhotos.forEachIndexed { c, photo ->
-                        Box(Modifier.size(size)) {
-                            PhotoTile(photo, 0.dp, !showYear && photo.key in favorites, null, onOpen = { onOpen(r * 3 + c) }, modifier = Modifier.fillMaxSize())
-                            if (showYear) YearChip(localDate(photo.time).year, Modifier.align(Alignment.BottomStart).padding(6.dp))
-                        }
-                    }
+/** Lazy 3-column square grid rows for Favorites and album pages, so off-screen rows aren't composed at once. */
+fun LazyListScope.squareGridItems(
+    photos: List<Photo>,
+    favorites: Set<String>,
+    showYear: Boolean,
+    onOpen: (Int) -> Unit,
+) {
+    val gap = 2.dp
+    val rows = photos.chunked(3)
+    itemsIndexed(rows, key = { _, row -> row.first().key }) { r, rowPhotos ->
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(bottom = if (r < rows.lastIndex) gap else 0.dp),
+            horizontalArrangement = Arrangement.spacedBy(gap),
+        ) {
+            rowPhotos.forEachIndexed { c, photo ->
+                Box(Modifier.weight(1f).aspectRatio(1f)) {
+                    PhotoTile(photo, 0.dp, !showYear && photo.key in favorites, null, onOpen = { onOpen(r * 3 + c) }, modifier = Modifier.fillMaxSize())
+                    if (showYear) YearChip(localDate(photo.time).year, Modifier.align(Alignment.BottomStart).padding(6.dp))
                 }
+            }
+            repeat(3 - rowPhotos.size) {
+                Spacer(Modifier.weight(1f).aspectRatio(1f))
             }
         }
     }
@@ -443,8 +473,9 @@ fun StripYear(
                 T(L.s("weekday_photos", "weekday" to weekday, "photos" to L.p("photos", photos.size)), size = 15, weight = FontWeight.Medium, muted = true)
             }
         }
+        val columns = remember(photos) { masonryColumns(photos.map { tileAspect(it.width, it.height) }) }
         Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            masonryColumns(photos.map { tileAspect(it.width, it.height) }).forEach { col ->
+            columns.forEach { col ->
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     col.forEach { i ->
                         val ph = photos[i]

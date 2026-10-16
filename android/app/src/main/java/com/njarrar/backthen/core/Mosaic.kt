@@ -1,10 +1,13 @@
 package com.njarrar.backthen.core
 
+import androidx.compose.runtime.Immutable
+
 // Lays out a year's photos on a 6-column grid, as in the design: one large lead photo,
 // then smaller tiles, packed so rows have no gaps.
 
 const val COLUMNS = 6
 
+@Immutable
 data class Tile(val col: Int, val row: Int, val cols: Int, val rows: Int)
 
 // Spans (cols to rows) for 1 to 7 photos, taken from the design.
@@ -35,16 +38,29 @@ fun spansFor(count: Int): List<Pair<Int, Int>> {
 
 /** Places tiles in reading order, each at the first free spot that fits. Returns tiles and row count. */
 fun layoutMosaic(count: Int): Pair<List<Tile>, Int> {
-    val used = HashSet<Pair<Int, Int>>()
-    val tiles = ArrayList<Tile>()
+    val spans = spansFor(count)
+    if (spans.isEmpty()) return emptyList<Tile>() to 0
+    var rowMasks = IntArray(maxOf(16, count * 2))
+    val tiles = ArrayList<Tile>(spans.size)
     var rows = 0
-    for ((cols, rs) in spansFor(count)) {
+    for ((cols, rs) in spans) {
+        val baseMask = (1 shl cols) - 1
         var r = 0
         placing@ while (true) {
+            if (r + rs > rowMasks.size) {
+                rowMasks = rowMasks.copyOf(maxOf(rowMasks.size * 2, r + rs))
+            }
             for (c in 0..COLUMNS - cols) {
-                val cells = (0 until rs).flatMap { dr -> (0 until cols).map { dc -> (r + dr) to (c + dc) } }
-                if (cells.any { it in used }) continue
-                used += cells
+                val mask = baseMask shl c
+                var free = true
+                for (dr in 0 until rs) {
+                    if ((rowMasks[r + dr] and mask) != 0) {
+                        free = false
+                        break
+                    }
+                }
+                if (!free) continue
+                for (dr in 0 until rs) rowMasks[r + dr] = rowMasks[r + dr] or mask
                 tiles += Tile(c, r, cols, rs)
                 rows = maxOf(rows, r + rs)
                 break@placing

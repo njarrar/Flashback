@@ -102,6 +102,8 @@ enum L {
     static private(set) var english = load("en") ?? Strings(code: "en")
     static private(set) var lang = english
     static private(set) var locale = Locale(identifier: "en")
+    private static let formatterLock = NSLock()
+    private static var formatters: [String: DateFormatter] = [:]
 
     /// Codes of every language file in the app, such as `["ar", "en", "es", "fr"]`.
     static var available: [String] {
@@ -118,6 +120,9 @@ enum L {
     static func use(_ strings: Strings, locale: Locale) {
         lang = strings
         self.locale = locale
+        formatterLock.lock()
+        formatters.removeAll()
+        formatterLock.unlock()
     }
 
     /// The first preferred language that has a file, and the full tag to format dates and
@@ -161,20 +166,37 @@ enum L {
         n.formatted(.number.grouping(.never).locale(locale))
     }
 
+    /// Fills every `{name}` slot in one pass, so a value that holds a slot name (an album
+    /// called "{n}") stays as typed.
     static func fill(_ text: String, _ args: [String: Any]) -> String {
-        guard text.contains("{") else { return text }
-        var out = text
-        for (name, value) in args {
-            let shown = (value as? Int).map(num) ?? "\(value)"
-            out = out.replacingOccurrences(of: "{\(name)}", with: shown)
+        guard !args.isEmpty, text.contains("{") else { return text }
+        var out = ""
+        var rest = text[...]
+        while let open = rest.firstIndex(of: "{") {
+            out += rest[..<open]
+            rest = rest[open...]
+            guard let close = rest.firstIndex(of: "}") else { break }
+            let name = String(rest[rest.index(after: open)..<close])
+            if let value = args[name] {
+                out += (value as? Int).map(num) ?? "\(value)"
+            } else {
+                out += rest[...close]
+            }
+            rest = rest[rest.index(after: close)...]
         }
-        return out
+        return out + rest
     }
 
     // MARK: Dates, written the way the language writes them.
 
     /// A date from a CLDR skeleton such as "MMMMd" (October 16) or "EEEE" (Friday).
     static func date(_ date: Date, _ skeleton: String) -> String {
+        let key = "\(locale.identifier)|\(skeleton)"
+        formatterLock.lock()
+        defer { formatterLock.unlock() }
+        if let cached = formatters[key] {
+            return cached.string(from: date)
+        }
         let f = DateFormatter()
         f.locale = locale
         // The app matches photos by Gregorian date; a phone set to Saudi Arabia would otherwise write the Hijri date.
@@ -182,13 +204,14 @@ enum L {
         gregorian.locale = locale
         f.calendar = gregorian
         f.setLocalizedDateFormatFromTemplate(skeleton)
+        formatters[key] = f
         return f.string(from: date)
     }
 
     /// A month and day with no year, in a leap year so February 29 works.
     static func monthDay(_ md: MonthDay, _ skeleton: String) -> String {
         var c = DateComponents(year: 2024, month: md.month + 1, day: md.day, hour: 12)
-        c.calendar = Calendar(identifier: .gregorian)
+        c.calendar = Calendar.app
         return date(c.date ?? Date(), skeleton)
     }
 
@@ -198,7 +221,7 @@ enum L {
 
     static func time(hour: Int, minute: Int) -> String {
         var c = DateComponents(year: 2024, month: 1, day: 1, hour: hour, minute: minute)
-        c.calendar = Calendar(identifier: .gregorian)
+        c.calendar = Calendar.app
         // The phone's 12 or 24 hour setting wins over the language's habit.
         let twelve = DateFormatter.dateFormat(fromTemplate: "j", options: 0, locale: .autoupdatingCurrent)?.contains("a") ?? false
         return date(c.date ?? Date(), twelve ? "hmm" : "Hmm")

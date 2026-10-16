@@ -88,6 +88,7 @@ class LangTest {
     @Test fun englishFrenchSpanish() {
         L.use(en, en, Locale.ENGLISH)
         assertEquals("1 photo from 3 years", L.s("photos_from_years", "photos" to L.p("photos", 1), "years" to L.p("years", 3)))
+        assertEquals("{years} from 3 years", L.s("photos_from_years", "photos" to "{years}", "years" to "3 years"))
         L.use(en, LangFiles.load("fr"), Locale.FRENCH)
         assertEquals("0 photo", L.p("photos", 0))
         assertEquals("2 photos", L.p("photos", 2))

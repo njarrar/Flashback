@@ -93,11 +93,13 @@
     <string name="connect_photos">Connect photos</string>
 
     <!-- Calendar -->
-    <string name="calendar_hint">Darker days have photos from more years</string>
+    <string name="calendar_hint">Darker days have more photos</string>
+    <string name="calendar_fewer">Fewer</string>
+    <string name="calendar_more">More</string>
     <string name="previous_month">Previous month</string>
     <string name="next_month">Next month</string>
     <string name="day_no_photos">{day}, no photos</string>
-    <string name="day_photos_from">{day}, photos from {years}</string>
+    <string name="day_photos_from">{day}, {photos} from {years}</string>
 
     <!-- Photo viewer -->
     <string name="favorite">Favorite</string>

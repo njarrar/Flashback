@@ -116,6 +116,7 @@ fun ViewerScreen(
     val view = LocalView.current
     var shown by remember { mutableStateOf(pager.currentPage) }
     LaunchedEffect(pager.currentPage) {
+        drag.snapTo(0f)
         if (pager.currentPage != shown) { shown = pager.currentPage; Haptics.tick(view) }
     }
     val chromeAlpha by animateFloatAsState(if (chrome) 1f else 0f, tween(200), label = "chrome")
@@ -129,9 +130,9 @@ fun ViewerScreen(
             modifier = Modifier.fillMaxSize().draggable(
                 orientation = Orientation.Vertical,
                 enabled = !zoomed,
-                state = rememberDraggableState { d -> scope.launch { drag.snapTo(drag.value + d) } },
+                state = rememberDraggableState { d -> scope.launch { drag.snapTo((drag.value + d).coerceAtLeast(0f)) } },
                 onDragStopped = { velocity ->
-                    if (drag.value > closeAt || velocity > flick) onClose()
+                    if (drag.value > 0f && (drag.value > closeAt || velocity > flick)) onClose()
                     else drag.animateTo(0f, spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow))
                 },
             ),

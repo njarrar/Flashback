@@ -1,11 +1,13 @@
 package com.njarrar.backthen.core
 
+import androidx.compose.runtime.Immutable
 import kotlinx.serialization.Serializable
 
 @Serializable
 enum class PhotoSource { DEVICE, GOOGLE }
 
 /** One photo, from the phone's library or a Google Photos import. */
+@Immutable
 @Serializable
 data class Photo(
     /** Stable key, prefixed by source: "d:<mediaStoreId>" or "g:<googleId>". */
@@ -18,6 +20,7 @@ data class Photo(
     val time: Long,
 )
 
+@Immutable
 @Serializable
 data class Album(
     val id: String,
@@ -26,6 +29,7 @@ data class Album(
     val createdAt: Long,
 )
 
+@Immutable
 data class YearGroup(val year: Int, val photos: List<Photo>)
 
 /** Photo counts per day: "month-day" -> year -> count. */

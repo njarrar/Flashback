@@ -2,7 +2,12 @@ import Foundation
 
 extension Calendar {
     /// The app matches photos by Gregorian date, whatever calendar the phone shows.
-    static var app: Calendar { Calendar(identifier: .gregorian) }
+    /// Made once, since it is used for every photo; it follows the phone if the time zone changes.
+    static let app: Calendar = {
+        var c = Calendar(identifier: .gregorian)
+        c.timeZone = .autoupdatingCurrent
+        return c
+    }()
 }
 
 /// A calendar day without a year. `month` is 0-based, to match the design's logic.
