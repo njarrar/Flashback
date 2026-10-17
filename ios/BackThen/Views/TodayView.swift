@@ -2,6 +2,7 @@ import SwiftUI
 
 struct TodayView: View {
     @Environment(AppStore.self) private var store
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var result: (day: MonthDay, groups: [YearGroup])?
     @State private var calendar = false
     @State private var settings = false
@@ -43,7 +44,7 @@ struct TodayView: View {
                     .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).maxY } action: { titleBottom = $0 }
                     Text(summary).font(.nunito(15)).foregroundStyle(Palette.muted)
                     if day != today {
-                        Pill(label: L.s("back_to_today"), systemImage: "arrow.uturn.backward", kind: .tint, height: 34) { go(today) }
+                        Pill(label: L.s("back_to_today"), systemImage: "arrow.uturn.backward", kind: .tint, height: 44) { go(today) }
                             .fixedSize().padding(.top, 8)
                     }
                 }
@@ -150,22 +151,20 @@ struct TodayView: View {
             .accessibilityLabel(day.label)
             .accessibilityHint(L.s("pick_another_day"))
             Spacer()
-            if !store.isHidden(day) {
-                GlassButton(accessibility: L.s("hide_date"), size: size, action: { store.setHidden(day, true) }) {
-                    Image(systemName: "eye.slash").font(.system(size: 16, weight: .semibold))
+            // Select and ••• share one capsule. The date title opens the calendar.
+            HStack(spacing: 0) {
+                Button(action: toggleSelect) {
+                    Text(L.s(selecting ? "cancel" : "select")).font(.nunito(15, .semibold))
+                        .padding(.horizontal, 16).frame(minHeight: size).contentShape(Rectangle())
                 }
+                Palette.line.frame(width: 1, height: 20)
+                optionsMenu(day, size: size)
             }
-            GlassButton(accessibility: L.s(selecting ? "cancel" : "select"), size: size, action: toggleSelect) {
-                Text(L.s(selecting ? "cancel" : "select")).font(.nunito(15, .semibold))
-            }
-            GlassButton(accessibility: L.s("pick_a_day"), size: size, action: { calendar = true }) {
-                Image(systemName: "calendar").font(.system(size: 17))
-            }
-            GlassButton(accessibility: L.s("options"), size: size, action: { settings = true }) {
-                Image(systemName: "ellipsis").font(.system(size: 17, weight: .bold))
-            }
+            .foregroundStyle(Palette.ink)
+            .background(Palette.glass, in: Capsule())
+            .overlay(Capsule().stroke(Palette.line, lineWidth: 1))
         }
-        .animation(.easeOut(duration: 0.15), value: size)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: size)
         .padding(.leading, 20).padding(.trailing, 16)
         .padding(.vertical, 8)
         .background {
@@ -176,6 +175,28 @@ struct TodayView: View {
             Palette.line.frame(height: 1 / 3).opacity(pinnedYears.isEmpty ? p : 0)
         }
         .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).maxY } action: { barBottom = $0 }
+    }
+
+    /// The ••• menu: hide or show this date, the layout, then the full settings sheet.
+    private func optionsMenu(_ day: MonthDay, size: CGFloat) -> some View {
+        let hidden = store.isHidden(day)
+        return Menu {
+            Button {
+                store.setHidden(day, !hidden)
+            } label: {
+                Label(hidden ? L.s("show_day_again", ["day": day.label]) : L.s("hide_date"), systemImage: hidden ? "eye" : "eye.slash")
+            }
+            Picker(L.s("layout"), selection: Binding(get: { store.saved.layout }, set: { store.saved.layout = $0 })) {
+                Text(L.s("layout_all_years")).tag(YearLayout.mosaic)
+                Text(L.s("layout_one_year")).tag(YearLayout.strip)
+            }
+            .pickerStyle(.inline)
+            Button { settings = true } label: { Label(L.s("settings"), systemImage: "gearshape") }
+        } label: {
+            Image(systemName: "ellipsis").font(.system(size: 17, weight: .bold))
+                .frame(width: 44, height: size).contentShape(Rectangle())
+        }
+        .accessibilityLabel(L.s("options"))
     }
 
     private func toggleSelect() {

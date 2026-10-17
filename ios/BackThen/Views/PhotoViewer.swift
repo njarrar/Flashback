@@ -71,24 +71,24 @@ struct PhotoViewer: View {
             }
 
             VStack(spacing: 0) {
-                header(photo)
+                header(photo, count: photos.count)
                 Spacer()
                 if photos.count > 1 {
                     Filmstrip(photos: photos, index: index) { i in position = i }
                         .padding(.bottom, 24)
                 }
                 HStack {
-                    action(fav ? "heart.fill" : "heart", L.s(fav ? "unfavorite" : "favorite"), tint: fav ? Palette.viewerHeart : ink) {
+                    action(fav ? "heart.fill" : "heart", L.s("favorite_short"), L.s(fav ? "unfavorite" : "favorite"), tint: fav ? Palette.viewerHeart : ink) {
                         store.toggleFavorite(photo)
                     }
                     Spacer()
-                    action("square.and.arrow.up", L.s("share"), tint: ink) {
+                    action("square.and.arrow.up", L.s("share"), L.s("share"), tint: ink) {
                         Task { await Share.photos([photo], title: L.date(photo.time, "yMMMMd")) }
                     }
                     Spacer()
-                    action("rectangle.stack.badge.plus", L.s("add_to_album"), tint: ink) { albumFor = [photo] }
+                    action("rectangle.stack.badge.plus", L.s("add_to_album"), L.s("add_to_album"), tint: ink) { albumFor = [photo] }
                 }
-                .padding(.horizontal, 48).padding(.vertical, 8)
+                .padding(.horizontal, 24).padding(.vertical, 8)
             }
             .opacity(chrome ? Double(1 - pull) : 0)
             .allowsHitTesting(chrome && !dragging)
@@ -109,8 +109,11 @@ struct PhotoViewer: View {
         .sensoryFeedback(.selection, trigger: index)
     }
 
-    private func header(_ photo: Photo) -> some View {
-        HStack(spacing: 8) {
+    private func header(_ photo: Photo, count: Int) -> some View {
+        var sub = L.s("ago_weekday", ["ago": agoLabel(yearOf(photo.time)), "weekday": L.date(photo.time, "EEEE")])
+        // Where you are in the set: "3 of 5".
+        if count > 1 { sub += " · " + L.s("n_of_total", ["n": index + 1, "total": count]) }
+        return HStack(spacing: 8) {
             Button { store.viewer = nil } label: {
                 Image(systemName: "xmark").font(.system(size: 17, weight: .bold)).foregroundStyle(ink)
                     .frame(width: 44, height: 44).background(ink.opacity(0.14), in: Circle())
@@ -118,8 +121,7 @@ struct PhotoViewer: View {
             .accessibilityLabel(L.s("close"))
             VStack(spacing: 1) {
                 Text(L.date(photo.time, "yMMMMd")).font(.nunito(16, .bold)).foregroundStyle(ink)
-                Text(L.s("ago_weekday", ["ago": agoLabel(yearOf(photo.time)), "weekday": L.date(photo.time, "EEEE")]))
-                    .font(.nunito(13)).foregroundStyle(ink.opacity(0.62))
+                Text(sub).font(.nunito(13)).foregroundStyle(ink.opacity(0.62))
             }
             .frame(maxWidth: .infinity)
             Color.clear.frame(width: 44, height: 44)
@@ -137,11 +139,19 @@ struct PhotoViewer: View {
         dragging = false
     }
 
-    private func action(_ icon: String, _ label: String, tint: Color, run: @escaping () -> Void) -> some View {
+    /// An icon with a short word under it.
+    private func action(_ icon: String, _ word: String, _ label: String, tint: Color, run: @escaping () -> Void) -> some View {
         Button(action: run) {
-            Image(systemName: icon).font(.system(size: 26)).foregroundStyle(tint).frame(width: 56, height: 56)
+            VStack(spacing: 4) {
+                Image(systemName: icon).font(.system(size: 24)).foregroundStyle(tint).frame(height: 30)
+                Text(word).font(.nunito(11, .semibold)).foregroundStyle(ink.opacity(0.75)).lineLimit(1).minimumScaleFactor(0.8)
+            }
+            .frame(minWidth: 72, minHeight: 56)
+            .contentShape(Rectangle())
         }
+        .accessibilityElement(children: .ignore)
         .accessibilityLabel(label)
+        .accessibilityAddTraits(.isButton)
     }
 }
 
@@ -160,7 +170,7 @@ private struct Filmstrip: View {
                             let on = i == index
                             Button { pick(i) } label: {
                                 PhotoImage(photo: p)
-                                    .frame(width: on ? 60 : 30, height: 44)
+                                    .frame(width: on ? 60 : 42, height: 44)
                                     .clipShape(RoundedRectangle(cornerRadius: 2, style: .continuous))
                                     .opacity(on ? 1 : 0.7)
                                     .overlay {

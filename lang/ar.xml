@@ -8,11 +8,11 @@
     <string name="close">إغلاق</string>
     <string name="create">إنشاء</string>
     <string name="save">حفظ</string>
-    <string name="ok">حسنًا</string>
     <string name="not_now">ليس الآن</string>
     <string name="share">مشاركة</string>
     <string name="more">المزيد</string>
     <string name="options">خيارات</string>
+    <string name="settings">الإعدادات</string>
     <string name="loading">جارٍ التحميل</string>
     <string name="today">اليوم</string>
     <string name="photo">صورة</string>
@@ -54,6 +54,7 @@
     <string name="ago_weekday">{ago} · {weekday}</string>
     <string name="ago_weekday_photos">{ago} · {weekday}، {photos}</string>
     <string name="photo_from">صورة من {date}</string>
+    <string name="favorite_photo_from">صورة مفضلة من {date}</string>
 
     <!-- Tabs -->
     <string name="tab_today">اليوم</string>
@@ -62,11 +63,10 @@
 
     <!-- Welcome -->
     <string name="welcome_title">شاهد كيف بدا هذا اليوم، في كل عام.</string>
-    <string name="welcome_body">كل صباح، يجد Back Then الصور التي التقطتها في مثل هذا اليوم من السنوات الماضية ويرتّبها حسب السنة.</string>
+    <string name="welcome_body">يجد Back Then الصور التي التقطتها في مثل هذا اليوم من السنوات الماضية ويرتّبها حسب السنة.</string>
     <string name="welcome_denied">من دون الوصول إلى الصور لا يوجد ما نعرضه. يمكنك السماح بذلك لاحقًا من الإعدادات.</string>
-    <string name="use_apple_photos">استخدم صور Apple</string>
-    <string name="use_phone_photos">استخدم صور هذا الهاتف</string>
-    <string name="privacy_line">تبقى صورك على هذا الهاتف. لا يُرفع أي شيء.</string>
+    <string name="show_my_photos">اعرض صوري</string>
+    <string name="privacy_line">تبقى صورك على هذا الهاتف.</string>
 
     <!-- Daily reminder, on the welcome screen and in the notification -->
     <string name="reminder_title_years">في {day} صور من {years}</string>
@@ -81,7 +81,6 @@
     <string name="today_loading">نبحث في مكتبتك…</string>
     <string name="today_none">لا صور في هذا التاريخ</string>
     <string name="pick_another_day">اختر يومًا آخر</string>
-    <string name="pick_a_day">اختر يومًا</string>
     <string name="back_to_today">العودة إلى اليوم</string>
     <string name="select">تحديد</string>
     <string name="selected">محددة</string>
@@ -99,9 +98,6 @@
     <string name="connect_photos">اربط الصور</string>
 
     <!-- Calendar -->
-    <string name="calendar_hint">الأيام الأغمق فيها صور أكثر</string>
-    <string name="calendar_fewer">أقل</string>
-    <string name="calendar_more">أكثر</string>
     <string name="previous_month">الشهر السابق</string>
     <string name="next_month">الشهر التالي</string>
     <string name="day_no_photos">{day}، لا صور</string>
@@ -109,9 +105,11 @@
 
     <!-- Photo viewer -->
     <string name="favorite">إضافة إلى المفضلة</string>
+    <string name="favorite_short">مفضلة</string>
     <string name="unfavorite">إزالة من المفضلة</string>
     <string name="add_to_album">إضافة إلى ألبوم</string>
     <string name="photo_n_of">الصورة {n} من {total}</string>
+    <string name="n_of_total">{n} من {total}</string>
 
     <!-- Favorites -->
     <string name="favorites_none">لم تحفظ شيئًا بعد</string>
@@ -139,7 +137,6 @@
 
     <!-- Settings -->
     <string name="photo_sources">مصادر الصور</string>
-    <string name="apple_photos">صور Apple</string>
     <string name="phone_photos">صور هذا الهاتف</string>
     <string name="connected">متصل</string>
     <string name="not_connected">غير متصل</string>

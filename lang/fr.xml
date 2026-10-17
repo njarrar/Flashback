@@ -8,11 +8,11 @@
     <string name="close">Fermer</string>
     <string name="create">Créer</string>
     <string name="save">Enregistrer</string>
-    <string name="ok">OK</string>
     <string name="not_now">Plus tard</string>
     <string name="share">Partager</string>
     <string name="more">Plus</string>
     <string name="options">Options</string>
+    <string name="settings">Réglages</string>
     <string name="loading">Chargement</string>
     <string name="today">Aujourd'hui</string>
     <string name="photo">Photo</string>
@@ -39,6 +39,7 @@
     <string name="ago_weekday">{ago} · {weekday}</string>
     <string name="ago_weekday_photos">{ago} · {weekday}, {photos}</string>
     <string name="photo_from">Photo du {date}</string>
+    <string name="favorite_photo_from">Photo favorite du {date}</string>
 
     <!-- Tabs -->
     <string name="tab_today">Aujourd'hui</string>
@@ -47,11 +48,10 @@
 
     <!-- Welcome -->
     <string name="welcome_title">Revoyez ce jour, année après année.</string>
-    <string name="welcome_body">Chaque matin, Back Then retrouve les photos prises à la date du jour les années passées et les classe par année.</string>
+    <string name="welcome_body">Back Then retrouve les photos prises à la date du jour les années passées et les classe par année.</string>
     <string name="welcome_denied">Sans accès aux photos, il n'y a rien à afficher. Vous pourrez l'autoriser plus tard dans les réglages.</string>
-    <string name="use_apple_photos">Utiliser Apple Photos</string>
-    <string name="use_phone_photos">Utiliser les photos du téléphone</string>
-    <string name="privacy_line">Vos photos restent sur ce téléphone. Rien n'est envoyé.</string>
+    <string name="show_my_photos">Voir mes photos</string>
+    <string name="privacy_line">Vos photos restent sur ce téléphone.</string>
 
     <!-- Daily reminder, on the welcome screen and in the notification -->
     <string name="reminder_title_years">Des photos du {day} sur {years}</string>
@@ -66,7 +66,6 @@
     <string name="today_loading">Recherche dans votre bibliothèque…</string>
     <string name="today_none">Aucune photo à cette date</string>
     <string name="pick_another_day">Choisir un autre jour</string>
-    <string name="pick_a_day">Choisir un jour</string>
     <string name="back_to_today">Revenir à aujourd'hui</string>
     <string name="select">Sélectionner</string>
     <string name="selected">Sélectionnée</string>
@@ -84,9 +83,6 @@
     <string name="connect_photos">Connecter des photos</string>
 
     <!-- Calendar -->
-    <string name="calendar_hint">Plus un jour est foncé, plus il a de photos</string>
-    <string name="calendar_fewer">Moins</string>
-    <string name="calendar_more">Plus</string>
     <string name="previous_month">Mois précédent</string>
     <string name="next_month">Mois suivant</string>
     <string name="day_no_photos">{day}, aucune photo</string>
@@ -94,9 +90,11 @@
 
     <!-- Photo viewer -->
     <string name="favorite">Ajouter aux favoris</string>
+    <string name="favorite_short">Favori</string>
     <string name="unfavorite">Retirer des favoris</string>
     <string name="add_to_album">Ajouter à un album</string>
     <string name="photo_n_of">Photo {n} sur {total}</string>
+    <string name="n_of_total">{n} sur {total}</string>
 
     <!-- Favorites -->
     <string name="favorites_none">Rien d'enregistré pour l'instant</string>
@@ -124,7 +122,6 @@
 
     <!-- Settings -->
     <string name="photo_sources">Sources de photos</string>
-    <string name="apple_photos">Apple Photos</string>
     <string name="phone_photos">Photos du téléphone</string>
     <string name="connected">Connecté</string>
     <string name="not_connected">Non connecté</string>

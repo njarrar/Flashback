@@ -102,8 +102,10 @@ struct Pill: View {
 }
 
 struct PressStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label.scaleEffect(configuration.isPressed ? 0.98 : 1).animation(.easeOut(duration: 0.1), value: configuration.isPressed)
+        configuration.label.scaleEffect(configuration.isPressed && !reduceMotion ? 0.98 : 1).animation(.easeOut(duration: 0.1), value: configuration.isPressed)
     }
 }
 
@@ -117,27 +119,6 @@ struct RowPressStyle: ButtonStyle {
                     .opacity(configuration.isPressed ? 1 : 0)
             )
             .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
-    }
-}
-
-/// Round glass button used in the iPhone header.
-struct GlassButton<Label: View>: View {
-    let accessibility: String
-    var size: CGFloat = 40
-    let action: () -> Void
-    @ViewBuilder let label: () -> Label
-
-    var body: some View {
-        Button(action: action) {
-            label()
-                .foregroundStyle(Palette.ink)
-                .frame(minWidth: size, minHeight: size)
-                .padding(.horizontal, Label.self == Text.self ? 16 : 0)
-                .background(Palette.glass, in: Capsule())
-                .overlay(Capsule().stroke(Palette.line, lineWidth: 1))
-        }
-        .buttonStyle(PressStyle())
-        .accessibilityLabel(accessibility)
     }
 }
 
@@ -191,17 +172,18 @@ struct Logo: View {
 }
 
 struct ToastView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let message: String
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "checkmark").font(.system(size: 14, weight: .bold)).foregroundStyle(Palette.hex(0xFF8B76))
+            Image(systemName: "checkmark").font(.system(size: 14, weight: .bold)).foregroundStyle(Palette.toastCheck)
             Text(message).font(.nunito(15, .semibold)).foregroundStyle(Palette.bg)
         }
         .padding(.horizontal, 16)
         .frame(height: 44)
         .background(Palette.ink, in: Capsule())
-        .transition(.opacity.combined(with: .move(edge: .bottom)))
+        .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .bottom)))
     }
 }
 
@@ -214,6 +196,7 @@ struct Selection {
 
 struct PhotoTile: View {
     @Environment(AppStore.self) private var store
+    @Environment(\.layoutDirection) private var direction
     let photo: Photo
     let radius: CGFloat
     var selection: Selection?
@@ -222,14 +205,22 @@ struct PhotoTile: View {
 
     var body: some View {
         let picked = selection?.keys.contains(photo.key) ?? false
+        let heart = showHeart && store.favoriteKeys.contains(photo.key)
         Button {
             if let selection, selection.on { selection.toggle(photo) } else { open() }
         } label: {
             PhotoImage(photo: photo)
                 .overlay(alignment: .bottomLeading) {
-                    if showHeart && store.favoriteKeys.contains(photo.key) {
-                        Image(systemName: "heart.fill").font(.system(size: 14)).foregroundStyle(.white)
-                            .shadow(color: .black.opacity(0.45), radius: 2).padding(.leading, 8).padding(.bottom, 7)
+                    if heart {
+                        // A faint dark wash in the corner keeps the white heart readable on snow or sky.
+                        RadialGradient(colors: [.black.opacity(0.32), .clear], center: direction == .rightToLeft ? .bottomTrailing : .bottomLeading,
+                                       startRadius: 0, endRadius: 56)
+                            .frame(width: 64, height: 64)
+                            .allowsHitTesting(false)
+                            .overlay(alignment: .bottomLeading) {
+                                Image(systemName: "heart.fill").font(.system(size: 14)).foregroundStyle(.white)
+                                    .shadow(color: .black.opacity(0.45), radius: 2).padding(.leading, 8).padding(.bottom, 7)
+                            }
                     }
                 }
                 .overlay {
@@ -246,6 +237,7 @@ struct PhotoTile: View {
                 .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
         }
         .buttonStyle(PressStyle())
+        .accessibilityLabel(L.s(heart ? "favorite_photo_from" : "photo_from", ["date": L.date(photo.time, "yMMMMd")]))
         .accessibilityAddTraits(picked ? .isSelected : [])
     }
 }
@@ -265,40 +257,27 @@ struct YearSection: View {
             .accessibilityAddTraits(.isHeader)
     }
 
-    private var details: some View {
-        HStack(spacing: 10) {
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(agoLabel(group.year)).font(.nunito(14, .semibold)).foregroundStyle(Palette.ink)
-                Text(L.s("weekday_photos", ["weekday": weekday(year: group.year, day), "photos": L.p("photos", group.photos.count)])).font(.nunito(13)).foregroundStyle(Palette.muted)
-            }
-            Button(action: share) {
-                Image(systemName: "square.and.arrow.up").font(.system(size: 18)).foregroundStyle(Palette.ink)
-                    .frame(width: 36, height: 36)
-                    .background(Palette.glass, in: Circle())
-                    .overlay(Circle().stroke(Palette.line, lineWidth: 1))
-            }
-            .buttonStyle(PressStyle())
-            .accessibilityLabel(L.s("share_year", ["year": group.year]))
-        }
-    }
-
     var body: some View {
         let layout = layoutMosaic(group.photos.count)
         let rows = CGFloat(layout.rows)
         VStack(spacing: 12) {
-            // One row when it fits; with large text the details drop under the year.
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .bottom, spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(alignment: .center, spacing: 10) {
                     year
                     Spacer(minLength: 0)
-                    details.fixedSize().padding(.bottom, 8)
+                    Button(action: share) {
+                        Image(systemName: "square.and.arrow.up").font(.system(size: 19)).foregroundStyle(Palette.ink)
+                            .frame(width: 44, height: 44).contentShape(Rectangle())
+                    }
+                    .buttonStyle(PressStyle())
+                    .accessibilityLabel(L.s("share_year", ["year": group.year]))
                 }
-                VStack(alignment: .leading, spacing: 4) {
-                    year
-                    details
-                }
+                // One line under the year: "1 year ago · Friday, 5 photos".
+                (Text(agoLabel(group.year)).foregroundStyle(Palette.ink).font(.nunito(14, .bold))
+                 + Text(" · " + L.s("weekday_photos", ["weekday": weekday(year: group.year, day), "photos": L.p("photos", group.photos.count)])).foregroundStyle(Palette.muted))
+                    .font(.nunito(14))
             }
-            .padding(.horizontal, 4)
+            .padding(.leading, 4)
 
             GeometryReader { geo in
                 let gap: CGFloat = 4, row: CGFloat = 54
@@ -482,7 +461,7 @@ struct YearPills: View {
                     Button { pick(y) } label: {
                         Text(L.num(y)).font(.nunito(14, .semibold))
                             .foregroundStyle(on ? Palette.bg : Palette.ink)
-                            .padding(.horizontal, 14).frame(height: 36)
+                            .padding(.horizontal, 14).frame(height: 44)
                             .background(on ? Palette.ink : Palette.surface, in: Capsule())
                             .overlay(Capsule().stroke(on ? Palette.ink : Palette.line, lineWidth: 1))
                     }

@@ -10,6 +10,7 @@ import com.njarrar.backthen.core.MonthDay
 import com.njarrar.backthen.core.Photo
 import com.njarrar.backthen.core.YearGroup
 import com.njarrar.backthen.core.buildDayIndex
+import com.njarrar.backthen.core.favoriteCover
 import com.njarrar.backthen.core.shortLabel
 import com.njarrar.backthen.core.yearsForDay
 import com.njarrar.backthen.data.DeviceLibrary
@@ -129,6 +130,27 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         return years.map { year -> YearGroup(year, byYear[year].orEmpty().sortedBy { it.time }) }
             .filter { it.photos.isNotEmpty() }
     }
+
+    /**
+     * The photo the calendar shows for a day: a favorite from that day if there is one,
+     * else the first photo of the newest year. Null for a day with no photos.
+     */
+    suspend fun coverFor(md: MonthDay): Photo? {
+        val s = _saved.value
+        val index = index(s)
+        // Kept until the index or the favorites change.
+        val key = index to s.favorites
+        if (coversFor != key) { coversFor = key; covers.clear() }
+        covers[md.key]?.let { return it }
+        val years = yearsForDay(index, md)
+        val newest = years.firstOrNull() ?: return null
+        val found = favoriteCover(s.favorites, md, years)
+            ?: if (s.sources.device) runCatching { library.photosOn(listOf(newest), md)[newest]?.firstOrNull() }.getOrNull() else null
+        if (found != null && coversFor == key) covers[md.key] = found
+        return found
+    }
+    private var coversFor: Any? = null
+    private val covers = HashMap<String, Photo>()
 
     fun say(message: String) {
         toastJob?.cancel()

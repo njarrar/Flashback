@@ -58,7 +58,10 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.Layout
@@ -72,7 +75,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -206,7 +212,7 @@ fun Toast(message: String?, modifier: Modifier = Modifier) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            T("✓", size = 15, weight = FontWeight.Bold, color = Color(0xFFFF8B76))
+            T("✓", size = 15, weight = FontWeight.Bold, color = p.toastCheck)
             T(message ?: "", size = 15, weight = FontWeight.SemiBold, color = p.bg)
         }
     }
@@ -234,8 +240,24 @@ fun PhotoTile(
             .background(p.fill)
             .clickable(role = Role.Image) { if (selection?.on == true) selection.toggle(photo) else onOpen() },
     ) {
-        AsyncImage(model = photo.uri, contentDescription = L.s("photo_from", "date" to formatDate(localDate(photo.time), "yMMMMd")), contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        AsyncImage(
+            model = photo.uri,
+            contentDescription = L.s(if (favorite) "favorite_photo_from" else "photo_from", "date" to formatDate(localDate(photo.time), "yMMMMd")),
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+        )
         if (favorite) {
+            // A faint dark wash in the corner and a soft shadow keep the white heart readable on snow or sky.
+            Box(
+                Modifier.align(Alignment.BottomStart).size(64.dp).drawBehind {
+                    val x = if (layoutDirection == LayoutDirection.Rtl) size.width else 0f
+                    drawRect(Brush.radialGradient(listOf(Color.Black.copy(alpha = 0.32f), Color.Transparent), center = Offset(x, size.height), radius = size.width * 0.9f))
+                },
+            )
+            Icon(
+                Icons.Filled.Favorite, null, tint = Color.Black.copy(alpha = 0.45f),
+                modifier = Modifier.align(Alignment.BottomStart).padding(start = 8.dp, bottom = 6.dp).size(16.dp).offset(y = 1.dp).blur(2.dp),
+            )
             Icon(Icons.Filled.Favorite, null, tint = Color.White, modifier = Modifier.align(Alignment.BottomStart).padding(start = 8.dp, bottom = 7.dp).size(16.dp))
         }
         if (selection?.on == true) {
@@ -263,7 +285,7 @@ private val PinnedBarHeight = 44.dp
 @Composable
 fun YearHeader(year: Int, count: Int, day: MonthDay, onShare: () -> Unit) {
     val p = LocalPalette.current
-    Row(
+    Column(
         Modifier
             .layout { measurable, constraints ->
                 val placeable = measurable.measure(constraints)
@@ -271,21 +293,22 @@ fun YearHeader(year: Int, count: Int, day: MonthDay, onShare: () -> Unit) {
                 layout(placeable.width, (placeable.height - up).coerceAtLeast(0)) { placeable.place(0, -up) }
             }
             .fillMaxWidth()
-            .padding(horizontal = 20.dp),
-        verticalAlignment = Alignment.Bottom,
+            .padding(start = 20.dp, end = 8.dp),
     ) {
-        T(L.num(year), size = 56, weight = FontWeight.Black, tight = true, modifier = Modifier.weight(1f).semantics { heading() })
-        Row(Modifier.padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Column(horizontalAlignment = Alignment.End) {
-                T(agoLabel(year), size = 14, weight = FontWeight.SemiBold)
-                T(L.s("weekday_photos", "weekday" to weekdayOf(year, day), "photos" to L.p("photos", count)), size = 13, muted = true)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            T(L.num(year), size = 56, weight = FontWeight.Black, tight = true, modifier = Modifier.weight(1f).semantics { heading() })
+            IconButton(onClick = onShare, modifier = Modifier.size(48.dp)) {
+                Icon(Icons.Outlined.IosShare, L.s("share_year", "year" to year), tint = p.ink, modifier = Modifier.size(22.dp))
             }
-            Box(
-                Modifier.size(36.dp).clip(CircleShape).background(p.surface).border(1.dp, p.line, CircleShape)
-                    .clickable(role = Role.Button, onClick = onShare),
-                contentAlignment = Alignment.Center,
-            ) { Icon(Icons.Outlined.IosShare, L.s("share_year", "year" to year), tint = p.ink, modifier = Modifier.size(18.dp)) }
         }
+        // One line under the year: "1 year ago · Friday, 5 photos".
+        Text(
+            buildAnnotatedString {
+                withStyle(SpanStyle(color = p.ink, fontWeight = FontWeight.Bold)) { append(agoLabel(year)) }
+                append(" · " + L.s("weekday_photos", "weekday" to weekdayOf(year, day), "photos" to L.p("photos", count)))
+            },
+            color = p.muted, fontFamily = Nunito, fontSize = 14.sp, lineHeight = (if (L.lang.arabicScript) 22 else 20).sp,
+        )
     }
 }
 
@@ -439,7 +462,7 @@ fun YearPills(years: List<Int>, selected: Int, onPick: (Int) -> Unit) {
         years.forEach { y ->
             val on = y == selected
             Box(
-                Modifier.height(36.dp).clip(RoundedCornerShape(50))
+                Modifier.height(44.dp).clip(RoundedCornerShape(50))
                     .background(if (on) p.ink else p.surface)
                     .border(1.dp, if (on) p.ink else p.line, RoundedCornerShape(50))
                     .clickable(role = Role.Tab) { onPick(y) }
