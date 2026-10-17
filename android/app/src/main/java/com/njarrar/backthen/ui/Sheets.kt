@@ -168,15 +168,20 @@ fun SettingsSheet(
                 Icon(Icons.Outlined.Notifications, null, tint = p.ink)
                 T(L.s("daily_reminder"), weight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                 if (state.reminder.on) {
+                    // The chip looks small, but the tap area is the full 48 dp tall.
                     Box(
-                        Modifier.clip(RoundedCornerShape(50)).background(p.fill)
+                        Modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(50))
                             .clickable(role = Role.Button) {
                                 val i = TIMES.indexOf(state.reminder.hour to state.reminder.minute)
                                 val (h, m) = TIMES[(i + 1) % TIMES.size]
                                 onReminderTime(h, m)
-                            }
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
-                    ) { T(timeLabel(state.reminder.hour, state.reminder.minute), size = 15, weight = FontWeight.SemiBold) }
+                            },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Box(Modifier.clip(RoundedCornerShape(50)).background(p.fill).padding(horizontal = 12.dp, vertical = 6.dp)) {
+                            T(timeLabel(state.reminder.hour, state.reminder.minute), size = 15, weight = FontWeight.SemiBold)
+                        }
+                    }
                 }
                 Switch(
                     checked = state.reminder.on,

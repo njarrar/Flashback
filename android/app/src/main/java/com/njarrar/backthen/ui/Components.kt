@@ -212,7 +212,7 @@ fun Toast(message: String?, modifier: Modifier = Modifier) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            T("✓", size = 15, weight = FontWeight.Bold, color = Color(0xFFFF8B76))
+            T("✓", size = 15, weight = FontWeight.Bold, color = p.toastCheck)
             T(message ?: "", size = 15, weight = FontWeight.SemiBold, color = p.bg)
         }
     }
@@ -462,7 +462,7 @@ fun YearPills(years: List<Int>, selected: Int, onPick: (Int) -> Unit) {
         years.forEach { y ->
             val on = y == selected
             Box(
-                Modifier.height(36.dp).clip(RoundedCornerShape(50))
+                Modifier.height(44.dp).clip(RoundedCornerShape(50))
                     .background(if (on) p.ink else p.surface)
                     .border(1.dp, if (on) p.ink else p.line, RoundedCornerShape(50))
                     .clickable(role = Role.Tab) { onPick(y) }

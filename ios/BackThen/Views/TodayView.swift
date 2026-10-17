@@ -2,6 +2,7 @@ import SwiftUI
 
 struct TodayView: View {
     @Environment(AppStore.self) private var store
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var result: (day: MonthDay, groups: [YearGroup])?
     @State private var calendar = false
     @State private var settings = false
@@ -43,7 +44,7 @@ struct TodayView: View {
                     .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).maxY } action: { titleBottom = $0 }
                     Text(summary).font(.nunito(15)).foregroundStyle(Palette.muted)
                     if day != today {
-                        Pill(label: L.s("back_to_today"), systemImage: "arrow.uturn.backward", kind: .tint, height: 34) { go(today) }
+                        Pill(label: L.s("back_to_today"), systemImage: "arrow.uturn.backward", kind: .tint, height: 44) { go(today) }
                             .fixedSize().padding(.top, 8)
                     }
                 }
@@ -163,7 +164,7 @@ struct TodayView: View {
             .background(Palette.glass, in: Capsule())
             .overlay(Capsule().stroke(Palette.line, lineWidth: 1))
         }
-        .animation(.easeOut(duration: 0.15), value: size)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: size)
         .padding(.leading, 20).padding(.trailing, 16)
         .padding(.vertical, 8)
         .background {

@@ -102,8 +102,10 @@ struct Pill: View {
 }
 
 struct PressStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label.scaleEffect(configuration.isPressed ? 0.98 : 1).animation(.easeOut(duration: 0.1), value: configuration.isPressed)
+        configuration.label.scaleEffect(configuration.isPressed && !reduceMotion ? 0.98 : 1).animation(.easeOut(duration: 0.1), value: configuration.isPressed)
     }
 }
 
@@ -170,17 +172,18 @@ struct Logo: View {
 }
 
 struct ToastView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let message: String
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "checkmark").font(.system(size: 14, weight: .bold)).foregroundStyle(Palette.hex(0xFF8B76))
+            Image(systemName: "checkmark").font(.system(size: 14, weight: .bold)).foregroundStyle(Palette.toastCheck)
             Text(message).font(.nunito(15, .semibold)).foregroundStyle(Palette.bg)
         }
         .padding(.horizontal, 16)
         .frame(height: 44)
         .background(Palette.ink, in: Capsule())
-        .transition(.opacity.combined(with: .move(edge: .bottom)))
+        .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .bottom)))
     }
 }
 
@@ -458,7 +461,7 @@ struct YearPills: View {
                     Button { pick(y) } label: {
                         Text(L.num(y)).font(.nunito(14, .semibold))
                             .foregroundStyle(on ? Palette.bg : Palette.ink)
-                            .padding(.horizontal, 14).frame(height: 36)
+                            .padding(.horizontal, 14).frame(height: 44)
                             .background(on ? Palette.ink : Palette.surface, in: Capsule())
                             .overlay(Capsule().stroke(on ? Palette.ink : Palette.line, lineWidth: 1))
                     }

@@ -344,7 +344,7 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
                             T(summary, size = 15, muted = true)
                             if (day != today) {
                                 Row(Modifier.padding(top = 8.dp)) {
-                                    Pill(L.s("back_to_today"), { go(today) }, kind = Kind.Tint, height = 34.dp, icon = { Icon(Icons.AutoMirrored.Filled.Undo, null, tint = it, modifier = Modifier.size(14.dp)) })
+                                    Pill(L.s("back_to_today"), { go(today) }, kind = Kind.Tint, height = 44.dp, icon = { Icon(Icons.AutoMirrored.Filled.Undo, null, tint = it, modifier = Modifier.size(14.dp)) })
                                 }
                             }
                         }

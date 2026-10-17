@@ -278,6 +278,7 @@ struct SettingsSheet: View {
                         } label: {
                             Text(formatTime(hour: s.reminder.hour, minute: s.reminder.minute)).font(.nunito(15, .semibold)).foregroundStyle(Palette.ink)
                                 .padding(.horizontal, 12).padding(.vertical, 6).background(Palette.fill, in: Capsule())
+                                .frame(minHeight: 44).contentShape(Rectangle())
                         }
                         .accessibilityLabel(L.s("change_reminder_time"))
                     }
