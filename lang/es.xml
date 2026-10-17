@@ -47,11 +47,10 @@
 
     <!-- Welcome -->
     <string name="welcome_title">Mira cómo fue este día, cada año.</string>
-    <string name="welcome_body">Cada mañana, Back Then busca las fotos que tomaste en la fecha de hoy en años pasados y las ordena por año.</string>
+    <string name="welcome_body">Back Then busca las fotos que tomaste en la fecha de hoy en años pasados y las ordena por año.</string>
     <string name="welcome_denied">Sin acceso a las fotos no hay nada que mostrar. Puedes permitirlo más tarde en Ajustes.</string>
-    <string name="use_apple_photos">Usar Apple Photos</string>
-    <string name="use_phone_photos">Usar las fotos de este teléfono</string>
-    <string name="privacy_line">Tus fotos se quedan en este teléfono. No se sube nada.</string>
+    <string name="show_my_photos">Ver mis fotos</string>
+    <string name="privacy_line">Tus fotos se quedan en este teléfono.</string>
 
     <!-- Daily reminder, on the welcome screen and in the notification -->
     <string name="reminder_title_years">El {day} tiene fotos de {years}</string>
@@ -120,7 +119,6 @@
 
     <!-- Settings -->
     <string name="photo_sources">Fuentes de fotos</string>
-    <string name="apple_photos">Apple Photos</string>
     <string name="phone_photos">Fotos de este teléfono</string>
     <string name="connected">Conectado</string>
     <string name="not_connected">Sin conectar</string>

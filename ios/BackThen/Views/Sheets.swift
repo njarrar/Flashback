@@ -255,7 +255,7 @@ struct SettingsSheet: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 Text(L.s("photo_sources")).font(.nunito(13, .bold)).foregroundStyle(Palette.muted)
-                row(icon: "apple.logo", title: L.s("apple_photos"), status: L.s(s.sources.device ? "connected" : "not_connected"), on: s.sources.device) {
+                row(icon: "iphone", title: L.s("phone_photos"), status: L.s(s.sources.device ? "connected" : "not_connected"), on: s.sources.device) {
                     guard !s.sources.device else { return }
                     Task {
                         if PhotoLibrary.canAsk || PhotoLibrary.hasAccess {

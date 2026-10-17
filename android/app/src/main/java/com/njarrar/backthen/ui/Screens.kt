@@ -196,16 +196,16 @@ fun OnboardingScreen(vm: AppViewModel) {
             }
         }
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Pill(L.s("use_phone_photos"), askPhotos, modifier = Modifier.fillMaxWidth())
+            Pill(L.s("show_my_photos"), askPhotos, modifier = Modifier.fillMaxWidth())
             Row(
                 Modifier.fillMaxWidth().padding(top = 2.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Icons.Outlined.Lock, null, tint = p.muted, modifier = Modifier.size(13.dp))
+                Icon(Icons.Outlined.Lock, null, tint = p.muted2, modifier = Modifier.size(13.dp))
                 Text(
-                    L.s("privacy_line"), color = p.muted, textAlign = TextAlign.Center,
-                    style = TextStyle(fontFamily = Nunito, fontWeight = FontWeight.Medium, fontSize = 13.sp, lineHeight = 18.sp),
+                    L.s("privacy_line"), color = p.muted2, textAlign = TextAlign.Center,
+                    style = TextStyle(fontFamily = Nunito, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, lineHeight = 18.sp),
                 )
             }
         }

@@ -55,11 +55,10 @@
 
     <!-- Welcome -->
     <string name="welcome_title">See what this day looked like, every year.</string>
-    <string name="welcome_body">Each morning, Back Then finds the photos you took on today's date in past years and sorts them by year.</string>
+    <string name="welcome_body">Back Then finds the photos you took on today's date in past years and sorts them by year.</string>
     <string name="welcome_denied">Without photo access there is nothing to show. You can allow it later in Settings.</string>
-    <string name="use_apple_photos">Use Apple Photos</string>
-    <string name="use_phone_photos">Use photos on this phone</string>
-    <string name="privacy_line">Your photos stay on this phone. Nothing is uploaded.</string>
+    <string name="show_my_photos">Show my photos</string>
+    <string name="privacy_line">Your photos stay on this phone.</string>
 
     <!-- Daily reminder, on the welcome screen and in the notification -->
     <string name="reminder_title_years">{day} has photos from {years}</string>
@@ -128,7 +127,6 @@
 
     <!-- Settings -->
     <string name="photo_sources">Photo sources</string>
-    <string name="apple_photos">Apple Photos</string>
     <string name="phone_photos">Photos on this phone</string>
     <string name="connected">Connected</string>
     <string name="not_connected">Not connected</string>

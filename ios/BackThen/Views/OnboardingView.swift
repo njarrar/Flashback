@@ -39,16 +39,16 @@ struct OnboardingView: View {
                     .padding(12).background(Palette.accTint, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
             VStack(spacing: 10) {
-                Pill(label: L.s("use_apple_photos"), systemImage: "apple.logo") {
+                Pill(label: L.s("show_my_photos")) {
                     Task {
                         if await store.connectDevice() { chosePhotos = true } else { denied = true }
                     }
                 }
                 HStack(spacing: 6) {
                     Image(systemName: "lock").font(.system(size: 13))
-                    Text(L.s("privacy_line")).font(.nunito(13, .medium))
+                    Text(L.s("privacy_line")).font(.nunito(13, .semibold))
                 }
-                .foregroundStyle(Palette.muted)
+                .foregroundStyle(Palette.muted2)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity)
                 .padding(.top, 2)

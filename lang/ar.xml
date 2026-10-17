@@ -62,11 +62,10 @@
 
     <!-- Welcome -->
     <string name="welcome_title">شاهد كيف بدا هذا اليوم، في كل عام.</string>
-    <string name="welcome_body">كل صباح، يجد Back Then الصور التي التقطتها في مثل هذا اليوم من السنوات الماضية ويرتّبها حسب السنة.</string>
+    <string name="welcome_body">يجد Back Then الصور التي التقطتها في مثل هذا اليوم من السنوات الماضية ويرتّبها حسب السنة.</string>
     <string name="welcome_denied">من دون الوصول إلى الصور لا يوجد ما نعرضه. يمكنك السماح بذلك لاحقًا من الإعدادات.</string>
-    <string name="use_apple_photos">استخدم صور Apple</string>
-    <string name="use_phone_photos">استخدم صور هذا الهاتف</string>
-    <string name="privacy_line">تبقى صورك على هذا الهاتف. لا يُرفع أي شيء.</string>
+    <string name="show_my_photos">اعرض صوري</string>
+    <string name="privacy_line">تبقى صورك على هذا الهاتف.</string>
 
     <!-- Daily reminder, on the welcome screen and in the notification -->
     <string name="reminder_title_years">في {day} صور من {years}</string>
@@ -135,7 +134,6 @@
 
     <!-- Settings -->
     <string name="photo_sources">مصادر الصور</string>
-    <string name="apple_photos">صور Apple</string>
     <string name="phone_photos">صور هذا الهاتف</string>
     <string name="connected">متصل</string>
     <string name="not_connected">غير متصل</string>
