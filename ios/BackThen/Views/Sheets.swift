@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// iPhone calendar sheet. Picks a month and day, not a year, since every year shows at
-/// once. Each day is shaded by how many photos it has. A tap jumps there; days after today can't be picked.
+/// once. Each day with photos shows a tiny copy of one of them. A tap jumps there; days after today can't be picked.
 struct CalendarSheet: View {
     @Environment(AppStore.self) private var store
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -22,23 +22,20 @@ struct CalendarSheet: View {
     var body: some View {
         let today = MonthDay.today
         VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .top, spacing: 8) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(L.monthName(month)).font(.nunito(24, .heavy)).tight(24).foregroundStyle(Palette.ink)
-                        .accessibilityAddTraits(.isHeader)
-                    Text(L.s("calendar_hint")).font(.nunito(13)).foregroundStyle(Palette.muted)
-                }
+            HStack(alignment: .center, spacing: 8) {
+                Text(L.monthName(month)).font(.nunito(24, .heavy)).tight(24).foregroundStyle(Palette.ink)
+                    .accessibilityAddTraits(.isHeader)
                 Spacer(minLength: 0)
                 if month != today.month || store.day != today {
                     Button { pick(today) } label: {
                         Text(L.s("today")).font(.nunito(15, .semibold)).foregroundStyle(Palette.ink)
-                            .padding(.horizontal, 8).frame(height: 38)
+                            .padding(.horizontal, 8).frame(minHeight: 44)
                     }
                 }
                 arrow("chevron.backward", L.s("previous_month")) { turn(-1) }
                 arrow("chevron.forward", L.s("next_month")) { turn(1) }
             }
-            grid(today: today, levels: store.dayFullness)
+            grid(today: today)
                 .offset(x: slide)
                 .contentShape(Rectangle())
                 .gesture(
@@ -51,7 +48,6 @@ struct CalendarSheet: View {
                             else { withAnimation(.spring(duration: 0.4, bounce: 0)) { slide = 0 } }
                         }
                 )
-            legend
         }
         .padding(.horizontal, 20)
         .padding(.top, 20)
@@ -64,21 +60,17 @@ struct CalendarSheet: View {
         .presentationDragIndicator(.visible)
     }
 
-    private func grid(today: MonthDay, levels: [String: Int]) -> some View {
+    private func grid(today: MonthDay) -> some View {
         let index = store.index
         return LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 7), spacing: 0) {
             ForEach(1...daysInMonth[month], id: \.self) { d in
                 let md = MonthDay(month: month, day: d)
                 let sel = store.day == md
                 let future = md.isAfter(today)
-                // Days still to come this year stay plain and can't be tapped.
-                let (fill, ink) = future && !sel ? (Color.clear, Palette.faint.opacity(0.5)) : shade(levels[md.key] ?? 0, selected: sel)
                 Button { pick(md) } label: {
-                    Text(L.num(d)).font(.nunito(16, .semibold)).monospacedDigit().foregroundStyle(ink)
-                        .frame(width: 40, height: 40)
-                        .background(fill, in: Circle())
-                        .overlay(Circle().strokeBorder(md == today && !sel ? Palette.ink : .clear, lineWidth: 1.5))
-                        .frame(maxWidth: .infinity, minHeight: 46)
+                    CalendarDay(md: md, photos: hasPhotos(index, md), selected: sel, today: md == today, future: future)
+                        .frame(maxWidth: .infinity, minHeight: 50)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .disabled(future)
@@ -93,34 +85,6 @@ struct CalendarSheet: View {
         let years = yearsForDay(index, md).count
         if years == 0 { return L.s("day_no_photos", ["day": md.label]) }
         return L.s("day_photos_from", ["day": md.label, "photos": L.p("photos", photoCount(index, md)), "years": L.p("years", years)])
-    }
-
-    /// Fill and number color for a day at fullness `level`, 0 (no photos) to 5.
-    private func shade(_ level: Int, selected: Bool) -> (Color, Color) {
-        if selected { return (Palette.accent, .white) }
-        switch level {
-        case 0: return (.clear, Palette.faint)
-        case 1: return (Palette.cal1, Palette.cal1Ink)
-        case 2: return (Palette.cal2, Palette.cal2Ink)
-        case 3: return (Palette.cal3, Palette.cal3Ink)
-        case 4: return (Palette.cal4, Palette.cal4Ink)
-        default: return (Palette.cal5, Palette.cal5Ink)
-        }
-    }
-
-    /// Fewer ○○○○● More, so the shades read without the hint.
-    private var legend: some View {
-        HStack(spacing: 6) {
-            Text(L.s("calendar_fewer"))
-            ForEach(1...5, id: \.self) { level in
-                Circle().fill(shade(level, selected: false).0).frame(width: 12, height: 12)
-            }
-            Text(L.s("calendar_more"))
-        }
-        .font(.nunito(12, .semibold))
-        .foregroundStyle(Palette.muted)
-        .frame(maxWidth: .infinity)
-        .accessibilityHidden(true)
     }
 
     private var rtl: Bool { direction == .rightToLeft }
@@ -151,9 +115,49 @@ struct CalendarSheet: View {
     private func arrow(_ icon: String, _ label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: icon).font(.system(size: 15, weight: .bold)).foregroundStyle(Palette.ink)
-                .frame(width: 38, height: 38).background(Palette.fill, in: Circle())
+                .frame(width: 44, height: 44).background(Palette.fill, in: Circle())
         }
         .accessibilityLabel(label)
+    }
+}
+
+/// One day in the calendar: a tiny copy of one of its photos with the number on top, or a plain
+/// number. Past days with no photos use the muted gray; days still to come stay faint.
+private struct CalendarDay: View {
+    @Environment(AppStore.self) private var store
+    let md: MonthDay
+    let photos: Bool
+    let selected: Bool
+    let today: Bool
+    let future: Bool
+    @State private var cover: Photo?
+
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 11, style: .continuous)
+        Text(L.num(md.day)).font(.nunito(16, photos ? .heavy : .semibold)).monospacedDigit()
+            .foregroundStyle(photos && cover != nil ? .white : future ? Palette.faint.opacity(0.5) : photos ? Palette.ink : Palette.muted)
+            .shadow(color: .black.opacity(photos && cover != nil ? 0.6 : 0), radius: 2)
+            .frame(width: 40, height: 40)
+            .background {
+                if photos {
+                    ZStack {
+                        Palette.fill
+                        if let cover { PhotoImage(photo: cover) }
+                    }
+                    .clipShape(shape)
+                }
+            }
+            // The picked day gets a coral ring, set off from the photo by a thin gap. Today gets a thin ink ring.
+            .overlay {
+                if selected {
+                    RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Palette.accent, lineWidth: 2.5).padding(-4)
+                } else if today {
+                    shape.strokeBorder(Palette.ink, lineWidth: 1.5)
+                }
+            }
+            .task(id: "\(md.key)-\(photos)-\(store.indexVersion)") {
+                cover = photos ? await store.cover(for: md) : nil
+            }
     }
 }
 

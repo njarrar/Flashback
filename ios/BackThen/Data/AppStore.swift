@@ -100,14 +100,8 @@ final class AppStore {
     /// Keys of favorite photos, kept here so each tile doesn't build the set again.
     private(set) var favoriteKeys: Set<String> = []
 
-    /// How full each day is, 0 to 4, for the calendar. Worked out once per index change.
-    var dayFullness: [String: Int] {
-        if let c = fullnessCache, c.version == indexVersion { return c.levels }
-        let levels = dayLevels(index)
-        fullnessCache = (indexVersion, levels)
-        return levels
-    }
-    @ObservationIgnored private var fullnessCache: (version: Int, levels: [String: Int])?
+    /// Calendar thumbnails by `MonthDay.key`, kept until the index or the favorites change.
+    @ObservationIgnored private var covers: (version: String, photos: [String: Photo]) = ("", [:])
 
     private var toastTask: Task<Void, Never>?
     private var saveTask: Task<Void, Never>?
@@ -215,6 +209,26 @@ final class AppStore {
             if !photos.isEmpty { groups.append(YearGroup(year: year, photos: photos)) }
         }
         return groups
+    }
+
+    /// The photo the calendar shows for a day: a favorite from that day if there is one,
+    /// else the first photo of the newest year. Nil for a day with no photos.
+    func cover(for md: MonthDay) async -> Photo? {
+        let version = "\(indexVersion)-\(saved.favorites.count)"
+        if covers.version != version { covers = (version, [:]) }
+        if let hit = covers.photos[md.key] { return hit }
+        let years = yearsForDay(index, md)
+        guard let newest = years.first else { return nil }
+        var found = favoriteCover(saved.favorites, md, years: years)
+        if found == nil {
+            if !samplePhotos.isEmpty {
+                found = samplePhotos.filter { MonthDay.of($0.time) == md && yearOf($0.time) == newest }.min { $0.time < $1.time }
+            } else if saved.sources.device {
+                found = await PhotoLibrary.photos(years: [newest], on: md)[newest]?.first
+            }
+        }
+        if let found, covers.version == version { covers.photos[md.key] = found }
+        return found
     }
 
     func say(_ message: String) {

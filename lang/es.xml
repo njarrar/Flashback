@@ -8,7 +8,6 @@
     <string name="close">Cerrar</string>
     <string name="create">Crear</string>
     <string name="save">Guardar</string>
-    <string name="ok">Aceptar</string>
     <string name="not_now">Ahora no</string>
     <string name="share">Compartir</string>
     <string name="more">Más</string>
@@ -67,7 +66,6 @@
     <string name="today_loading">Buscando en tu fototeca…</string>
     <string name="today_none">No hay fotos en esta fecha</string>
     <string name="pick_another_day">Elegir otro día</string>
-    <string name="pick_a_day">Elegir un día</string>
     <string name="back_to_today">Volver a hoy</string>
     <string name="select">Seleccionar</string>
     <string name="selected">Seleccionada</string>
@@ -85,9 +83,6 @@
     <string name="connect_photos">Conectar fotos</string>
 
     <!-- Calendar -->
-    <string name="calendar_hint">Los días más oscuros tienen más fotos</string>
-    <string name="calendar_fewer">Menos</string>
-    <string name="calendar_more">Más</string>
     <string name="previous_month">Mes anterior</string>
     <string name="next_month">Mes siguiente</string>
     <string name="day_no_photos">{day}, sin fotos</string>

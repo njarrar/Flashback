@@ -8,7 +8,6 @@
     <string name="close">إغلاق</string>
     <string name="create">إنشاء</string>
     <string name="save">حفظ</string>
-    <string name="ok">حسنًا</string>
     <string name="not_now">ليس الآن</string>
     <string name="share">مشاركة</string>
     <string name="more">المزيد</string>
@@ -82,7 +81,6 @@
     <string name="today_loading">نبحث في مكتبتك…</string>
     <string name="today_none">لا صور في هذا التاريخ</string>
     <string name="pick_another_day">اختر يومًا آخر</string>
-    <string name="pick_a_day">اختر يومًا</string>
     <string name="back_to_today">العودة إلى اليوم</string>
     <string name="select">تحديد</string>
     <string name="selected">محددة</string>
@@ -100,9 +98,6 @@
     <string name="connect_photos">اربط الصور</string>
 
     <!-- Calendar -->
-    <string name="calendar_hint">الأيام الأغمق فيها صور أكثر</string>
-    <string name="calendar_fewer">أقل</string>
-    <string name="calendar_more">أكثر</string>
     <string name="previous_month">الشهر السابق</string>
     <string name="next_month">الشهر التالي</string>
     <string name="day_no_photos">{day}، لا صور</string>

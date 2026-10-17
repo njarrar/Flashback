@@ -2,7 +2,6 @@ package com.njarrar.backthen.core
 
 import java.time.LocalDate
 import java.time.ZoneId
-import kotlin.math.ln
 
 /** Counts photos per calendar day and year from their capture times. */
 fun buildDayIndex(times: Iterable<Long>, zone: ZoneId = ZoneId.systemDefault()): DayIndex {
@@ -35,34 +34,9 @@ fun photoCount(index: DayIndex, md: MonthDay, today: LocalDate = LocalDate.now()
     return yearsForDay(index, md, today).sumOf { byYear[it] ?: 0 }
 }
 
-/**
- * How full each day of the year is, for the calendar's shading: 0 for no photos, then 1 to 5.
- * The level follows the photo count on a log scale, so 1, 2, 5, 20 and 100 photos each look
- * different. The top level starts at the count that only the busiest tenth of days reach (at
- * least 8), so one huge day doesn't wash out the rest. Days after today are left out, since the
- * calendar doesn't open them. Keyed by [MonthDay.key].
- */
-fun dayLevels(index: DayIndex, today: LocalDate = LocalDate.now()): Map<String, Int> {
-    val now = MonthDay.of(today)
-    val counts = HashMap<String, Int>()
-    for (m in 0..11) for (d in 1..DAYS_IN_MONTH[m]) {
-        val md = MonthDay(m, d)
-        if (md.isAfter(now)) continue
-        val n = photoCount(index, md, today)
-        if (n > 0) counts[md.key] = n
-    }
-    if (counts.isEmpty()) return emptyMap()
-    val sorted = counts.values.sorted()
-    val top = maxOf(8, sorted[(sorted.size - 1) * 9 / 10])
-    return counts.mapValues { (_, n) -> levelFor(n, top) }
-}
-
-/** 1 to 5 for [n] photos, where [top] or more is 5. */
-internal fun levelFor(n: Int, top: Int): Int {
-    if (n >= top) return 5
-    val t = ln(n.toDouble()) / ln(top.toDouble())
-    return 1 + minOf(3, (t * 4 + 1e-9).toInt())
-}
+/** The favorite to show for a day in the calendar: one taken on that day, in a year the day counts. */
+fun favoriteCover(favorites: List<Photo>, md: MonthDay, years: List<Int>): Photo? =
+    favorites.firstOrNull { val d = localDate(it.time); MonthDay.of(d) == md && d.year in years }
 
 /** The closest earlier and later days that have photos, within 60 days. */
 fun nearbyDays(index: DayIndex, md: MonthDay, today: LocalDate = LocalDate.now()): Pair<MonthDay?, MonthDay?> {

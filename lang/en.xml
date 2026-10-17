@@ -16,7 +16,6 @@
     <string name="close">Close</string>
     <string name="create">Create</string>
     <string name="save">Save</string>
-    <string name="ok">OK</string>
     <string name="not_now">Not now</string>
     <string name="share">Share</string>
     <string name="more">More</string>
@@ -75,7 +74,6 @@
     <string name="today_loading">Looking through your library…</string>
     <string name="today_none">No photos on this date</string>
     <string name="pick_another_day">Pick another day</string>
-    <string name="pick_a_day">Pick a day</string>
     <string name="back_to_today">Back to today</string>
     <string name="select">Select</string>
     <string name="selected">Selected</string>
@@ -93,9 +91,6 @@
     <string name="connect_photos">Connect photos</string>
 
     <!-- Calendar -->
-    <string name="calendar_hint">Darker days have more photos</string>
-    <string name="calendar_fewer">Fewer</string>
-    <string name="calendar_more">More</string>
     <string name="previous_month">Previous month</string>
     <string name="next_month">Next month</string>
     <string name="day_no_photos">{day}, no photos</string>

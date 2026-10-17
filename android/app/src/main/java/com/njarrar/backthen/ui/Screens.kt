@@ -406,7 +406,7 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
         }
     }
 
-    if (calendar) CalendarDialog(day, index, onPick = ::go, onDismiss = { calendar = false })
+    if (calendar) CalendarSheet(day, index, cover = vm::coverFor, onPick = ::go, onDismiss = { calendar = false })
     if (settings) {
         SettingsSheet(
             state, day,

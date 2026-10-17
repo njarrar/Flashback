@@ -59,23 +59,16 @@ final class CoreTests: XCTestCase {
         XCTAssertEqual(near.after, MonthDay(month: 9, day: 9))
     }
 
-    func testDayLevelsFollowPhotoCount() {
+    func testPhotoCountAndFavoriteCover() {
         XCTAssertEqual(photoCount(index, MonthDay(month: 9, day: 2), today: today), 3)
-        // 9-2 has 3 photos and 8-20 has 1; 9-9 comes after today, and empty days are left out.
-        XCTAssertEqual(dayLevels(index, today: today), ["9-2": 3, "8-20": 1])
-        // Eight days with 1 to 8 photos: the shade grows with the count.
-        var spread: DayIndex = [:]
-        for k in 1...8 { spread["0-\(k)"] = [2020: k] }
-        let levels = dayLevels(spread, today: today)
-        XCTAssertEqual((1...8).map { levels["0-\($0)"] }, [1, 2, 3, 3, 4, 4, 4, 5])
-        // One huge day doesn't wash out the rest: days with 1 photo stay at the lightest shade.
-        var outlier: DayIndex = ["0-10": [2020: 1000]]
-        for k in 1...9 { outlier["0-\(k)"] = [2020: 1] }
-        let o = dayLevels(outlier, today: today)
-        XCTAssertEqual(Set(o.filter { $0.key != "0-10" }.values), [1])
-        XCTAssertEqual(o["0-10"], 5)
-        // On a log scale: 1, 4, 10, 40 and 100 photos each get their own shade when 100 is the top.
-        XCTAssertEqual([1, 4, 10, 40, 100, 5000].map { levelFor($0, top: 100) }, [1, 2, 3, 4, 5, 5])
+        let cal = Calendar.app
+        let fav = Photo(key: "f", source: .sample, ref: "f", width: 1, height: 1,
+                        time: cal.date(from: DateComponents(year: 2020, month: 10, day: 2, hour: 12))!)
+        let md = MonthDay(month: 9, day: 2)
+        XCTAssertEqual(favoriteCover([fav], md, years: [2021, 2020])?.key, "f")
+        // Not a year the day counts, or another day: no favorite.
+        XCTAssertNil(favoriteCover([fav], md, years: [2021]))
+        XCTAssertNil(favoriteCover([fav], MonthDay(month: 9, day: 3), years: [2020]))
     }
 
     func testLaterDaysComeAfter() {
