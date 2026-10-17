@@ -193,6 +193,7 @@ struct Selection {
 
 struct PhotoTile: View {
     @Environment(AppStore.self) private var store
+    @Environment(\.layoutDirection) private var direction
     let photo: Photo
     let radius: CGFloat
     var selection: Selection?
@@ -201,14 +202,22 @@ struct PhotoTile: View {
 
     var body: some View {
         let picked = selection?.keys.contains(photo.key) ?? false
+        let heart = showHeart && store.favoriteKeys.contains(photo.key)
         Button {
             if let selection, selection.on { selection.toggle(photo) } else { open() }
         } label: {
             PhotoImage(photo: photo)
                 .overlay(alignment: .bottomLeading) {
-                    if showHeart && store.favoriteKeys.contains(photo.key) {
-                        Image(systemName: "heart.fill").font(.system(size: 14)).foregroundStyle(.white)
-                            .shadow(color: .black.opacity(0.45), radius: 2).padding(.leading, 8).padding(.bottom, 7)
+                    if heart {
+                        // A faint dark wash in the corner keeps the white heart readable on snow or sky.
+                        RadialGradient(colors: [.black.opacity(0.32), .clear], center: direction == .rightToLeft ? .bottomTrailing : .bottomLeading,
+                                       startRadius: 0, endRadius: 56)
+                            .frame(width: 64, height: 64)
+                            .allowsHitTesting(false)
+                            .overlay(alignment: .bottomLeading) {
+                                Image(systemName: "heart.fill").font(.system(size: 14)).foregroundStyle(.white)
+                                    .shadow(color: .black.opacity(0.45), radius: 2).padding(.leading, 8).padding(.bottom, 7)
+                            }
                     }
                 }
                 .overlay {
@@ -225,6 +234,7 @@ struct PhotoTile: View {
                 .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
         }
         .buttonStyle(PressStyle())
+        .accessibilityLabel(L.s(heart ? "favorite_photo_from" : "photo_from", ["date": L.date(photo.time, "yMMMMd")]))
         .accessibilityAddTraits(picked ? .isSelected : [])
     }
 }

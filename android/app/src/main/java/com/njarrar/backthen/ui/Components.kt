@@ -58,7 +58,10 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.Layout
@@ -237,8 +240,24 @@ fun PhotoTile(
             .background(p.fill)
             .clickable(role = Role.Image) { if (selection?.on == true) selection.toggle(photo) else onOpen() },
     ) {
-        AsyncImage(model = photo.uri, contentDescription = L.s("photo_from", "date" to formatDate(localDate(photo.time), "yMMMMd")), contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        AsyncImage(
+            model = photo.uri,
+            contentDescription = L.s(if (favorite) "favorite_photo_from" else "photo_from", "date" to formatDate(localDate(photo.time), "yMMMMd")),
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+        )
         if (favorite) {
+            // A faint dark wash in the corner and a soft shadow keep the white heart readable on snow or sky.
+            Box(
+                Modifier.align(Alignment.BottomStart).size(64.dp).drawBehind {
+                    val x = if (layoutDirection == LayoutDirection.Rtl) size.width else 0f
+                    drawRect(Brush.radialGradient(listOf(Color.Black.copy(alpha = 0.32f), Color.Transparent), center = Offset(x, size.height), radius = size.width * 0.9f))
+                },
+            )
+            Icon(
+                Icons.Filled.Favorite, null, tint = Color.Black.copy(alpha = 0.45f),
+                modifier = Modifier.align(Alignment.BottomStart).padding(start = 8.dp, bottom = 6.dp).size(16.dp).offset(y = 1.dp).blur(2.dp),
+            )
             Icon(Icons.Filled.Favorite, null, tint = Color.White, modifier = Modifier.align(Alignment.BottomStart).padding(start = 8.dp, bottom = 7.dp).size(16.dp))
         }
         if (selection?.on == true) {

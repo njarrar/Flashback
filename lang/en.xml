@@ -47,6 +47,7 @@
     <string name="ago_weekday">{ago} · {weekday}</string>
     <string name="ago_weekday_photos">{ago} · {weekday}, {photos}</string>
     <string name="photo_from">Photo from {date}</string>
+    <string name="favorite_photo_from">Favorite photo from {date}</string>
 
     <!-- Tabs -->
     <string name="tab_today">Today</string>
