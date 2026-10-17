@@ -21,7 +21,6 @@ import com.njarrar.backthen.R
 import com.njarrar.backthen.core.L
 import com.njarrar.backthen.core.MonthDay
 import com.njarrar.backthen.core.label
-import com.njarrar.backthen.core.mergeIndexes
 import com.njarrar.backthen.core.startLanguage
 import com.njarrar.backthen.core.yearsForDay
 import java.time.Duration
@@ -34,7 +33,11 @@ const val EXTRA_MONTH = "month"
 const val EXTRA_DAY = "day"
 
 object Reminders {
-    /** Runs once a day at the chosen time. The worker decides whether today has anything to show. */
+    /**
+     * Runs once a day at the chosen time. Replaces the old job outright: an updated
+     * repeating job keeps its old timing, so a new time would never take.
+     * The worker decides whether today has anything to show.
+     */
     fun schedule(context: Context, hour: Int, minute: Int) {
         val now = LocalDateTime.now()
         var next = now.withHour(hour).withMinute(minute).withSecond(0).withNano(0)
@@ -42,7 +45,7 @@ object Reminders {
         val request = PeriodicWorkRequestBuilder<ReminderWorker>(1, TimeUnit.DAYS)
             .setInitialDelay(Duration.between(now, next).toMillis(), TimeUnit.MILLISECONDS)
             .build()
-        WorkManager.getInstance(context).enqueueUniquePeriodicWork(WORK, ExistingPeriodicWorkPolicy.UPDATE, request)
+        WorkManager.getInstance(context).enqueueUniquePeriodicWork(WORK, ExistingPeriodicWorkPolicy.CANCEL_AND_REENQUEUE, request)
     }
 
     fun cancel(context: Context) {

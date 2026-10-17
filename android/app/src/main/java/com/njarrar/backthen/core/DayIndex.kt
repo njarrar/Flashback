@@ -15,15 +15,6 @@ fun buildDayIndex(times: Iterable<Long>, zone: ZoneId = ZoneId.systemDefault()):
     return index
 }
 
-fun mergeIndexes(vararg indexes: DayIndex): DayIndex {
-    val out = HashMap<String, HashMap<Int, Int>>()
-    for (index in indexes) for ((key, byYear) in index) {
-        val target = out.getOrPut(key) { HashMap() }
-        for ((y, n) in byYear) target.merge(y, n, Int::plus)
-    }
-    return out
-}
-
 /**
  * Past years with photos on this day, newest first. This year counts only once the
  * day has passed, so "today" never shows photos from earlier today.

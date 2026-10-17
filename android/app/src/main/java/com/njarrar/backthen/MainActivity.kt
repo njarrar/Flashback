@@ -35,6 +35,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        vm.catchUpToToday()
         // New photos may have been taken since the app was last open.
         if (vm.saved.value.onboarded && vm.saved.value.sources.device) vm.refreshIndex()
     }
@@ -54,6 +55,7 @@ class MainActivity : ComponentActivity() {
     private fun openDayFrom(intent: Intent?) {
         val m = intent?.getIntExtra(EXTRA_MONTH, -1) ?: -1
         val d = intent?.getIntExtra(EXTRA_DAY, -1) ?: -1
-        if (m >= 0 && d > 0) vm.openDay(MonthDay(m, d))
+        // Checked, since any app can start this screen with any numbers.
+        MonthDay.fromKey("$m-$d")?.let(vm::openDay)
     }
 }

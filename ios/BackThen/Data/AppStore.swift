@@ -75,6 +75,8 @@ final class AppStore {
         }
     }
     var day = MonthDay.today
+    /// What today was when the app last checked, so it can tell when midnight has passed.
+    @ObservationIgnored private var lastToday = MonthDay.today
     var indexing = false
     var viewer: Viewer?
     var tab: AppTab = .today
@@ -109,6 +111,7 @@ final class AppStore {
 
     private var toastTask: Task<Void, Never>?
     private var saveTask: Task<Void, Never>?
+    private var reminderTask: Task<Void, Never>?
     private var refreshing = false
     nonisolated private static let file = URL.applicationSupportDirectory.appending(path: "state.json")
 
@@ -170,6 +173,14 @@ final class AppStore {
             try? FileManager.default.createDirectory(at: URL.applicationSupportDirectory, withIntermediateDirectories: true)
             if let data = try? JSONEncoder().encode(snapshot) { try? data.write(to: file, options: .atomic) }
         }
+    }
+
+    /// After midnight, Today moves on to the new day, unless the user had picked another day.
+    func catchUpToToday() {
+        let now = MonthDay.today
+        guard now != lastToday else { return }
+        if day == lastToday { day = now }
+        lastToday = now
     }
 
     /// Rebuilds the phone's day index. Skips the full scan when the library looks the same,
@@ -239,11 +250,16 @@ final class AppStore {
     func applyReminder() {
         let r = saved.reminder
         guard saved.onboarded else { return }
-        if r.on {
-            let index = self.index
-            Task { await Reminders.schedule(index: index, hour: r.hour, minute: r.minute) }
-        } else {
-            Reminders.cancel()
+        // One at a time, each after the last, so a quick run of changes ends on the latest one.
+        let previous = reminderTask
+        let index = self.index
+        reminderTask = Task {
+            await previous?.value
+            if r.on {
+                await Reminders.schedule(index: index, hour: r.hour, minute: r.minute)
+            } else {
+                Reminders.cancel()
+            }
         }
     }
 

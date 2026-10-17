@@ -115,6 +115,32 @@ loads the samples from a folder in the app instead.)
   that grows with the system text size; a large top app bar, navigation bar and
   Android's own date dialog on Android. Light and dark mode.
 
+## What's new in 1.10
+
+Fixes from a full code check.
+
+- **Today keeps up with the date.** Phones keep the app open in the background, so
+  coming back the next morning used to show yesterday. Now Today moves to the new
+  day, unless you had picked another day yourself.
+- **Reminder time changes take hold on Android.** Before, a new time was ignored once
+  the first reminder had gone off. On iPhone, tapping the time button quickly no
+  longer leaves some days at an older time.
+- **Safer saves on Android.** If the save file ever fails to load, the app keeps it as
+  `state.bad.json` instead of writing over it, so albums and favorites can be brought
+  back. A full disk no longer crashes the app.
+- **Hidden days stay hidden in the iPhone widget.** If the widget can't read the app's
+  settings, it asks you to open the app instead of showing photos.
+- **Better Save to gallery on Android.** HEIC and PNG photos keep their own type
+  instead of being labeled JPEG, saving an album again skips photos already there,
+  and the button no longer shows on Android 8 and 9, where it could never work. The
+  unused storage permission is gone.
+- **Sturdier reminder taps.** The Android app checks the day it is asked to open, so
+  another app can't crash it with a bad date.
+- **Built apps moved to a GitHub release.** The APK, Play bundle and iPhone Simulator
+  app now go on the [Latest build](../../releases/tag/latest-build) release instead of
+  the `build/` folder, so the repo no longer grows by about 25 MB with every build.
+- Unused code left from Google Photos is gone.
+
 ## What's new in 1.9
 
 Photos on the phone only. Google Photos sign-in is gone from both apps.
@@ -247,7 +273,7 @@ round of small fixes, on both apps.
   date button is in the top bar on iPhone and next to the photo count on Android.
 - **Gregorian dates everywhere.** A phone set to the Hijri calendar (the default in
   Saudi Arabia) still sees the right day's photos, and dates read the usual way.
-- **Built apps in [`build/`](build/).** An Android APK and an iPhone Simulator app,
+- **Built apps in `build/`.** An Android APK and an iPhone Simulator app,
   rebuilt by the Build apps workflow.
 
 ## What's new in 1.3
@@ -352,13 +378,20 @@ add a line to `pluralForm` in `ios/BackThen/Core/Lang.swift` and
 GitHub Actions builds both apps and runs their unit tests on every push. The Android run also uploads a debug
 APK you can install on a phone.
 
-### Built apps in `build/`
+### Built apps
 
-The [build](build/) folder holds ready-made copies of both apps: an Android APK you
-can install on a phone, and an iPhone app for the iOS Simulator on a Mac. The
-[Build apps workflow](.github/workflows/build.yml) makes them; run it again from the
-Actions tab after app changes. See [build/README.md](build/README.md) for how to
-install each one.
+The [Latest build](../../releases/tag/latest-build) release holds ready-made copies of
+both apps. The [Build apps workflow](.github/workflows/build.yml) makes them; run it
+again from the Actions tab after app changes. Each run replaces the files.
+
+| File | What it is | Where it runs |
+|---|---|---|
+| `BackThen-Android.apk` | Debug build of the Android app | Any Android 8 or later phone. Open the file on the phone and allow installs from that source. |
+| `BackThen-Android.aab` | Release bundle for Google Play, made by the [Play Store workflow](.github/workflows/play.yml) | Upload to the Play Console. It can't be installed on a phone directly. See [play-store/README.md](play-store/README.md). |
+| `BackThen-iOS-Simulator.zip` | Unsigned iPhone app built for the simulator | Only the iOS Simulator on a Mac. Unzip it and drag `Back Then.app` onto a running simulator. It will not install on a real iPhone. |
+
+A build for a real iPhone needs an Apple Developer account and its signing
+certificate and profile. With those, a signed build can go out through TestFlight.
 
 ### Publishing on Google Play
 

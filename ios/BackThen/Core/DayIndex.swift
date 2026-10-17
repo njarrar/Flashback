@@ -11,16 +11,6 @@ func buildDayIndex(_ times: [Date], calendar: Calendar = .app) -> DayIndex {
     return index
 }
 
-func mergeIndexes(_ indexes: DayIndex...) -> DayIndex {
-    var out: DayIndex = [:]
-    for index in indexes {
-        for (key, byYear) in index {
-            for (y, n) in byYear { out[key, default: [:]][y, default: 0] += n }
-        }
-    }
-    return out
-}
-
 /// Past years with photos on this day, newest first. This year counts only once the
 /// day has passed, so "today" never shows photos from earlier today.
 func yearsForDay(_ index: DayIndex, _ md: MonthDay, today: Date = Date(), calendar: Calendar = .app) -> [Int] {

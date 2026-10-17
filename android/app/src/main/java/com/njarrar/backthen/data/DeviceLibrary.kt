@@ -9,6 +9,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import android.webkit.MimeTypeMap
 import androidx.core.content.ContextCompat
 import com.njarrar.backthen.core.MonthDay
 import com.njarrar.backthen.core.Photo
@@ -17,6 +18,9 @@ import com.njarrar.backthen.core.dayRange
 import com.njarrar.backthen.core.localDate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+
+/** Saving copies to the gallery needs Android 10 or later, so older phones don't show the button. */
+val CAN_SAVE_TO_GALLERY = Build.VERSION.SDK_INT >= 29
 
 data class LibrarySignature(
     val count: Int,
@@ -137,25 +141,37 @@ class DeviceLibrary(private val context: Context) {
 
     /**
      * Copies photos into Pictures/Back Then/<album>, so the album shows up in the gallery
-     * and Google Photos. Needs Android 10 or later.
+     * and Google Photos. Each file keeps its own type (JPEG, HEIC, PNG), and a photo already
+     * in that folder is skipped, so saving again doesn't make copies. See [CAN_SAVE_TO_GALLERY].
      */
     suspend fun saveAlbum(name: String, photos: List<Photo>): Boolean = withContext(Dispatchers.IO) {
-        if (Build.VERSION.SDK_INT < 29) return@withContext false
+        if (!CAN_SAVE_TO_GALLERY) return@withContext false
         val folder = "${Environment.DIRECTORY_PICTURES}/Back Then/${name.replace('/', '-')}"
         val resolver = context.contentResolver
+        val saveTo = MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        val there = HashSet<String>()
+        resolver.query(
+            saveTo, arrayOf(MediaStore.Images.Media.DISPLAY_NAME),
+            "${MediaStore.Images.Media.RELATIVE_PATH} = ?", arrayOf("$folder/"), null,
+        )?.use { c -> while (c.moveToNext()) c.getString(0)?.let(there::add) }
         var failed = 0
-        for ((i, p) in photos.withIndex()) {
+        for (p in photos) {
+            val source = Uri.parse(p.uri)
+            val type = resolver.getType(source) ?: "image/jpeg"
+            val ext = MimeTypeMap.getSingleton().getExtensionFromMimeType(type) ?: "jpg"
+            val file = "backthen_${p.key.substringAfter(':')}.$ext"
+            if (file in there) continue
             val values = ContentValues().apply {
-                put(MediaStore.Images.Media.DISPLAY_NAME, "backthen_${p.time}_$i.jpg")
-                put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                put(MediaStore.Images.Media.DISPLAY_NAME, file)
+                put(MediaStore.Images.Media.MIME_TYPE, type)
                 put(MediaStore.Images.Media.RELATIVE_PATH, folder)
                 put(MediaStore.Images.Media.DATE_TAKEN, p.time)
                 put(MediaStore.Images.Media.IS_PENDING, 1)
             }
-            val target = resolver.insert(MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY), values)
+            val target = resolver.insert(saveTo, values)
             if (target == null) { failed++; continue }
             val copied = runCatching {
-                resolver.openOutputStream(target)?.use { out -> openPhoto(p)?.use { it.copyTo(out) } } != null
+                resolver.openOutputStream(target)?.use { out -> resolver.openInputStream(source)?.use { it.copyTo(out) } } != null
             }.getOrDefault(false)
             if (!copied) {
                 // Don't leave an empty or half-written file behind in the gallery.
@@ -166,9 +182,8 @@ class DeviceLibrary(private val context: Context) {
             values.clear()
             values.put(MediaStore.Images.Media.IS_PENDING, 0)
             resolver.update(target, values, null, null)
+            there += file
         }
         failed == 0
     }
-
-    private fun openPhoto(p: Photo) = context.contentResolver.openInputStream(Uri.parse(p.uri))
 }
