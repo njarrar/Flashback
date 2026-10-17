@@ -19,7 +19,7 @@ the phone.
   </tr>
   <tr>
     <td><img src="docs/screenshots/ios/today.png" width="240" alt="Today screen on iPhone: years with photos from this date, newest first"></td>
-    <td><img src="docs/screenshots/ios/calendar.png" width="240" alt="Calendar sheet on iPhone, with days shaded by how many photos they have"></td>
+    <td><img src="docs/screenshots/ios/calendar.png" width="240" alt="Calendar sheet on iPhone, with a tiny photo on each day that has some"></td>
     <td><img src="docs/screenshots/ios/viewer.png" width="240" alt="Full-screen photo viewer on iPhone with a filmstrip and heart, share and album buttons"></td>
   </tr>
   <tr>
@@ -92,13 +92,13 @@ loads the samples from a folder in the app instead.)
 - **Today.** Every past year that has photos on this date, newest first. Each year
   gets a large year number, how long ago it was, a share button, and a mosaic of
   that day's photos. While you scroll, the year you are in stays pinned at the top.
-  Or switch to one year at a time. Pull down to check the library for new photos.
-  Hide a date you'd rather not see again.
+  Or switch to one year at a time from the ••• menu. Pull down to check the library
+  for new photos. Hide a date you'd rather not see again.
 - **Pick a day.** A month-and-day calendar (no year, since every year shows at once).
-  Today and earlier days can be picked; days still to come this year can't. The
-  deeper a day's color, the more photos it has, in five shades with a Fewer to More
-  key under the month. Swipe to change month. A day with no photos offers the closest
-  days that have some.
+  Tap the date title to open it. Each day with photos shows a tiny copy of one of
+  them: a favorite from that day, or the newest year's first photo. One tap opens a
+  day. Days still to come this year can't be picked. Swipe to change month. A day
+  with no photos offers the closest days that have some.
 - **Photo viewer.** Swipe through a day's photos or jump with the filmstrip. Pinch
   or double tap to zoom, swipe down to close, tap to hide the buttons. Heart a photo,
   share it, or add it to an album.
@@ -112,8 +112,34 @@ loads the samples from a folder in the app instead.)
 - **Daily reminder.** One notification a day at a time you choose, and only on days
   that have photos from past years. Tapping it opens that day.
 - **Looks native on each phone.** The system tab bar and sheets on iPhone, with text
-  that grows with the system text size; a large top app bar, navigation bar and
-  Android's own date dialog on Android. Light and dark mode.
+  that grows with the system text size; a large top app bar and navigation bar on
+  Android. Light and dark mode.
+
+## What's new in 1.12
+
+A design pass from two reviews of the apps.
+
+- **A calmer top bar on Today.** The bar now holds only Select and a ••• menu. The
+  menu has Hide date, All years, One year at a time, and Settings. Tap the date title
+  to open the calendar. Each year shows its number with a plain share button, and one
+  line under it: how long ago, the weekday, and the photo count.
+- **Photos in the calendar.** With normal photo counts most days ended up the same
+  pale shade. Now each day with photos shows a tiny copy of a favorite from that day,
+  or else the newest year's first photo, with the day number in white. The picked
+  day gets a coral ring. Past days with no photos are gray, so they read apart from
+  days still to come. The legend and hint line are gone.
+- **One tap on Android.** The Android calendar is now a bottom sheet like the iPhone
+  one. One tap on a day opens it, with no OK button.
+- **"Show my photos".** The welcome button no longer shows the Apple logo, and the
+  privacy line under it is easier to read.
+- **Hearts stay readable.** A soft dark wash in the tile corner keeps the heart clear
+  on bright photos, and screen readers now say "Favorite photo from 2019".
+- **Photo viewer.** The header says where you are, like "3 of 5". The buttons have
+  short labels under them, and filmstrip thumbnails are easier to hit. On Android the
+  status bar icons stay light on the dark viewer.
+- **Small fixes.** Year buttons, the Back to today button and the reminder time are
+  easier to tap. On iPhone, Reduce Motion turns off the press and toast motion. The
+  toast check mark shows in dark mode. Android stays in portrait, like the iPhone app.
 
 ## What's new in 1.10
 
