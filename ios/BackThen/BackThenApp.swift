@@ -23,6 +23,7 @@ struct BackThenApp: App {
                 .environment(\.locale, L.locale)
                 .onAppear { delegate.store = store }
                 .onChange(of: phase) { _, now in
+                    if now == .active { store.catchUpToToday() }
                     // New photos may have been taken since the app was last open.
                     if now == .active, store.saved.onboarded, store.saved.sources.device {
                         Task { await store.refreshIndex() }

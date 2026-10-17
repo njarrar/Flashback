@@ -65,6 +65,7 @@ import com.njarrar.backthen.core.Album
 import com.njarrar.backthen.core.L
 import com.njarrar.backthen.core.Photo
 import com.njarrar.backthen.core.formatTime
+import com.njarrar.backthen.data.CAN_SAVE_TO_GALLERY
 import com.njarrar.backthen.data.SavedState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -294,14 +295,16 @@ fun ShareSheet(request: ShareRequest, onSend: () -> Unit, onSave: () -> Unit, on
             }
         }
         Pill(L.s("share"), onSend, modifier = Modifier.fillMaxWidth(), icon = { Icon(Icons.Outlined.IosShare, null, tint = it, modifier = Modifier.size(18.dp)) })
-        HorizontalDivider(color = p.line)
-        Row(
-            Modifier.fillMaxWidth().height(52.dp).clip(RoundedCornerShape(12.dp)).clickable(role = Role.Button, onClick = onSave).padding(horizontal = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Icon(Icons.Outlined.Download, null, tint = p.ink)
-            T(L.s("save_copies_gallery"), weight = FontWeight.Medium)
+        if (CAN_SAVE_TO_GALLERY) {
+            HorizontalDivider(color = p.line)
+            Row(
+                Modifier.fillMaxWidth().height(52.dp).clip(RoundedCornerShape(12.dp)).clickable(role = Role.Button, onClick = onSave).padding(horizontal = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Icon(Icons.Outlined.Download, null, tint = p.ink)
+                T(L.s("save_copies_gallery"), weight = FontWeight.Medium)
+            }
         }
     }
 }

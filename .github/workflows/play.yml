@@ -1,7 +1,8 @@
 name: Play Store
 
-# Makes everything the Google Play upload needs and commits it:
-#   build/BackThen-Android.aab       release bundle (signed when the upload key secrets are set)
+# Makes everything the Google Play upload needs:
+#   BackThen-Android.aab             release bundle (signed when the upload key secrets are set),
+#                                    on the "latest-build" GitHub release, not in git
 #   play-store/graphics/             app icon and a feature graphic per language
 #   play-store/screenshots/<lang>/   phone screenshots in English, French, Spanish and Arabic
 # Run it from the Actions tab (Play Store, Run workflow). See play-store/README.md.
@@ -96,14 +97,21 @@ jobs:
         with: { path: /tmp/out }
       - name: Commit
         run: |
-          mkdir -p build play-store
-          cp /tmp/out/bundle/BackThen-Android.aab build/
+          mkdir -p play-store
           rm -rf play-store/screenshots play-store/graphics
           cp -r /tmp/out/store/screenshots /tmp/out/store/graphics play-store/
-          ls -R build play-store
+          ls -R play-store
           git config user.name "njarrar"
           git config user.email "njarrar@gmail.com"
-          git add build play-store
-          git diff --cached --quiet || git commit -m "Update Play Store bundle, screenshots and graphics"
+          git add play-store
+          git diff --cached --quiet || git commit -m "Update Play Store screenshots and graphics"
           # Other workflows commit to the same branch, so catch up before pushing.
           for i in 1 2 3; do git pull --rebase -q && git push && break; sleep 10; done
+      - name: Upload the bundle to the latest-build release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release view latest-build >/dev/null 2>&1 || gh release create latest-build \
+            --title "Latest build" --prerelease --target "$GITHUB_SHA" --notes "Ready-made apps for testing."
+          gh release upload latest-build /tmp/out/bundle/BackThen-Android.aab --clobber

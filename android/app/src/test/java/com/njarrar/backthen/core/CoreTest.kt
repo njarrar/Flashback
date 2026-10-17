@@ -69,13 +69,6 @@ class CoreTest {
         assertTrue(!MonthDay(0, 31).isAfter(MonthDay(9, 2)))
     }
 
-    @Test fun merges() {
-        assertEquals(
-            mapOf("1-1" to mapOf(2020 to 3, 2021 to 1)),
-            mergeIndexes(mapOf("1-1" to mapOf(2020 to 1)), mapOf("1-1" to mapOf(2020 to 2, 2021 to 1))),
-        )
-    }
-
     @Test fun mosaicPacksWithoutGaps() {
         for (n in listOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 25)) {
             val (tiles, rows) = layoutMosaic(n)

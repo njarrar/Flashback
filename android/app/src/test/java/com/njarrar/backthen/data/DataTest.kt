@@ -1,6 +1,8 @@
 package com.njarrar.backthen.data
 
 import kotlinx.serialization.json.Json
+import java.io.File
+import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -25,5 +27,19 @@ class DataTest {
         assertTrue(s.onboarded)
         assertEquals(listOf("d:1"), s.favorites.map { it.key })
         assertEquals(listOf("d:2"), s.albums.single().photos.map { it.key })
+    }
+
+    @Test fun aFileThatWontLoadIsKept() {
+        val dir = Files.createTempDirectory("state").toFile()
+        val file = File(dir, "state.json")
+        val store = StateFile(file)
+        store.write(SavedState(onboarded = true, albums = listOf(com.njarrar.backthen.core.Album("a", "Trip", emptyList(), 0))))
+        assertEquals("Trip", store.read().albums.single().name)
+
+        file.writeText("""{"albums":[{"id":""")
+        assertEquals(SavedState(), store.read())
+        assertEquals("""{"albums":[{"id":""", File(dir, "state.bad.json").readText())
+        assertTrue(!file.exists())
+        dir.deleteRecursively()
     }
 }

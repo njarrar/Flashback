@@ -41,6 +41,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val saved: StateFlow<SavedState> = _saved.asStateFlow()
 
     val day = MutableStateFlow(MonthDay.today())
+    /** What today was when the app last checked, so it can tell when midnight has passed. */
+    private var lastToday = MonthDay.today()
     val indexing = MutableStateFlow(false)
     val viewer = MutableStateFlow<Viewer?>(null)
     val toast = MutableStateFlow<String?>(null)
@@ -73,6 +75,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         _saved.update(change)
         val snapshot = _saved.value
         viewModelScope.launch(writer) { stateFile.write(snapshot) }
+    }
+
+    /** After midnight, Today moves on to the new day, unless the user had picked another day. */
+    fun catchUpToToday() {
+        val now = MonthDay.today()
+        if (now == lastToday) return
+        if (day.value == lastToday) day.value = now
+        lastToday = now
     }
 
     /** A tap on the daily reminder: show that day on Today, over any open photo. */
@@ -186,8 +196,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val ok = runCatching { library.saveAlbum(name, photos) }.getOrDefault(false)
         say(L.s(if (ok) "toast_saved_gallery" else "toast_save_failed"))
     }
-
-    fun isHidden(md: MonthDay) = md.key in _saved.value.hiddenDates
 
     fun setHidden(md: MonthDay, hidden: Boolean) {
         update { s -> s.copy(hiddenDates = if (hidden) s.hiddenDates + md.key else s.hiddenDates - md.key) }

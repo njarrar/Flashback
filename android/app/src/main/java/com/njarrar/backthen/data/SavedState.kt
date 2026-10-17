@@ -43,23 +43,38 @@ data class SavedState(
 fun visibleIndex(s: SavedState): DayIndex = if (s.sources.device) s.deviceIndex - s.hiddenDates else emptyMap()
 
 /** Stores [SavedState] as one JSON file in app storage. */
-class StateFile(context: Context) {
-    private val file = File(context.filesDir, "state.json")
+class StateFile(private val file: File) {
+    constructor(context: Context) : this(File(context.filesDir, "state.json"))
+
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true; coerceInputValues = true }
 
-    fun read(): SavedState = runCatching {
-        json.decodeFromJsonElement(SavedState.serializer(), dropGooglePhotos(json.parseToJsonElement(file.readText())))
-    }.getOrDefault(SavedState())
+    /**
+     * The saved state, or a fresh one if there is none. A file that won't load is kept as
+     * state.bad.json first, since the next save would write over it and lose every album.
+     */
+    @Synchronized
+    fun read(): SavedState {
+        if (!file.exists()) return SavedState()
+        return runCatching {
+            json.decodeFromJsonElement(SavedState.serializer(), dropGooglePhotos(json.parseToJsonElement(file.readText())))
+        }.getOrElse {
+            runCatching { file.renameTo(File(file.parentFile, "state.bad.json")) }
+            SavedState()
+        }
+    }
 
+    /** Writes the whole state. A failed write (a full disk) leaves the last good file in place. */
     @Synchronized
     fun write(state: SavedState) {
         val tmp = File(file.path + ".tmp")
-        tmp.writeText(json.encodeToString(SavedState.serializer(), state))
         runCatching {
-            Files.move(tmp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
-        }.onFailure {
-            Files.move(tmp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING)
-        }
+            tmp.writeText(json.encodeToString(SavedState.serializer(), state))
+            runCatching {
+                Files.move(tmp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+            }.onFailure {
+                Files.move(tmp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING)
+            }
+        }.onFailure { tmp.delete() }
     }
 }
 
