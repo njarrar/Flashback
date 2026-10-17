@@ -14,8 +14,8 @@ enum Share {
             var out: [URL] = []
             for (i, p) in photos.enumerated() {
                 switch p.source {
-                case .google:
-                    let url = GooglePhotos.fileURL(p.ref)
+                case .sample:
+                    let url = SamplePhotos.fileURL(p.ref)
                     if FileManager.default.fileExists(atPath: url.path) { out.append(url) }
                 case .device:
                     guard let data = await PhotoLibrary.data(id: p.ref) else { continue }

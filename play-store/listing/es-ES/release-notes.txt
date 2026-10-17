@@ -1,1 +1,1 @@
-Primera versión. Mira las fotos que tomaste este día en años pasados, elige cualquier día en el calendario, guarda favoritos, crea álbumes y recibe un recordatorio diario.
+Back Then ahora usa solo las fotos de tu teléfono. Ya no hay inicio de sesión con Google Fotos y la app ya no necesita internet. Tus favoritos, álbumes y ajustes siguen igual.

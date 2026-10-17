@@ -5,7 +5,6 @@ struct TodayView: View {
     @State private var result: (day: MonthDay, groups: [YearGroup])?
     @State private var calendar = false
     @State private var settings = false
-    @State private var google = false
     @State private var selecting = false
     @State private var picked: [Photo] = []
     @State private var albumFor: [Photo]?
@@ -58,7 +57,7 @@ struct TodayView: View {
                     HiddenDay(day: day) { store.setHidden(day, false) }
                 } else if let groups {
                     if groups.isEmpty {
-                        EmptyDay(day: day, noSources: !store.saved.sources.device && !store.saved.sources.google,
+                        EmptyDay(day: day, noSources: !store.saved.sources.device,
                                  near: nearbyDays(store.index, day), go: go, connect: { settings = true })
                     } else if store.saved.layout == .strip {
                         let years = groups.map(\.year)
@@ -117,8 +116,7 @@ struct TodayView: View {
         .sheet(isPresented: $calendar) {
             CalendarSheet(start: store.day) { md in go(md) }
         }
-        .sheet(isPresented: $settings) { SettingsSheet(showGoogle: $google) }
-        .sheet(isPresented: $google) { GoogleSheet() }
+        .sheet(isPresented: $settings) { SettingsSheet() }
         .sheet(item: $shareFor) { ShareSheetView(request: $0) }
         .sheet(isPresented: Binding(get: { albumFor != nil }, set: { if !$0 { albumFor = nil } })) {
             AlbumSheet(photos: albumFor ?? [], created: { album in store.openAlbumID = album.id }, done: stopSelecting)

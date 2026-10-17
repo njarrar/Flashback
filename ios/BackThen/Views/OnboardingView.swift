@@ -4,10 +4,9 @@ struct OnboardingView: View {
     @Environment(AppStore.self) private var store
     @State private var denied = false
     @State private var chosePhotos = false
-    @State private var google = false
 
     var body: some View {
-        if chosePhotos || store.saved.sources.google { reminder } else { welcome }
+        if chosePhotos { reminder } else { welcome }
     }
 
     private var welcome: some View {
@@ -39,14 +38,12 @@ struct OnboardingView: View {
                     .font(.nunito(14, .medium)).foregroundStyle(Palette.accInk)
                     .padding(12).background(Palette.accTint, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
-            // Apple Photos leads on iPhone, as in the design.
             VStack(spacing: 10) {
                 Pill(label: L.s("use_apple_photos"), systemImage: "apple.logo") {
                     Task {
                         if await store.connectDevice() { chosePhotos = true } else { denied = true }
                     }
                 }
-                Pill(label: L.s("use_google_photos"), systemImage: "photo.on.rectangle.angled", kind: .secondary) { google = true }
                 HStack(spacing: 6) {
                     Image(systemName: "lock").font(.system(size: 13))
                     Text(L.s("privacy_line")).font(.nunito(13, .medium))
@@ -59,7 +56,6 @@ struct OnboardingView: View {
         }
         .padding(.horizontal, 24).padding(.bottom, 24)
         .background(Palette.bg)
-        .sheet(isPresented: $google) { GoogleSheet() }
     }
 
     private var reminder: some View {

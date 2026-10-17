@@ -3,17 +3,19 @@ package com.njarrar.backthen.data
 import android.content.Context
 import com.njarrar.backthen.core.Album
 import com.njarrar.backthen.core.DayIndex
-import com.njarrar.backthen.core.buildDayIndex
-import com.njarrar.backthen.core.mergeIndexes
 import com.njarrar.backthen.core.Photo
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 
 @Serializable
-data class Sources(val device: Boolean = false, val google: Boolean = false)
+data class Sources(val device: Boolean = false)
 
 @Serializable
 data class Reminder(val on: Boolean = false, val hour: Int = 9, val minute: Int = 0)
@@ -30,7 +32,6 @@ data class SavedState(
     val reminder: Reminder = Reminder(),
     val favorites: List<Photo> = emptyList(),
     val albums: List<Album> = emptyList(),
-    val googlePhotos: List<Photo> = emptyList(),
     /** Cached photo counts per day for the phone's library. */
     val deviceIndex: Map<String, Map<Int, Int>> = emptyMap(),
     /** Days the user hid, as [com.njarrar.backthen.core.MonthDay.key]. They don't come up on their own or in reminders. */
@@ -38,18 +39,17 @@ data class SavedState(
     val layout: YearLayout = YearLayout.MOSAIC,
 )
 
-/** Photo counts per day across the connected sources, leaving out hidden days. */
-fun visibleIndex(s: SavedState): DayIndex = mergeIndexes(
-    if (s.sources.device) s.deviceIndex else emptyMap(),
-    if (s.sources.google) buildDayIndex(s.googlePhotos.map { it.time }) else emptyMap(),
-) - s.hiddenDates
+/** Photo counts per day in the phone's library, leaving out hidden days. */
+fun visibleIndex(s: SavedState): DayIndex = if (s.sources.device) s.deviceIndex - s.hiddenDates else emptyMap()
 
 /** Stores [SavedState] as one JSON file in app storage. */
 class StateFile(context: Context) {
     private val file = File(context.filesDir, "state.json")
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true; coerceInputValues = true }
 
-    fun read(): SavedState = runCatching { json.decodeFromString<SavedState>(file.readText()) }.getOrDefault(SavedState())
+    fun read(): SavedState = runCatching {
+        json.decodeFromJsonElement(SavedState.serializer(), dropGooglePhotos(json.parseToJsonElement(file.readText())))
+    }.getOrDefault(SavedState())
 
     @Synchronized
     fun write(state: SavedState) {
@@ -61,4 +61,21 @@ class StateFile(context: Context) {
             Files.move(tmp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING)
         }
     }
+}
+
+/**
+ * Version 1.8 and earlier could import from Google Photos. Leaves those photos out of
+ * favorites and albums in an old save, so the rest of it still loads.
+ */
+internal fun dropGooglePhotos(state: JsonElement): JsonElement {
+    if (state !is JsonObject) return state
+    fun photos(list: JsonElement?) = JsonArray((list as? JsonArray).orEmpty().filter {
+        ((it as? JsonObject)?.get("source") as? JsonPrimitive)?.content != "GOOGLE"
+    })
+    val out = state.toMutableMap()
+    state["favorites"]?.let { out["favorites"] = photos(it) }
+    (state["albums"] as? JsonArray)?.let { albums ->
+        out["albums"] = JsonArray(albums.map { a -> if (a is JsonObject) JsonObject(a + ("photos" to photos(a["photos"]))) else a })
+    }
+    return JsonObject(out)
 }

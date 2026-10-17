@@ -243,7 +243,6 @@ struct AlbumSheet: View {
 /// Photo sources and the daily reminder. Opened from the "..." button.
 struct SettingsSheet: View {
     @Environment(AppStore.self) private var store
-    @Binding var showGoogle: Bool
     @Environment(\.dismiss) private var dismiss
     private let times = [(8, 0), (9, 0), (12, 0), (18, 0), (20, 0)]
 
@@ -261,11 +260,6 @@ struct SettingsSheet: View {
                             await UIApplication.shared.open(url)
                         }
                     }
-                }
-                row(icon: "photo.on.rectangle.angled", title: L.s("google_photos"),
-                    status: s.sources.google ? L.s("n_picked", ["photos": L.p("photos", s.googlePhotos.count)]) : L.s("not_connected"), on: s.sources.google) {
-                    dismiss()
-                    showGoogle = true
                 }
                 Divider()
                 HStack(spacing: 12) {
@@ -353,55 +347,6 @@ struct SettingsSheet: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-    }
-}
-
-/// Explains what Google allows, runs the picker, or manages the link.
-struct GoogleSheet: View {
-    @Environment(AppStore.self) private var store
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        let connected = store.saved.sources.google
-        VStack(alignment: .leading, spacing: 16) {
-            Image(systemName: "photo.on.rectangle.angled").font(.system(size: 24)).foregroundStyle(Palette.ink)
-                .frame(width: 52, height: 52).background(Palette.fill, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-            if let progress = store.googleImport {
-                Text(L.s(progress.total > 0 ? "google_saving" : "google_waiting")).font(.nunito(24, .heavy)).tight(24).foregroundStyle(Palette.ink)
-                Text(progress.total > 0 ? L.s("google_progress", ["done": progress.done, "photos": L.p("photos", progress.total)]) : L.s("google_waiting_body"))
-                    .font(.nunito(15, .medium)).foregroundStyle(Palette.muted)
-                ProgressView().tint(Palette.accent).frame(maxWidth: .infinity)
-                Pill(label: L.s("cancel"), kind: .ghost, height: 48) { store.cancelGoogleImport() }
-            } else {
-                Text(L.s(connected ? "google_connected_title" : "google_add_title")).font(.nunito(24, .heavy)).tight(24).foregroundStyle(Palette.ink)
-                Text(connected
-                     ? L.s("google_connected_body", ["photos": L.p("photos", store.saved.googlePhotos.count)])
-                     : L.s("google_intro_ios"))
-                    .font(.nunito(15, .medium)).foregroundStyle(Palette.muted).fixedSize(horizontal: false, vertical: true)
-                if GoogleConfig.isConfigured {
-                    VStack(spacing: 6) {
-                        Pill(label: L.s(connected ? "pick_more" : "continue_google")) { store.importFromGoogle() }
-                        if connected {
-                            Pill(label: L.s("disconnect"), kind: .ghost, height: 48) { store.disconnectGoogle(); dismiss() }
-                        } else {
-                            Pill(label: L.s("not_now"), kind: .ghost, height: 48) { dismiss() }
-                        }
-                    }
-                } else {
-                    Text(L.s("google_no_client"))
-                        .font(.nunito(14)).foregroundStyle(Palette.accInk).padding(12)
-                        .background(Palette.accTint, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    Pill(label: L.s("close"), kind: .ghost, height: 48) { dismiss() }
-                }
-            }
-        }
-        .padding(20)
-        .presentationDetents([.medium])
-        .presentationCornerRadius(36)
-        .presentationBackground(Palette.surface)
-        .presentationDragIndicator(.visible)
-        .interactiveDismissDisabled(store.googleImport != nil)
-        .onChange(of: store.googleImport == nil) { _, idle in if idle && store.saved.sources.google { dismiss() } }
     }
 }
 

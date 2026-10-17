@@ -11,8 +11,6 @@
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
-    <!-- Google Photos picker and downloads. -->
-    <uses-permission android:name="android.permission.INTERNET" />
     <!-- Daily reminder. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- No ads or tracking. Keeps a library from adding the advertising ID permission,
@@ -51,15 +49,5 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/today_widget_info" />
         </receiver>
-
-        <provider
-            android:name="androidx.core.content.FileProvider"
-            android:authorities="${applicationId}.files"
-            android:exported="false"
-            android:grantUriPermissions="true">
-            <meta-data
-                android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/file_paths" />
-        </provider>
     </application>
 </manifest>

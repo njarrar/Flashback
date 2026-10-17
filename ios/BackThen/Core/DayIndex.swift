@@ -81,38 +81,3 @@ func nearbyDays(_ index: DayIndex, _ md: MonthDay, today: Date = Date()) -> (bef
     }
     return (before, after)
 }
-
-/// Drops Google copies of shots already on the phone. Google keeps the capture time,
-/// so a match within two seconds and the same orientation counts as the same shot.
-func dropDuplicates(device: [Photo], google: [Photo]) -> [Photo] {
-    if device.isEmpty || google.isEmpty { return device + google }
-    var landscapeTimes: [TimeInterval] = []
-    var portraitTimes: [TimeInterval] = []
-    for p in device {
-        if p.width >= p.height {
-            landscapeTimes.append(p.time.timeIntervalSince1970)
-        } else {
-            portraitTimes.append(p.time.timeIntervalSince1970)
-        }
-    }
-    landscapeTimes.sort()
-    portraitTimes.sort()
-
-    func hasNear(_ sorted: [TimeInterval], _ target: TimeInterval) -> Bool {
-        var lo = 0, hi = sorted.count
-        while lo < hi {
-            let mid = (lo + hi) / 2
-            if sorted[mid] < target { lo = mid + 1 } else { hi = mid }
-        }
-        if lo < sorted.count && abs(sorted[lo] - target) < 2 { return true }
-        if lo > 0 && abs(sorted[lo - 1] - target) < 2 { return true }
-        return false
-    }
-
-    let kept = google.filter { g in
-        let t = g.time.timeIntervalSince1970
-        let bucket = g.width >= g.height ? landscapeTimes : portraitTimes
-        return !hasNear(bucket, t)
-    }
-    return device + kept
-}

@@ -4,13 +4,13 @@ import androidx.compose.runtime.Immutable
 import kotlinx.serialization.Serializable
 
 @Serializable
-enum class PhotoSource { DEVICE, GOOGLE }
+enum class PhotoSource { DEVICE }
 
-/** One photo, from the phone's library or a Google Photos import. */
+/** One photo from the phone's library. */
 @Immutable
 @Serializable
 data class Photo(
-    /** Stable key, prefixed by source: "d:<mediaStoreId>" or "g:<googleId>". */
+    /** Stable key: "d:<mediaStoreId>". */
     val key: String,
     val source: PhotoSource,
     val uri: String,

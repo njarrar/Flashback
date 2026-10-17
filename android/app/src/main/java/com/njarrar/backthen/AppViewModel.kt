@@ -1,7 +1,6 @@
 package com.njarrar.backthen
 
 import android.app.Application
-import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.njarrar.backthen.core.Album
@@ -9,15 +8,11 @@ import com.njarrar.backthen.core.DayIndex
 import com.njarrar.backthen.core.L
 import com.njarrar.backthen.core.MonthDay
 import com.njarrar.backthen.core.Photo
-import com.njarrar.backthen.core.PhotoSource
 import com.njarrar.backthen.core.YearGroup
 import com.njarrar.backthen.core.buildDayIndex
-import com.njarrar.backthen.core.dropDuplicates
-import com.njarrar.backthen.core.localDate
 import com.njarrar.backthen.core.shortLabel
 import com.njarrar.backthen.core.yearsForDay
 import com.njarrar.backthen.data.DeviceLibrary
-import com.njarrar.backthen.data.GooglePhotos
 import com.njarrar.backthen.data.Reminder
 import com.njarrar.backthen.data.Reminders
 import com.njarrar.backthen.data.SavedState
@@ -37,13 +32,9 @@ import kotlinx.coroutines.launch
 
 data class Viewer(val photos: List<Photo>, val start: Int)
 
-/** Progress of a Google Photos import: waiting for picks, or saving n of total. */
-data class GoogleImport(val done: Int = 0, val total: Int = 0)
-
 /** App state: what is saved on disk, plus what only lives while the app runs. */
 class AppViewModel(app: Application) : AndroidViewModel(app) {
     val library = DeviceLibrary(app)
-    private val google = GooglePhotos(app)
     private val stateFile = StateFile(app)
 
     private val _saved = MutableStateFlow(stateFile.read())
@@ -53,7 +44,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val indexing = MutableStateFlow(false)
     val viewer = MutableStateFlow<Viewer?>(null)
     val toast = MutableStateFlow<String?>(null)
-    val googleImport = MutableStateFlow<GoogleImport?>(null)
     /** Fires when a reminder opens a day, so the app switches to Today. */
     val openToday = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     /** Debug screenshots only: the scene to show, see Demo.kt. */
@@ -61,7 +51,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** The last day Today showed, so it can come back with photos in place. */
     var lastDay: Pair<MonthDay, List<YearGroup>>? = null
     private var toastJob: Job? = null
-    private var importJob: Job? = null
     private var refreshJob: Job? = null
     // One write at a time, in order, so an older snapshot never lands after a newer one.
     private val writer = Dispatchers.IO.limitedParallelism(1)
@@ -75,7 +64,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private data class IndexInputs(
         val sources: Sources,
         val deviceIndex: Map<String, Map<Int, Int>>,
-        val googlePhotos: List<Photo>,
         val hiddenDates: Set<String>,
     )
 
@@ -94,9 +82,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         openToday.tryEmit(Unit)
     }
 
-    /** Photo counts per day across every connected source. Hidden days count as empty. */
+    /** Photo counts per day in the phone's library. Hidden days count as empty. */
     fun index(s: SavedState = _saved.value): DayIndex {
-        val inputs = IndexInputs(s.sources, s.deviceIndex, s.googlePhotos, s.hiddenDates)
+        val inputs = IndexInputs(s.sources, s.deviceIndex, s.hiddenDates)
         if (inputs == cachedIndexInputs) return cachedIndex
         return visibleIndex(s).also {
             cachedIndexInputs = inputs
@@ -127,18 +115,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val s = _saved.value
         val years = yearsForDay(index(s), md)
         if (years.isEmpty()) return emptyList()
-        val deviceByYear = if (s.sources.device) runCatching { library.photosOn(years, md) }.getOrDefault(emptyMap()) else emptyMap()
-        val googleByYear = if (s.sources.google) {
-            s.googlePhotos.mapNotNull { p ->
-                val d = localDate(p.time)
-                if (d.monthValue - 1 == md.month && d.dayOfMonth == md.day) d.year to p else null
-            }.groupBy({ it.first }, { it.second })
-        } else emptyMap()
-        return years.map { year ->
-            val device = deviceByYear[year].orEmpty()
-            val google = googleByYear[year].orEmpty()
-            YearGroup(year, dropDuplicates(device, google).sortedBy { it.time })
-        }.filter { it.photos.isNotEmpty() }
+        val byYear = if (s.sources.device) runCatching { library.photosOn(years, md) }.getOrDefault(emptyMap()) else emptyMap()
+        return years.map { year -> YearGroup(year, byYear[year].orEmpty().sortedBy { it.time }) }
+            .filter { it.photos.isNotEmpty() }
     }
 
     fun say(message: String) {
@@ -216,46 +195,4 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun setLayout(layout: YearLayout) = update { it.copy(layout = layout) }
-
-    /** Runs the Google picker with a token from Google sign-in, then adds the picks. */
-    fun importFromGoogle(token: String, open: (Uri) -> Unit) {
-        importJob?.cancel()
-        importJob = viewModelScope.launch {
-            googleImport.value = GoogleImport()
-            try {
-                val photos = google.pick(token, open) { done, total -> googleImport.value = GoogleImport(done, total) }
-                if (photos == null) {
-                    say(L.s("toast_no_picks"))
-                } else {
-                    update { s ->
-                        val known = s.googlePhotos.map { it.key }.toSet()
-                        s.copy(googlePhotos = s.googlePhotos + photos.filter { it.key !in known }, sources = s.sources.copy(google = true))
-                    }
-                    say(if (photos.isEmpty()) L.s("toast_google_connected") else L.s("toast_google_added", "photos" to L.p("photos", photos.size)))
-                }
-            } catch (e: Exception) {
-                if (e !is kotlinx.coroutines.CancellationException) say(L.s("toast_google_failed"))
-            } finally {
-                googleImport.value = null
-            }
-        }
-    }
-
-    fun cancelGoogleImport() {
-        importJob?.cancel()
-        googleImport.value = null
-    }
-
-    fun disconnectGoogle() {
-        google.deleteAll()
-        update { s ->
-            s.copy(
-                googlePhotos = emptyList(),
-                sources = s.sources.copy(google = false),
-                favorites = s.favorites.filter { it.source != PhotoSource.GOOGLE },
-                albums = s.albums.map { a -> a.copy(photos = a.photos.filter { it.source != PhotoSource.GOOGLE }) },
-            )
-        }
-        say(L.s("toast_google_disconnected"))
-    }
 }

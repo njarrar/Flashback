@@ -1,10 +1,10 @@
 import Foundation
 import Observation
+import Security
 import WidgetKit
 
 struct Sources: Codable, Equatable {
     var device = false
-    var google = false
 }
 
 struct ReminderSetting: Codable, Equatable {
@@ -25,7 +25,6 @@ struct SavedState: Codable {
     var reminder = ReminderSetting()
     var favorites: [Photo] = []
     var albums: [Album] = []
-    var googlePhotos: [Photo] = []
     /// Cached photo counts per day for the phone's library.
     var deviceIndex: DayIndex = [:]
     /// Days the user hid, as `MonthDay.key`. They don't come up on their own or in reminders.
@@ -41,20 +40,17 @@ struct SavedState: Codable {
         onboarded = (try? c.decodeIfPresent(Bool.self, forKey: .onboarded)) ?? d.onboarded
         sources = (try? c.decodeIfPresent(Sources.self, forKey: .sources)) ?? d.sources
         reminder = (try? c.decodeIfPresent(ReminderSetting.self, forKey: .reminder)) ?? d.reminder
-        favorites = (try? c.decodeIfPresent([Photo].self, forKey: .favorites)) ?? d.favorites
-        albums = (try? c.decodeIfPresent([Album].self, forKey: .albums)) ?? d.albums
-        googlePhotos = (try? c.decodeIfPresent([Photo].self, forKey: .googlePhotos)) ?? d.googlePhotos
+        favorites = (try? c.decodeIfPresent(Lossy<Photo>.self, forKey: .favorites))?.items ?? d.favorites
+        albums = (try? c.decodeIfPresent(Lossy<Album>.self, forKey: .albums))?.items ?? d.albums
         deviceIndex = (try? c.decodeIfPresent(DayIndex.self, forKey: .deviceIndex)) ?? d.deviceIndex
         hiddenDates = (try? c.decodeIfPresent(Set<String>.self, forKey: .hiddenDates)) ?? d.hiddenDates
         layout = (try? c.decodeIfPresent(YearLayout.self, forKey: .layout)) ?? d.layout
     }
 
-    /// Photo counts per day across the connected sources, leaving out hidden days.
+    /// Photo counts per day in the phone's library, leaving out hidden days.
     var visibleIndex: DayIndex {
-        mergeIndexes(
-            sources.device ? deviceIndex : [:],
-            sources.google ? buildDayIndex(googlePhotos.map(\.time)) : [:]
-        ).filter { !hiddenDates.contains($0.key) }
+        guard sources.device else { return [:] }
+        return deviceIndex.filter { !hiddenDates.contains($0.key) }
     }
 }
 
@@ -91,8 +87,8 @@ final class AppStore {
     var albumSaves = 0
     /// Debug screenshots only: opens the calendar on Today.
     var demoCalendar = false
-    /// Google import progress: nil when idle, (0, 0) while waiting for picks.
-    var googleImport: (done: Int, total: Int)?
+    /// Debug screenshots only: sample photos shown in place of the phone's library.
+    var samplePhotos: [Photo] = []
 
     /// Photo counts per day across every connected source. Hidden days count as empty, so
     /// they don't show as nearby days, get calendar dots, or trigger reminders.
@@ -112,7 +108,6 @@ final class AppStore {
     @ObservationIgnored private var fullnessCache: (version: Int, levels: [String: Int])?
 
     private var toastTask: Task<Void, Never>?
-    private var importTask: Task<Void, Never>?
     private var saveTask: Task<Void, Never>?
     private var refreshing = false
     nonisolated private static let file = URL.applicationSupportDirectory.appending(path: "state.json")
@@ -124,6 +119,20 @@ final class AppStore {
         index = initial.visibleIndex
         favoriteKeys = Set(initial.favorites.map(\.key))
         updateWidget()
+        Self.removeGoogleData()
+    }
+
+    /// Version 1.8 and earlier could import from Google Photos. Clears what that left behind.
+    nonisolated private static func removeGoogleData() {
+        Task.detached(priority: .utility) {
+            try? FileManager.default.removeItem(at: URL.applicationSupportDirectory.appending(path: "google-photos"))
+            let token: [String: Any] = [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecAttrService as String: "BackThen",
+                kSecAttrAccount as String: "google-refresh-token",
+            ]
+            SecItemDelete(token as CFDictionary)
+        }
     }
 
     private func syncDerivedState(from old: SavedState) {
@@ -135,7 +144,6 @@ final class AppStore {
         }
         if old.sources != saved.sources
             || old.hiddenDates != saved.hiddenDates
-            || old.googlePhotos != saved.googlePhotos
             || old.deviceIndex != saved.deviceIndex
         {
             index = saved.visibleIndex
@@ -180,22 +188,19 @@ final class AppStore {
     }
 
     func photos(for md: MonthDay) async -> [YearGroup] {
-        let s = saved
         let years = yearsForDay(index, md)
         guard !years.isEmpty else { return [] }
-        let deviceByYear = s.sources.device ? await PhotoLibrary.photos(years: years, on: md) : [:]
-        var googleByYear: [Int: [Photo]] = [:]
-        if s.sources.google {
-            for p in s.googlePhotos where MonthDay.of(p.time) == md {
-                googleByYear[yearOf(p.time), default: []].append(p)
-            }
+        let byYear: [Int: [Photo]] = if !samplePhotos.isEmpty {
+            Dictionary(grouping: samplePhotos.filter { MonthDay.of($0.time) == md }) { yearOf($0.time) }
+        } else if saved.sources.device {
+            await PhotoLibrary.photos(years: years, on: md)
+        } else {
+            [:]
         }
         var groups: [YearGroup] = []
         groups.reserveCapacity(years.count)
         for year in years {
-            let device = deviceByYear[year] ?? []
-            let google = googleByYear[year] ?? []
-            let photos = dropDuplicates(device: device, google: google).sorted { $0.time < $1.time }
+            let photos = (byYear[year] ?? []).sorted { $0.time < $1.time }
             if !photos.isEmpty { groups.append(YearGroup(year: year, photos: photos)) }
         }
         return groups
@@ -298,43 +303,5 @@ final class AppStore {
         } catch {
             say(L.s("toast_save_failed"))
         }
-    }
-
-    func importFromGoogle() {
-        importTask?.cancel()
-        importTask = Task {
-            googleImport = (0, 0)
-            defer { googleImport = nil }
-            do {
-                guard let token = try await GoogleAuth.shared.accessToken() else { return }
-                guard let photos = try await GooglePhotos.pick(token: token, onProgress: { [weak self] done, total in
-                    self?.googleImport = (done, total)
-                }) else { return say(L.s("toast_no_picks")) }
-                let known = Set(saved.googlePhotos.map(\.key))
-                saved.googlePhotos += photos.filter { !known.contains($0.key) }
-                saved.sources.google = true
-                say(photos.isEmpty ? L.s("toast_google_connected") : L.s("toast_google_added", ["photos": L.p("photos", photos.count)]))
-                applyReminder()
-            } catch is CancellationError {
-            } catch {
-                say(L.s("toast_google_failed"))
-            }
-        }
-    }
-
-    func cancelGoogleImport() {
-        importTask?.cancel()
-        googleImport = nil
-    }
-
-    func disconnectGoogle() {
-        GoogleAuth.shared.signOut()
-        GooglePhotos.deleteAll()
-        saved.googlePhotos = []
-        saved.sources.google = false
-        saved.favorites.removeAll { $0.source == .google }
-        for i in saved.albums.indices { saved.albums[i].photos.removeAll { $0.source == .google } }
-        applyReminder()
-        say(L.s("toast_google_disconnected"))
     }
 }

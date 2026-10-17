@@ -38,7 +38,7 @@ struct PhotoImage: View {
         .accessibilityLabel(L.s("photo_from", ["date": L.date(photo.time, "yMMMMd")]))
     }
 
-    /// The same key `loadImage` stores under: PhotoKit id for phone photos, app key for Google ones.
+    /// The same key `loadImage` stores under: PhotoKit id for phone photos, app key for samples.
     private func cacheKey(_ px: CGSize) -> NSString {
         ImageCache.key(photo.source == .device ? photo.ref : photo.key, px)
     }
@@ -49,10 +49,10 @@ func loadImage(_ photo: Photo, size px: CGSize) async -> UIImage? {
     switch photo.source {
     case .device:
         return await PhotoLibrary.image(id: photo.ref, size: px)
-    case .google:
+    case .sample:
         let key = ImageCache.key(photo.key, px)
         if let hit = ImageCache.get(key) { return hit }
-        let url = GooglePhotos.fileURL(photo.ref)
+        let url = SamplePhotos.fileURL(photo.ref)
         let loaded = await Task.detached(priority: .userInitiated) {
             ImageCache.downsampledImage(at: url, size: px)
         }.value

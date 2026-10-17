@@ -89,14 +89,6 @@ final class CoreTests: XCTestCase {
         XCTAssertEqual(mergeIndexes(["1-1": [2020: 1]], ["1-1": [2020: 2, 2021: 1]]), ["1-1": [2020: 3, 2021: 1]])
     }
 
-    func testDropsGoogleCopies() {
-        func p(_ key: String, _ t: TimeInterval, _ w: Int = 4, _ h: Int = 3) -> Photo {
-            Photo(key: key, source: key.hasPrefix("d") ? .device : .google, ref: key, width: w, height: h, time: Date(timeIntervalSince1970: t))
-        }
-        let out = dropDuplicates(device: [p("d:1", 1)], google: [p("g:1", 1.5), p("g:2", 9), p("g:3", 1.2, 3, 4)])
-        XCTAssertEqual(out.map(\.key), ["d:1", "g:2", "g:3"])
-    }
-
     func testMosaicPacksWithoutGaps() {
         for n in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 25] {
             let layout = layoutMosaic(n)
@@ -135,10 +127,14 @@ final class CoreTests: XCTestCase {
         XCTAssertTrue(s.hiddenDates.isEmpty)
     }
 
-    func testTokenOnlyGoesToGoogle() {
-        XCTAssertTrue(GooglePhotos.isGoogleHTTPS(URL(string: "https://photospicker.googleapis.com/v1/sessions")!))
-        XCTAssertTrue(GooglePhotos.isGoogleHTTPS(URL(string: "https://lh3.googleusercontent.com/abc=w2048-h2048")!))
-        XCTAssertFalse(GooglePhotos.isGoogleHTTPS(URL(string: "http://lh3.googleusercontent.com/abc")!))
-        XCTAssertFalse(GooglePhotos.isGoogleHTTPS(URL(string: "https://googleusercontent.com.evil.com/x")!))
+    func testOldGooglePhotosAreDropped() throws {
+        let photo = { (key: String, source: String) in
+            #"{"key":"\#(key)","source":"\#(source)","ref":"x","width":4,"height":3,"time":0}"#
+        }
+        let old = #"{"favorites":[\#(photo("d:1", "device")),\#(photo("g:1", "google"))],"#
+            + #""albums":[{"id":"a","name":"Trip","createdAt":0,"photos":[\#(photo("g:2", "google")),\#(photo("d:2", "device"))]}]}"#
+        let s = try JSONDecoder().decode(SavedState.self, from: Data(old.utf8))
+        XCTAssertEqual(s.favorites.map(\.key), ["d:1"])
+        XCTAssertEqual(s.albums.first?.photos.map(\.key), ["d:2"])
     }
 }

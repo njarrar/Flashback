@@ -10,12 +10,12 @@ WHAT YOU CAN DO
 • Albums: select photos and make an album. Share it through any app, or save it as a real album in your gallery.
 • Daily reminder: one gentle note a day, at a time you choose, and only on days that have photos.
 • Hide a date: keep a hard day out of the app. No reminder, no shade on the calendar.
-• Google Photos: add photos from Google Photos with Google's own photo picker. You choose which photos the app can see.
+• Home screen widget: a photo from this day in a past year, a new one every hour.
 
 PRIVATE BY DESIGN
 • Your photos stay on your phone. Back Then has no account, no server and no ads.
 • The app reads your photo library only to find photos by date.
-• Nothing is uploaded, tracked or sold.
+• Nothing is uploaded, tracked or sold. The app doesn't even use the internet.
 
 MADE FOR EVERYONE
 • English, French, Spanish and Arabic, with full right to left layout in Arabic.

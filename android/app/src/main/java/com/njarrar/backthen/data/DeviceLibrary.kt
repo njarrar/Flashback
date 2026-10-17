@@ -170,8 +170,5 @@ class DeviceLibrary(private val context: Context) {
         failed == 0
     }
 
-    private fun openPhoto(p: Photo) = when (p.source) {
-        PhotoSource.DEVICE -> context.contentResolver.openInputStream(Uri.parse(p.uri))
-        PhotoSource.GOOGLE -> Uri.parse(p.uri).path?.let { java.io.File(it).inputStream() }
-    }
+    private fun openPhoto(p: Photo) = context.contentResolver.openInputStream(Uri.parse(p.uri))
 }

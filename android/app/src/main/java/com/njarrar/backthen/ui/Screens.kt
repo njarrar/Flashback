@@ -126,9 +126,7 @@ fun rememberNotificationPermission(onResult: (Boolean) -> Unit): () -> Unit {
 fun OnboardingScreen(vm: AppViewModel) {
     val p = LocalPalette.current
     val state by vm.saved.collectAsStateWithLifecycle()
-    val busy by vm.googleImport.collectAsStateWithLifecycle()
     var denied by remember { mutableStateOf(false) }
-    var google by remember { mutableStateOf(false) }
     var chosePhone by remember { mutableStateOf(false) }
     val today = MonthDay.today()
     val askPhotos = rememberPhotoPermission(vm) { ok -> denied = !ok; chosePhone = ok }
@@ -137,9 +135,8 @@ fun OnboardingScreen(vm: AppViewModel) {
         vm.finishOnboarding(ok)
         if (ok) vm.say(L.s("toast_reminder_set", "time" to time))
     }
-    val startGoogle = rememberGoogleImport(vm)
 
-    if (chosePhone || state.sources.google) {
+    if (chosePhone) {
         // Step two: the reminder.
         val years = yearsForDay(vm.index(state), today)
         Column(Modifier.fillMaxSize().background(p.bg).statusBarsPadding().padding(24.dp)) {
@@ -194,10 +191,8 @@ fun OnboardingScreen(vm: AppViewModel) {
                 T(L.s("welcome_denied"), size = 14, weight = FontWeight.Medium, color = p.accInk)
             }
         }
-        // Google Photos leads on Android, as in the design.
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Pill(L.s("use_google_photos"), { google = true }, modifier = Modifier.fillMaxWidth())
-            Pill(L.s("use_phone_photos"), askPhotos, kind = Kind.Secondary, modifier = Modifier.fillMaxWidth())
+            Pill(L.s("use_phone_photos"), askPhotos, modifier = Modifier.fillMaxWidth())
             Row(
                 Modifier.fillMaxWidth().padding(top = 2.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
@@ -211,13 +206,6 @@ fun OnboardingScreen(vm: AppViewModel) {
             }
         }
     }
-    if (google) {
-        GoogleSheet(
-            connected = state.sources.google, picked = state.googlePhotos.size, busy = busy,
-            onPick = startGoogle, onCancel = vm::cancelGoogleImport, onDisconnect = vm::disconnectGoogle,
-            onDismiss = { google = false },
-        )
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
@@ -228,14 +216,12 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
     val state by vm.saved.collectAsStateWithLifecycle()
     val day by vm.day.collectAsStateWithLifecycle()
     val indexing by vm.indexing.collectAsStateWithLifecycle()
-    val busy by vm.googleImport.collectAsStateWithLifecycle()
     // Start from the last result so the list keeps its place when this tab comes back.
     var result by remember { mutableStateOf(vm.lastDay) }
     var calendar by remember { mutableStateOf(false) }
     val demo by vm.demoScene.collectAsStateWithLifecycle()
     LaunchedEffect(demo) { if (demo == "calendar") calendar = true }
     var settings by remember { mutableStateOf(false) }
-    var google by remember { mutableStateOf(false) }
     var selecting by remember { mutableStateOf(false) }
     var picked by remember { mutableStateOf(listOf<Photo>()) }
     var albumFor by remember { mutableStateOf<List<Photo>?>(null) }
@@ -245,7 +231,6 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
     val topBar = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
     val scope = rememberCoroutineScope()
     val index = vm.index(state)
-    val startGoogle = rememberGoogleImport(vm)
     val askPhotos = rememberPhotoPermission(vm) { ok -> if (!ok) vm.say(L.s("toast_allow_access")) }
     val askNotify = rememberNotificationPermission { ok ->
         if (ok) vm.setReminder { it.copy(on = true) } else vm.say(L.s("toast_notifications_off"))
@@ -347,7 +332,7 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
                         hidden -> item { HiddenDay(day) { vm.setHidden(day, false) } }
                         groups == null -> item { Skeleton() }
                         groups.isEmpty() -> item {
-                            val noSources = !state.sources.device && !state.sources.google
+                            val noSources = !state.sources.device
                             EmptyDay(day, noSources, nearbyDays(index, day), onGo = ::go, onConnect = { settings = true })
                         }
                         state.layout == YearLayout.STRIP -> {
@@ -405,20 +390,11 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
         SettingsSheet(
             state, day,
             onConnectDevice = { if (!state.sources.device) askPhotos() },
-            onGoogle = { settings = false; google = true },
             onReminder = { on -> if (on) askNotify() else vm.setReminder { it.copy(on = false) } },
             onReminderTime = { h, m -> vm.setReminder { it.copy(hour = h, minute = m) } },
             onLayout = vm::setLayout,
             onHidden = { md, on -> vm.setHidden(md, on); if (md == day) settings = false },
             onDismiss = { settings = false },
-        )
-    }
-    if (google) {
-        GoogleSheet(
-            state.sources.google, state.googlePhotos.size, busy,
-            onPick = startGoogle, onCancel = vm::cancelGoogleImport,
-            onDisconnect = { vm.disconnectGoogle(); google = false },
-            onDismiss = { google = false },
         )
     }
     albumFor?.let { photos ->
