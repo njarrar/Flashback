@@ -105,9 +105,11 @@
 
     <!-- Photo viewer -->
     <string name="favorite">إضافة إلى المفضلة</string>
+    <string name="favorite_short">مفضلة</string>
     <string name="unfavorite">إزالة من المفضلة</string>
     <string name="add_to_album">إضافة إلى ألبوم</string>
     <string name="photo_n_of">الصورة {n} من {total}</string>
+    <string name="n_of_total">{n} من {total}</string>
 
     <!-- Favorites -->
     <string name="favorites_none">لم تحفظ شيئًا بعد</string>

@@ -1,5 +1,7 @@
 package com.njarrar.backthen.ui
 
+import android.app.Activity
+import android.content.ContextWrapper
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
@@ -22,6 +24,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
@@ -40,6 +49,7 @@ import androidx.compose.material.icons.outlined.LibraryAdd
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -63,6 +73,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
 import coil3.compose.AsyncImage
 import com.njarrar.backthen.core.L
 import com.njarrar.backthen.core.Photo
@@ -114,6 +125,15 @@ fun ViewerScreen(
     val flick = with(density) { 800.dp.toPx() }
     val pull = (drag.value.coerceAtLeast(0f) / fullPull).coerceIn(0f, 1f)
     val view = LocalView.current
+    // Light status bar icons on the black viewer, back to what they were when it closes.
+    DisposableEffect(view) {
+        var c = view.context
+        while (c is ContextWrapper && c !is Activity) c = c.baseContext
+        val bars = (c as? Activity)?.window?.let { WindowCompat.getInsetsController(it, view) }
+        val was = bars?.isAppearanceLightStatusBars
+        bars?.isAppearanceLightStatusBars = false
+        onDispose { if (bars != null && was != null) bars.isAppearanceLightStatusBars = was }
+    }
     var shown by remember { mutableStateOf(pager.currentPage) }
     LaunchedEffect(pager.currentPage) {
         drag.snapTo(0f)
@@ -169,7 +189,10 @@ fun ViewerScreen(
                     }
                     Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                         T(formatDate(date, "yMMMMd"), size = 16, weight = FontWeight.Bold, color = ViewerInk)
-                        T(L.s("ago_weekday", "ago" to agoLabel(date.year), "weekday" to formatDate(date, "EEEE")), size = 13, color = ViewerInk.copy(alpha = 0.62f))
+                        var sub = L.s("ago_weekday", "ago" to agoLabel(date.year), "weekday" to formatDate(date, "EEEE"))
+                        // Where you are in the set: "3 of 5".
+                        if (photos.size > 1) sub += " · " + L.s("n_of_total", "n" to pager.currentPage + 1, "total" to photos.size)
+                        T(sub, size = 13, color = ViewerInk.copy(alpha = 0.62f))
                     }
                     Spacer(Modifier.size(44.dp))
                 }
@@ -179,23 +202,31 @@ fun ViewerScreen(
                     Spacer(Modifier.height(24.dp))
                 }
                 Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp), horizontalArrangement = Arrangement.SpaceAround) {
-                    IconButton(onClick = { if (!fav) Haptics.confirm(view); onFavorite(photo) }, enabled = chrome, modifier = Modifier.size(56.dp)) {
-                        Icon(
-                            if (fav) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                            L.s(if (fav) "unfavorite" else "favorite"),
-                            tint = if (fav) ViewerHeart else ViewerInk,
-                            modifier = Modifier.size(28.dp),
-                        )
-                    }
-                    IconButton(onClick = { onShare(photo) }, enabled = chrome, modifier = Modifier.size(56.dp)) {
-                        Icon(Icons.Outlined.IosShare, L.s("share"), tint = ViewerInk, modifier = Modifier.size(28.dp))
-                    }
-                    IconButton(onClick = { onAlbum(photo) }, enabled = chrome, modifier = Modifier.size(56.dp)) {
-                        Icon(Icons.Outlined.LibraryAdd, L.s("add_to_album"), tint = ViewerInk, modifier = Modifier.size(28.dp))
-                    }
+                    Action(
+                        if (fav) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder, L.s("favorite_short"), L.s(if (fav) "unfavorite" else "favorite"),
+                        tint = if (fav) ViewerHeart else ViewerInk, enabled = chrome,
+                    ) { if (!fav) Haptics.confirm(view); onFavorite(photo) }
+                    Action(Icons.Outlined.IosShare, L.s("share"), L.s("share"), enabled = chrome) { onShare(photo) }
+                    Action(Icons.Outlined.LibraryAdd, L.s("add_to_album"), L.s("add_to_album"), enabled = chrome) { onAlbum(photo) }
                 }
             }
         }
+    }
+}
+
+/** An icon with a short word under it. */
+@Composable
+private fun Action(icon: ImageVector, word: String, label: String, tint: Color = ViewerInk, enabled: Boolean, onClick: () -> Unit) {
+    Column(
+        Modifier.widthIn(min = 72.dp).heightIn(min = 56.dp).clip(RoundedCornerShape(12.dp))
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .semantics { contentDescription = label }
+            .padding(vertical = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Icon(icon, null, tint = tint, modifier = Modifier.size(26.dp))
+        T(word, size = 11, weight = FontWeight.SemiBold, color = ViewerInk.copy(alpha = 0.75f), maxLines = 1, modifier = Modifier.clearAndSetSemantics {})
     }
 }
 
@@ -221,7 +252,7 @@ private fun Filmstrip(photos: List<Photo>, index: Int, enabled: Boolean, onPick:
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .padding(horizontal = if (on) 4.dp else 0.dp)
-                        .size(if (on) 60.dp else 30.dp, 44.dp)
+                        .size(if (on) 60.dp else 42.dp, 44.dp)
                         .drawWithContent {
                             drawContent()
                             if (on) {

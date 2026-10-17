@@ -90,9 +90,11 @@
 
     <!-- Photo viewer -->
     <string name="favorite">Ajouter aux favoris</string>
+    <string name="favorite_short">Favori</string>
     <string name="unfavorite">Retirer des favoris</string>
     <string name="add_to_album">Ajouter à un album</string>
     <string name="photo_n_of">Photo {n} sur {total}</string>
+    <string name="n_of_total">{n} sur {total}</string>
 
     <!-- Favorites -->
     <string name="favorites_none">Rien d'enregistré pour l'instant</string>

@@ -98,9 +98,11 @@
 
     <!-- Photo viewer -->
     <string name="favorite">Favorite</string>
+    <string name="favorite_short">Favorite</string>
     <string name="unfavorite">Remove from favorites</string>
     <string name="add_to_album">Add to album</string>
     <string name="photo_n_of">Photo {n} of {total}</string>
+    <string name="n_of_total">{n} of {total}</string>
 
     <!-- Favorites -->
     <string name="favorites_none">Nothing saved yet</string>
