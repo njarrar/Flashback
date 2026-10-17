@@ -6,7 +6,7 @@ Everything the Play Console asks for is in this folder or made by the
 | What | Where |
 |---|---|
 | Package name | `com.njarrar.backthen` |
-| Version | 1.10.0 (version code 11) |
+| Version | 1.11.0 (version code 12) |
 | Release bundle | `BackThen-Android.aab` on the [Latest build](../../../releases/tag/latest-build) release |
 | Store text, four languages | [`listing/`](listing) |
 | App icon, feature graphics | [`graphics/`](graphics) |
@@ -132,4 +132,49 @@ Tablet screenshots are optional and can wait.
 
 For later updates: raise `versionCode` and `versionName` in
 `android/app/build.gradle.kts`, run the Play Store workflow, and upload the new
-bundle.
+bundle, or let the workflow send it for you (step 9).
+
+## 9. Let GitHub send updates to Play
+
+Once set up, each run of the Play Store workflow from the Actions tab sends Play the
+new bundle with the release notes from `listing/<lang>/release-notes.txt`, plus the
+store text, icon, feature graphics and screenshots in all four languages. You only
+do this once. Play needs the first bundle uploaded by hand, which you have done.
+
+1. **Make a service account.** In the [Google Cloud console](https://console.cloud.google.com),
+   pick your project (the one you made for Google sign-in is fine).
+   - **APIs & Services > Library**, find **Google Play Android Developer API**, click **Enable**.
+   - **IAM & Admin > Service accounts > Create service account.** Name it `github-play`,
+     click **Create and continue**, skip the role, click **Done**.
+   - Click the new account, open **Keys > Add key > Create new key > JSON**. A `.json`
+     file downloads. Keep it safe: it can change your app on Play.
+   - Copy the account's email (like `github-play@your-project.iam.gserviceaccount.com`).
+2. **Let it into Play Console.** **Users and permissions > Invite new users.** Paste the
+   email. Under **App permissions**, add Back Then and tick:
+   - Release apps to testing tracks
+   - Manage testing tracks and edit tester lists
+   - Manage store presence
+
+   Tick **Release to production** too if you want it to send production releases
+   later. Click **Invite user**. No email goes out; the account works right away,
+   though Google can take up to a day to apply it.
+3. **Give the key to GitHub.** In the repo, **Settings > Secrets and variables > Actions >
+   New repository secret.** Name `PLAY_SERVICE_ACCOUNT_JSON`, value: the whole text of
+   the `.json` file (`pbcopy < ~/Downloads/your-key.json` on a Mac). Then delete the file.
+4. **Run it.** **Actions > Play Store > Run workflow** on `main`. Three choices:
+   - **Send the bundle and release notes**: on by default.
+   - **Send the store text, screenshots and graphics**: on by default. Turn it off if
+     you changed something in the Play Console by hand that you want to keep.
+   - **Play track**: `alpha` is the first closed test. Use `production` once Play
+     lets you publish, or the name of any other track you made.
+
+   The run's summary says what went to Play. Before each run, raise `versionCode` in
+   `android/app/build.gradle.kts`: Play refuses a version code it has seen before.
+
+Notes:
+- If Play hasn't reviewed the app yet, it only takes draft releases. The workflow
+  sees that and sends a draft; finish it under **Closed testing** in the Console.
+- If **Managed publishing** is on, changes wait in **Publishing overview** for you
+  to send them for review.
+- A push to GitHub never sends anything to Play. Only the Run workflow button does.
+- Without the secret, the workflow still builds everything and just skips this step.
