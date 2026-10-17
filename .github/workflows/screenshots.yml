@@ -34,10 +34,10 @@ jobs:
           APP="/tmp/dd/Build/Products/Debug-iphonesimulator/Back Then.app"
           xcrun simctl install "$DEVICE" "$APP"
           # Photo access needs a tap on the simulator, so the debug demo reads these
-          # files from the app's Google Photos folder instead (see Demo.swift).
+          # files from the app's samples folder instead (see Demo.swift).
           DATA=$(xcrun simctl get_app_container "$DEVICE" com.njarrar.backthen data)
-          mkdir -p "$DATA/Library/Application Support/google-photos"
-          cp /tmp/photos/*.jpg "$DATA/Library/Application Support/google-photos/"
+          mkdir -p "$DATA/Library/Application Support/samples"
+          cp /tmp/photos/*.jpg "$DATA/Library/Application Support/samples/"
           mkdir -p shots/ios
           xcrun simctl launch "$DEVICE" com.njarrar.backthen
           sleep 8

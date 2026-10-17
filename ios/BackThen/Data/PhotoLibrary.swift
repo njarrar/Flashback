@@ -91,7 +91,7 @@ enum PhotoLibrary {
     /// Saves photos into a named album in Photos, making it if needed.
     static func saveAlbum(name: String, photos: [Photo]) async throws {
         let ids = photos.filter { $0.source == .device }.map(\.ref)
-        let files = photos.filter { $0.source == .google }.map { GooglePhotos.fileURL($0.ref) }
+        let files = photos.filter { $0.source == .sample }.map { SamplePhotos.fileURL($0.ref) }
         let existing: PHAssetCollection? = {
             let o = PHFetchOptions()
             o.predicate = NSPredicate(format: "title = %@", name)
@@ -226,7 +226,7 @@ enum ImageCache {
         cache.setObject(image, forKey: key, cost: Int(px * 4))
     }
 
-    /// Downsamples a local Google Photos JPEG directly via ImageIO without decoding the full 2048px bitmap first.
+    /// Downsamples a JPEG in app storage directly via ImageIO without decoding the full 2048px bitmap first.
     static func downsampledImage(at url: URL, size: CGSize) -> UIImage? {
         guard let src = CGImageSourceCreateWithURL(url as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary) else {
             return UIImage(contentsOfFile: url.path)

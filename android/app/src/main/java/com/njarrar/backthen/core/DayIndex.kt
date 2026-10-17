@@ -2,7 +2,6 @@ package com.njarrar.backthen.core
 
 import java.time.LocalDate
 import java.time.ZoneId
-import kotlin.math.abs
 import kotlin.math.ln
 
 /** Counts photos per calendar day and year from their capture times. */
@@ -84,37 +83,4 @@ fun nearbyDays(index: DayIndex, md: MonthDay, today: LocalDate = LocalDate.now()
         if (before != null && after != null) break
     }
     return before to after
-}
-
-/**
- * Drops Google copies of shots already on the phone. Google keeps the capture time,
- * so a match within two seconds and the same orientation counts as the same shot.
- */
-fun dropDuplicates(device: List<Photo>, google: List<Photo>): List<Photo> {
-    if (device.isEmpty() || google.isEmpty()) return device + google
-    val landscapeTimes = LongArray(device.count { it.width >= it.height })
-    val portraitTimes = LongArray(device.size - landscapeTimes.size)
-    var li = 0
-    var pi = 0
-    for (p in device) {
-        if (p.width >= p.height) landscapeTimes[li++] = p.time else portraitTimes[pi++] = p.time
-    }
-    landscapeTimes.sort()
-    portraitTimes.sort()
-
-    fun hasNear(sorted: LongArray, target: Long): Boolean {
-        if (sorted.isEmpty()) return false
-        val idx = sorted.binarySearch(target)
-        if (idx >= 0) return true
-        val ins = -idx - 1
-        if (ins < sorted.size && abs(sorted[ins] - target) < 2000L) return true
-        if (ins > 0 && abs(sorted[ins - 1] - target) < 2000L) return true
-        return false
-    }
-
-    val kept = google.filter { g ->
-        val bucket = if (g.width >= g.height) landscapeTimes else portraitTimes
-        !hasNear(bucket, g.time)
-    }
-    return device + kept
 }

@@ -10,12 +10,12 @@ QUÉ PUEDES HACER
 • Álbumes: selecciona fotos y crea un álbum. Compártelo con cualquier app o guárdalo como un álbum real en tu galería.
 • Recordatorio diario: un aviso al día, a la hora que elijas, y solo los días que tienen fotos.
 • Ocultar una fecha: deja fuera de la app un día difícil. Sin recordatorio y sin tono en el calendario.
-• Google Fotos: añade fotos de Google Fotos con el selector de Google. Tú eliges qué fotos puede ver la app.
+• Widget de pantalla de inicio: una foto de este día en un año pasado, una nueva cada hora.
 
 TUS FOTOS SON TUYAS
 • Tus fotos se quedan en tu teléfono. Back Then no tiene cuenta, ni servidor, ni anuncios.
 • La app lee tu galería solo para encontrar fotos por fecha.
-• Nada se sube, se rastrea ni se vende.
+• Nada se sube, se rastrea ni se vende. La app ni siquiera usa internet.
 
 PARA TODOS
 • Inglés, francés, español y árabe, con diseño de derecha a izquierda en árabe.

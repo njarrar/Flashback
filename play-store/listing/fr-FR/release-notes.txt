@@ -1,1 +1,1 @@
-Première version. Revoyez les photos prises ce jour-là les années passées, choisissez un jour dans le calendrier, ajoutez des favoris, créez des albums et recevez un rappel quotidien.
+Back Then utilise désormais seulement les photos de votre téléphone. La connexion à Google Photos disparaît et l'appli n'a plus besoin d'Internet. Vos favoris, albums et réglages restent comme avant.

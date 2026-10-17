@@ -1,8 +1,8 @@
 package com.njarrar.backthen.data
 
+import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class DataTest {
@@ -15,12 +15,15 @@ class DataTest {
         assertEquals(setOf("9-3"), visibleIndex(s).keys)
     }
 
-    @Test fun tokenOnlyGoesToGoogle() {
-        assertTrue(isGoogleHttps("https://photospicker.googleapis.com/v1/sessions"))
-        assertTrue(isGoogleHttps("https://lh3.googleusercontent.com/abc=w2048-h2048"))
-        assertFalse(isGoogleHttps("http://lh3.googleusercontent.com/abc"))
-        assertFalse(isGoogleHttps("https://evil.com/googleusercontent.com"))
-        assertFalse(isGoogleHttps("https://googleusercontent.com.evil.com/x"))
-        assertFalse(isGoogleHttps("not a url"))
+    @Test fun oldGooglePhotosAreDropped() {
+        fun photo(key: String, source: String) = """{"key":"$key","source":"$source","uri":"x","width":4,"height":3,"time":0}"""
+        val old = """{"onboarded":true,"sources":{"device":true,"google":true},"googlePhotos":[${photo("g:0", "GOOGLE")}],""" +
+            """"favorites":[${photo("d:1", "DEVICE")},${photo("g:1", "GOOGLE")}],""" +
+            """"albums":[{"id":"a","name":"Trip","createdAt":0,"photos":[${photo("g:2", "GOOGLE")},${photo("d:2", "DEVICE")}]}]}"""
+        val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
+        val s = json.decodeFromJsonElement(SavedState.serializer(), dropGooglePhotos(json.parseToJsonElement(old)))
+        assertTrue(s.onboarded)
+        assertEquals(listOf("d:1"), s.favorites.map { it.key })
+        assertEquals(listOf("d:2"), s.albums.single().photos.map { it.key })
     }
 }

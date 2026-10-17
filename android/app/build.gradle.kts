@@ -13,8 +13,8 @@ android {
         applicationId = "com.njarrar.backthen"
         minSdk = 26
         targetSdk = 36
-        versionCode = 9
-        versionName = "1.8.0"
+        versionCode = 10
+        versionName = "1.9.0"
     }
 
     // The language files in lang/ at the top of the repo ship as app assets (en.xml, ar.xml, ...).
@@ -23,7 +23,7 @@ android {
     // Builds sign with the Play upload key when these are set (the Play Store and Build
     // apps workflows set them from GitHub secrets). Without them the release bundle is
     // unsigned and debug builds use the usual debug key. Signing debug builds with the
-    // upload key too gives the APK in build/ a fixed SHA-1, so Google sign-in knows it.
+    // upload key too gives the APK in build/ the same key each run, so a new one installs over the last.
     val uploadKey = System.getenv("UPLOAD_KEYSTORE_FILE")?.let(::file)?.takeIf { it.exists() }
     signingConfigs {
         if (uploadKey != null) {
@@ -81,8 +81,6 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.1")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.1")
     implementation("androidx.work:work-runtime-ktx:2.10.1")
-    implementation("androidx.browser:browser:1.8.0")
-    implementation("com.google.android.gms:play-services-auth:21.3.0")
     implementation("io.coil-kt.coil3:coil-compose:3.2.0")
     implementation("me.saket.telephoto:zoomable-image-coil3:0.16.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.1")

@@ -76,13 +76,6 @@ class CoreTest {
         )
     }
 
-    @Test fun dropsGoogleCopies() {
-        fun p(key: String, time: Long, w: Int = 4, h: Int = 3) =
-            Photo(key, if (key[0] == 'd') PhotoSource.DEVICE else PhotoSource.GOOGLE, key, w, h, time)
-        val out = dropDuplicates(listOf(p("d:1", 1000)), listOf(p("g:1", 1500), p("g:2", 9000), p("g:3", 1200, 3, 4)))
-        assertEquals(listOf("d:1", "g:2", "g:3"), out.map { it.key })
-    }
-
     @Test fun mosaicPacksWithoutGaps() {
         for (n in listOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 25)) {
             val (tiles, rows) = layoutMosaic(n)

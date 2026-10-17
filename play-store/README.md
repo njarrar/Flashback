@@ -6,7 +6,7 @@ Everything the Play Console asks for is in this folder or made by the
 | What | Where |
 |---|---|
 | Package name | `com.njarrar.backthen` |
-| Version | 1.6.0 (version code 7) |
+| Version | 1.9.0 (version code 10) |
 | Release bundle | [`build/BackThen-Android.aab`](../build/) |
 | Store text, four languages | [`listing/`](listing) |
 | App icon, feature graphics | [`graphics/`](graphics) |
@@ -76,8 +76,8 @@ App, Free. Tick the declarations.
 
 - **Privacy policy:**
   `https://github.com/njarrar/PicturesFromthisday/blob/main/play-store/privacy-policy.md`
-- **App access:** All functions are available without special access. (Google
-  Photos uses the reviewer's own Google account.)
+- **App access:** All functions are available without special access. There is no
+  sign-in.
 - **Ads:** No, the app has no ads.
 - **Content rating:** start the questionnaire, enter your email, category "All
   other app types". Answer No to every question: no violence, fear, sex, language,
@@ -91,8 +91,8 @@ App, Free. Tick the declarations.
   - Does your app collect or share any of the required user data types? **No.**
   - Reason: photos are read and shown on the phone only, nothing goes to a server,
     there are no analytics or ads. Sharing a photo is a user's own action through
-    the share screen, which Play doesn't count as sharing. Google Photos downloads
-    come from Google to the phone.
+    the share screen, which Play doesn't count as sharing. The app has no internet
+    permission.
 - **Advertising ID:** No. The app removes that permission on purpose.
 - **Government app, financial features, health:** No to all.
 - **Photo and video permissions** (Play asks because the app uses
@@ -120,22 +120,7 @@ App, Free. Tick the declarations.
 
 Tablet screenshots are optional and can wait.
 
-## 8. Google Photos on the Play build
-
-Google signs the Play copy with its own key, so Google sign-in needs that key's
-SHA-1 too:
-
-1. Play Console: **Test and release > App integrity > App signing**, copy the
-   **App signing key certificate SHA-1** (and the upload key SHA-1).
-2. Google Cloud Console: add an Android OAuth client for `com.njarrar.backthen`
-   with each SHA-1.
-3. On the OAuth consent screen, set the app to **In production**. Google may ask to
-   verify the app for the Photos Picker scope; until then people see an
-   "unverified app" warning, and only test users can sign in while it is in testing.
-
-The app works without this; only the Google Photos button needs it.
-
-## 9. Release
+## 8. Release
 
 1. **Test and release > Testing > Closed testing > Create track.** Add your testers'
    emails, upload `build/BackThen-Android.aab`, paste the release notes from each

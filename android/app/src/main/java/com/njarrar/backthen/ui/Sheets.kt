@@ -35,11 +35,9 @@ import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.PhoneAndroid
-import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -67,7 +65,6 @@ import com.njarrar.backthen.core.Album
 import com.njarrar.backthen.core.L
 import com.njarrar.backthen.core.Photo
 import com.njarrar.backthen.core.formatTime
-import com.njarrar.backthen.GoogleImport
 import com.njarrar.backthen.data.SavedState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -154,7 +151,6 @@ fun SettingsSheet(
     state: SavedState,
     day: MonthDay,
     onConnectDevice: () -> Unit,
-    onGoogle: () -> Unit,
     onReminder: (Boolean) -> Unit,
     onReminderTime: (Int, Int) -> Unit,
     onLayout: (YearLayout) -> Unit,
@@ -166,11 +162,6 @@ fun SettingsSheet(
         Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             T(L.s("photo_sources"), size = 13, weight = FontWeight.Bold, muted = true)
             SourceRow(Icons.Outlined.PhoneAndroid, L.s("phone_photos"), L.s(if (state.sources.device) "connected" else "not_connected"), state.sources.device, onConnectDevice)
-            SourceRow(
-                Icons.Outlined.PhotoLibrary, L.s("google_photos"),
-                if (state.sources.google) L.s("n_picked", "photos" to L.p("photos", state.googlePhotos.size)) else L.s("not_connected"),
-                state.sources.google, onGoogle,
-            )
             HorizontalDivider(color = p.line)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Icon(Icons.Outlined.Notifications, null, tint = p.ink)
@@ -250,47 +241,6 @@ private fun SourceRow(icon: ImageVector, title: String, status: String, on: Bool
             T(status, size = 13, weight = FontWeight.Medium, color = if (on) p.muted else Accent)
         }
         Icon(if (on) Icons.Filled.Check else Icons.Filled.AddCircle, null, tint = if (on) p.muted else Accent, modifier = Modifier.size(20.dp))
-    }
-}
-
-/** Explains what Google allows, runs the picker, or manages the link. */
-@Composable
-fun GoogleSheet(
-    connected: Boolean,
-    picked: Int,
-    busy: GoogleImport?,
-    onPick: () -> Unit,
-    onCancel: () -> Unit,
-    onDisconnect: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    val p = LocalPalette.current
-    BottomSheet(onDismiss) {
-        Box(Modifier.size(52.dp).clip(RoundedCornerShape(16.dp)).background(p.fill), contentAlignment = Alignment.Center) {
-            Icon(Icons.Outlined.PhotoLibrary, null, tint = p.ink)
-        }
-        if (busy != null) {
-            T(L.s(if (busy.total > 0) "google_saving" else "google_waiting"), size = 24, weight = FontWeight.ExtraBold, tight = true)
-            T(
-                if (busy.total > 0) L.s("google_progress", "done" to busy.done, "photos" to L.p("photos", busy.total)) else L.s("google_waiting_body"),
-                size = 15, weight = FontWeight.Medium, muted = true,
-            )
-            LinearProgressIndicator(color = Accent, trackColor = p.fill, modifier = Modifier.fillMaxWidth())
-            Pill(L.s("cancel"), onCancel, kind = Kind.Ghost, height = 48.dp, modifier = Modifier.fillMaxWidth())
-        } else {
-            T(L.s(if (connected) "google_connected_title" else "google_add_title"), size = 24, weight = FontWeight.ExtraBold, tight = true)
-            T(
-                if (connected) L.s("google_connected_body", "photos" to L.p("photos", picked))
-                else L.s("google_intro_android"),
-                size = 15, weight = FontWeight.Medium, muted = true,
-            )
-            if (!connected) T(L.s("google_backup_note"), size = 13, muted = true)
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Pill(L.s(if (connected) "pick_more" else "continue_google"), onPick, modifier = Modifier.fillMaxWidth())
-                if (connected) Pill(L.s("disconnect"), onDisconnect, kind = Kind.Ghost, height = 48.dp, modifier = Modifier.fillMaxWidth())
-                else Pill(L.s("not_now"), onDismiss, kind = Kind.Ghost, height = 48.dp, modifier = Modifier.fillMaxWidth())
-            }
-        }
     }
 }
 

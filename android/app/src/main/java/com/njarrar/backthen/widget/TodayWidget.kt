@@ -22,9 +22,7 @@ import com.njarrar.backthen.R
 import com.njarrar.backthen.core.L
 import com.njarrar.backthen.core.MonthDay
 import com.njarrar.backthen.core.Photo
-import com.njarrar.backthen.core.PhotoSource
 import com.njarrar.backthen.core.agoLabel
-import com.njarrar.backthen.core.dropDuplicates
 import com.njarrar.backthen.core.fullDate
 import com.njarrar.backthen.core.label
 import com.njarrar.backthen.core.localDate
@@ -35,7 +33,6 @@ import com.njarrar.backthen.data.EXTRA_DAY
 import com.njarrar.backthen.data.EXTRA_MONTH
 import com.njarrar.backthen.data.StateFile
 import com.njarrar.backthen.data.visibleIndex
-import java.io.File
 import java.time.LocalDateTime
 import kotlin.math.max
 import kotlin.math.roundToInt
@@ -116,18 +113,11 @@ private suspend fun pick(context: Context, today: MonthDay): Shown {
     val state = StateFile(context).read()
     val library = DeviceLibrary(context)
     val device = state.sources.device && library.hasAccess()
-    val google = state.sources.google && state.googlePhotos.isNotEmpty()
-    if (!state.onboarded || (!device && !google)) return Shown.NeedsApp
+    if (!state.onboarded || !device) return Shown.NeedsApp
     val years = yearsForDay(visibleIndex(state), today)
     if (years.isEmpty()) return Shown.Empty
-    val fromDevice = if (device) runCatching { library.photosOn(years, today) }.getOrDefault(emptyMap()) else emptyMap()
-    val fromGoogle = if (google) {
-        state.googlePhotos.filter { MonthDay.of(localDate(it.time)) == today && localDate(it.time).year in years }
-            .groupBy { localDate(it.time).year }
-    } else emptyMap()
-    val photos = years.flatMap { y ->
-        dropDuplicates(fromDevice[y].orEmpty(), fromGoogle[y].orEmpty()).sortedBy { it.time }.map { it to y }
-    }
+    val byYear = runCatching { library.photosOn(years, today) }.getOrDefault(emptyMap())
+    val photos = years.flatMap { y -> byYear[y].orEmpty().sortedBy { it.time }.map { it to y } }
     if (photos.isEmpty()) return Shown.Empty
     // A new photo each hour, in a set order through the day.
     val now = LocalDateTime.now()
@@ -184,12 +174,11 @@ private fun load(context: Context, photo: Photo, widgetW: Int, widgetH: Int): Bi
 private fun decode(context: Context, photo: Photo): Bitmap? {
     val target = MAX_SIDE * 2
     val uri = Uri.parse(photo.uri)
-    if (photo.source == PhotoSource.DEVICE && Build.VERSION.SDK_INT >= 29) {
+    if (Build.VERSION.SDK_INT >= 29) {
         return context.contentResolver.loadThumbnail(uri, Size(target, target), null)
     }
     if (Build.VERSION.SDK_INT >= 28) {
-        val source = if (photo.source == PhotoSource.DEVICE) ImageDecoder.createSource(context.contentResolver, uri)
-        else ImageDecoder.createSource(File(uri.path ?: return null))
+        val source = ImageDecoder.createSource(context.contentResolver, uri)
         return ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
             val s = max(info.size.width, info.size.height).toFloat() / target
             if (s > 1) decoder.setTargetSize((info.size.width / s).roundToInt(), (info.size.height / s).roundToInt())
@@ -197,8 +186,7 @@ private fun decode(context: Context, photo: Photo): Bitmap? {
         }
     }
     // Android 8 and 9: sample down while decoding, then turn by the photo's EXIF tag.
-    fun open() = if (photo.source == PhotoSource.DEVICE) context.contentResolver.openInputStream(uri)
-    else uri.path?.let { File(it).inputStream() }
+    fun open() = context.contentResolver.openInputStream(uri)
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
     open()?.use { BitmapFactory.decodeStream(it, null, bounds) }
     var sample = 1

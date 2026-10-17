@@ -10,12 +10,12 @@ CE QUE VOUS POUVEZ FAIRE
 • Albums : sélectionnez des photos et créez un album. Partagez-le avec n'importe quelle appli ou enregistrez-le comme vrai album dans votre galerie.
 • Rappel quotidien : une seule notification par jour, à l'heure de votre choix, et seulement les jours qui ont des photos.
 • Masquer une date : gardez un jour difficile hors de l'appli. Pas de rappel, pas de teinte dans le calendrier.
-• Google Photos : ajoutez des photos de Google Photos avec le sélecteur de Google. C'est vous qui choisissez les photos que l'appli peut voir.
+• Widget d'écran d'accueil : une photo de ce jour une année passée, une nouvelle chaque heure.
 
 VOS PHOTOS RESTENT À VOUS
 • Vos photos restent sur votre téléphone. Back Then n'a ni compte, ni serveur, ni publicité.
 • L'appli lit votre photothèque seulement pour trouver les photos par date.
-• Rien n'est envoyé, suivi ou vendu.
+• Rien n'est envoyé, suivi ou vendu. L'appli n'utilise même pas Internet.
 
 POUR TOUT LE MONDE
 • Anglais, français, espagnol et arabe, avec une mise en page de droite à gauche en arabe.

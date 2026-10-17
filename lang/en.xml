@@ -58,7 +58,6 @@
     <string name="welcome_body">Each morning, Back Then finds the photos you took on today's date in past years and sorts them by year.</string>
     <string name="welcome_denied">Without photo access there is nothing to show. You can allow it later in Settings.</string>
     <string name="use_apple_photos">Use Apple Photos</string>
-    <string name="use_google_photos">Use Google Photos</string>
     <string name="use_phone_photos">Use photos on this phone</string>
     <string name="privacy_line">Your photos stay on this phone. Nothing is uploaded.</string>
 
@@ -86,8 +85,8 @@
     <string name="share_year">Share {year}</string>
     <string name="empty_no_sources_title">No photos connected</string>
     <string name="empty_title">Nothing from {day} yet</string>
-    <string name="empty_no_sources_ios">Connect Apple Photos or Google Photos to see this day in past years.</string>
-    <string name="empty_no_sources_android">Connect your phone's photos or Google Photos to see this day in past years.</string>
+    <string name="empty_no_sources_ios">Allow Back Then to use Apple Photos to see this day in past years.</string>
+    <string name="empty_no_sources_android">Allow Back Then to use your phone's photos to see this day in past years.</string>
     <string name="empty_nearby">You didn't take photos on this date in past years. These nearby days have some.</string>
     <string name="empty_none">You didn't take photos on this date in past years.</string>
     <string name="connect_photos">Connect photos</string>
@@ -135,29 +134,11 @@
     <string name="photo_sources">Photo sources</string>
     <string name="apple_photos">Apple Photos</string>
     <string name="phone_photos">Photos on this phone</string>
-    <string name="google_photos">Google Photos</string>
     <string name="connected">Connected</string>
     <string name="not_connected">Not connected</string>
-    <string name="n_picked">{photos} picked</string>
     <string name="daily_reminder">Daily reminder</string>
     <string name="change_reminder_time">Change reminder time</string>
     <string name="reminder_settings_note">Only on days that have photos from past years. Tap the time to change it.</string>
-
-    <!-- Google Photos -->
-    <string name="google_saving">Saving your picks</string>
-    <string name="google_waiting">Waiting for Google Photos</string>
-    <string name="google_progress">{done} of {photos}</string>
-    <string name="google_waiting_body">Pick photos in Google Photos, tap Done, then come back here.</string>
-    <string name="google_connected_title">Google Photos is connected</string>
-    <string name="google_add_title">Add Google Photos</string>
-    <string name="google_connected_body">{photos} picked. Pick more any time.</string>
-    <string name="google_intro_ios">Google only lets apps see the photos you pick. Choose the ones you want Back Then to bring back, such as a whole year or a trip. Copies of shots already in Apple Photos show once.</string>
-    <string name="google_intro_android">Google only lets apps see the photos you pick. Choose the ones you want Back Then to bring back, such as a whole year or a trip. Copies of shots already on this phone show once.</string>
-    <string name="google_backup_note">Photos backed up from this phone already show up through phone photos.</string>
-    <string name="pick_more">Pick more photos</string>
-    <string name="continue_google">Continue with Google</string>
-    <string name="disconnect">Disconnect</string>
-    <string name="google_no_client">This build has no Google client ID yet. See the README to add one.</string>
 
     <!-- Hidden dates, layout and the share sheet -->
     <string name="you_hid_date">You hid this date</string>
@@ -194,13 +175,6 @@
     <string name="toast_saved_photos">Saved to Photos</string>
     <string name="toast_saved_gallery">Saved to Pictures/Back Then</string>
     <string name="toast_save_failed">Could not save the album</string>
-    <string name="toast_no_picks">No photos picked</string>
-    <string name="toast_google_connected">Google Photos connected</string>
-    <string name="toast_google_added">Added {photos} from Google Photos</string>
-    <string name="toast_google_failed">Could not reach Google Photos</string>
-    <string name="toast_google_disconnected">Google Photos disconnected</string>
-    <string name="toast_google_signin_failed">Google sign-in failed</string>
-    <string name="toast_google_not_setup">Google sign-in is not set up for this build</string>
 
     <!-- iPhone photo access prompts -->
     <string name="ios_photos_permission">Back Then shows the photos you took on this day in past years.</string>

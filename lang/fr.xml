@@ -50,7 +50,6 @@
     <string name="welcome_body">Chaque matin, Back Then retrouve les photos prises à la date du jour les années passées et les classe par année.</string>
     <string name="welcome_denied">Sans accès aux photos, il n'y a rien à afficher. Vous pourrez l'autoriser plus tard dans les réglages.</string>
     <string name="use_apple_photos">Utiliser Apple Photos</string>
-    <string name="use_google_photos">Utiliser Google Photos</string>
     <string name="use_phone_photos">Utiliser les photos du téléphone</string>
     <string name="privacy_line">Vos photos restent sur ce téléphone. Rien n'est envoyé.</string>
 
@@ -78,8 +77,8 @@
     <string name="share_year">Partager {year}</string>
     <string name="empty_no_sources_title">Aucune photo connectée</string>
     <string name="empty_title">Rien du {day} pour l'instant</string>
-    <string name="empty_no_sources_ios">Connectez Apple Photos ou Google Photos pour revoir ce jour les années passées.</string>
-    <string name="empty_no_sources_android">Connectez les photos du téléphone ou Google Photos pour revoir ce jour les années passées.</string>
+    <string name="empty_no_sources_ios">Autorisez Back Then à utiliser Apple Photos pour revoir ce jour les années passées.</string>
+    <string name="empty_no_sources_android">Autorisez Back Then à utiliser les photos du téléphone pour revoir ce jour les années passées.</string>
     <string name="empty_nearby">Vous n'avez pas pris de photos à cette date les années passées. Ces jours proches en ont.</string>
     <string name="empty_none">Vous n'avez pas pris de photos à cette date les années passées.</string>
     <string name="connect_photos">Connecter des photos</string>
@@ -127,29 +126,11 @@
     <string name="photo_sources">Sources de photos</string>
     <string name="apple_photos">Apple Photos</string>
     <string name="phone_photos">Photos du téléphone</string>
-    <string name="google_photos">Google Photos</string>
     <string name="connected">Connecté</string>
     <string name="not_connected">Non connecté</string>
-    <string name="n_picked">Choisies : {photos}</string>
     <string name="daily_reminder">Rappel quotidien</string>
     <string name="change_reminder_time">Changer l'heure du rappel</string>
     <string name="reminder_settings_note">Seulement les jours qui ont des photos des années passées. Touchez l'heure pour la changer.</string>
-
-    <!-- Google Photos -->
-    <string name="google_saving">Enregistrement de vos choix</string>
-    <string name="google_waiting">En attente de Google Photos</string>
-    <string name="google_progress">{done} sur {photos}</string>
-    <string name="google_waiting_body">Choisissez des photos dans Google Photos, validez, puis revenez ici.</string>
-    <string name="google_connected_title">Google Photos est connecté</string>
-    <string name="google_add_title">Ajouter Google Photos</string>
-    <string name="google_connected_body">Choisies : {photos}. Vous pouvez en ajouter à tout moment.</string>
-    <string name="google_intro_ios">Google ne laisse les apps voir que les photos que vous choisissez. Choisissez celles que Back Then doit vous rappeler, par exemple une année entière ou un voyage. Les copies de photos déjà dans Apple Photos n'apparaissent qu'une fois.</string>
-    <string name="google_intro_android">Google ne laisse les apps voir que les photos que vous choisissez. Choisissez celles que Back Then doit vous rappeler, par exemple une année entière ou un voyage. Les copies de photos déjà sur ce téléphone n'apparaissent qu'une fois.</string>
-    <string name="google_backup_note">Les photos sauvegardées depuis ce téléphone apparaissent déjà avec les photos du téléphone.</string>
-    <string name="pick_more">Choisir d'autres photos</string>
-    <string name="continue_google">Continuer avec Google</string>
-    <string name="disconnect">Déconnecter</string>
-    <string name="google_no_client">Cette version n'a pas encore d'identifiant client Google. Voir le README pour en ajouter un.</string>
 
     <!-- Hidden dates, layout and the share sheet -->
     <string name="you_hid_date">Vous avez masqué cette date</string>
@@ -186,13 +167,6 @@
     <string name="toast_saved_photos">Enregistré dans Photos</string>
     <string name="toast_saved_gallery">Enregistré dans Pictures/Back Then</string>
     <string name="toast_save_failed">Impossible d'enregistrer l'album</string>
-    <string name="toast_no_picks">Aucune photo choisie</string>
-    <string name="toast_google_connected">Google Photos connecté</string>
-    <string name="toast_google_added">Ajout depuis Google Photos : {photos}</string>
-    <string name="toast_google_failed">Impossible de joindre Google Photos</string>
-    <string name="toast_google_disconnected">Google Photos déconnecté</string>
-    <string name="toast_google_signin_failed">Échec de la connexion Google</string>
-    <string name="toast_google_not_setup">La connexion Google n'est pas configurée pour cette version</string>
 
     <!-- iPhone photo access prompts -->
     <string name="ios_photos_permission">Back Then affiche les photos prises ce jour-là les années passées.</string>

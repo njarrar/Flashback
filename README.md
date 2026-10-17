@@ -8,8 +8,8 @@ day from a calendar, keep the best shots in Favorites, and gather photos into al
 you can share.
 
 Both apps are fully native: Swift and SwiftUI on iPhone, Kotlin and Jetpack Compose
-on Android. They read photos from the phone's own library and, if you choose, from
-Google Photos.
+on Android. They read photos from the phone's own library only, and nothing leaves
+the phone.
 
 <table>
   <tr>
@@ -84,8 +84,8 @@ The whole app turns right to left, with an Arabic font and Arabic month names.
 The photos in these screenshots are samples from [Lorem Picsum](https://picsum.photos),
 stamped with past dates. The [Screenshots workflow](.github/workflows/screenshots.yml)
 takes them from the real apps on an iPhone simulator and an Android emulator. (A
-simulator can't be given photo access without a tap, so on iPhone the samples load
-the same way Google Photos picks do.)
+simulator can't be given photo access without a tap, so on iPhone a debug build
+loads the samples from a folder in the app instead.)
 
 ## What it does
 
@@ -115,6 +115,21 @@ the same way Google Photos picks do.)
   that grows with the system text size; a large top app bar, navigation bar and
   Android's own date dialog on Android. Light and dark mode.
 
+## What's new in 1.9
+
+Photos on the phone only. Google Photos sign-in is gone from both apps.
+
+- **One source.** The apps read the phone's library (Apple Photos on iPhone, the
+  gallery on Android) and nothing else. The welcome screen has one button, and the
+  "..." menu no longer lists Google Photos.
+- **No internet.** The Android app no longer asks for internet access, and neither
+  app talks to any server. The Google sign-in library is out of the Android build.
+- **Clean update.** Photos picked from Google Photos in 1.8 drop out of Favorites and
+  albums, and the app deletes its copies of them and the saved Google sign-in. Phone
+  photos, albums, hidden days and settings stay as they were.
+- **Privacy policy and Play listing** now say the app uses only photos on the phone.
+  The Data safety answers stay "no data collected or shared".
+
 ## What's new in 1.8
 
 Google Photos sign-in.
@@ -129,8 +144,7 @@ Google Photos sign-in.
   which strips unused code and renames the rest. Google Play warned about the 1.6
   bundle for skipping this. A new CI job installs the shrunk build on an emulator and
   fails if it crashes.
-- **Setup guide.** [docs/google-photos-setup.md](docs/google-photos-setup.md) walks
-  through the Google Cloud steps, which keys to register, and how to add testers.
+- **Setup guide** for the Google Cloud steps (removed in 1.9 with Google Photos).
 
 ## What's new in 1.7
 
@@ -285,18 +299,10 @@ apps.
 
 ## Where the photos come from
 
-**The phone's library.** PhotoKit on iPhone, MediaStore on Android. On Android this
-already includes Google Photos pictures that are stored on the phone. Nothing leaves
-the phone.
-
-**Google Photos.** Since March 31, 2025, Google no longer lets other apps read a
-user's whole Google Photos library
-([Google's notice](https://developers.google.com/photos/support/updates)). The
-supported way in is the **Google Photos Picker**: you pick photos in a Google screen
-and the app gets only those. Back Then keeps a copy of each picked photo on the
-phone, adds it to the day-by-day view, and skips shots that are already in the
-phone's library. You can pick more at any time from the "..." menu, or disconnect
-Google Photos to delete the copies.
+**The phone's library**, through PhotoKit on iPhone and MediaStore on Android. On
+Android this includes Google Photos pictures that are stored on the phone. The apps
+have no account, no sign-in and no server, so nothing leaves the phone unless you
+share it.
 
 ## Languages
 
@@ -361,42 +367,24 @@ The Android package name is `com.njarrar.backthen`. Follow
 secrets, run the Play Store workflow, then fill in the Play Console from the files in
 [play-store/](play-store).
 
-### Turning on Google Photos
-
-The apps work without this, using the phone's library. Full steps are in
-[docs/google-photos-setup.md](docs/google-photos-setup.md). In short:
-
-1. In [Google Cloud Console](https://console.cloud.google.com/), create a project and
-   enable the **Photos Picker API**.
-2. Set up the OAuth consent screen (Google Auth Platform) with the scope
-   `https://www.googleapis.com/auth/photospicker.mediaitems.readonly`. While the app
-   is in testing, add each tester's Google account as a test user.
-3. **iPhone:** create an **iOS** OAuth client for bundle ID `com.njarrar.backthen`
-   and put its client ID in `ios/BackThen/GoogleConfig.swift`. A client ID is not a
-   secret; Google gives iOS clients no secret.
-4. **Android:** create one **Android** OAuth client for package
-   `com.njarrar.backthen` per signing key: the Play app signing key (installs from
-   Google Play), the upload key (the APK in build/) and, if you build on your own
-   computer, your debug key. No code change is needed.
-
 ## How the code is laid out
 
 The two apps share no code, but each has the same core logic, so they behave alike:
-a day index that counts photos per day and year, the nearby-days search, the check
-that drops Google copies of phone photos, and the mosaic patterns.
+a day index that counts photos per day and year, the nearby-days search, and the
+mosaic patterns.
 
 ```
 lang/        one XML file per language, read by both apps
 ios/BackThen/
   Core/      dates, day index, mosaic layout, language files
-  Data/      PhotoKit, Google sign-in and picker, reminders, app state
+  Data/      PhotoKit, reminders, app state
   Views/     Today, calendar, viewer, Favorites, Albums, onboarding
 ios/BackThenWidget/ the home screen widget (it shares Core/ with the app)
 ios/BackThenTests/  unit tests
 ios/scripts/        build step that copies lang/ into the app
 android/app/src/main/java/com/njarrar/backthen/
   core/      the same core logic, with unit tests
-  data/      MediaStore, Google picker, reminders, saved state
+  data/      MediaStore, reminders, saved state
   ui/        Compose screens
   widget/    the home screen widget
 design/      the source design (open "On This Day.dc.html") and the Nunito and Tajawal font licenses

@@ -4,7 +4,7 @@ import WidgetKit
 
 // Home screen widget: a photo from this day in a past year, with its year and how long ago.
 // A tap opens Today. It picks another photo from the day every hour.
-// It reads the phone's Photos library with the app's own permission; Google imports stay in the app.
+// It reads the phone's Photos library with the app's own permission.
 
 @main
 struct BackThenWidgets: WidgetBundle {

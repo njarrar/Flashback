@@ -65,7 +65,6 @@
     <string name="welcome_body">كل صباح، يجد Back Then الصور التي التقطتها في مثل هذا اليوم من السنوات الماضية ويرتّبها حسب السنة.</string>
     <string name="welcome_denied">من دون الوصول إلى الصور لا يوجد ما نعرضه. يمكنك السماح بذلك لاحقًا من الإعدادات.</string>
     <string name="use_apple_photos">استخدم صور Apple</string>
-    <string name="use_google_photos">استخدم صور Google</string>
     <string name="use_phone_photos">استخدم صور هذا الهاتف</string>
     <string name="privacy_line">تبقى صورك على هذا الهاتف. لا يُرفع أي شيء.</string>
 
@@ -93,8 +92,8 @@
     <string name="share_year">مشاركة {year}</string>
     <string name="empty_no_sources_title">لا صور متصلة</string>
     <string name="empty_title">لا شيء من {day} بعد</string>
-    <string name="empty_no_sources_ios">اربط صور Apple أو صور Google لترى هذا اليوم في السنوات الماضية.</string>
-    <string name="empty_no_sources_android">اربط صور الهاتف أو صور Google لترى هذا اليوم في السنوات الماضية.</string>
+    <string name="empty_no_sources_ios">اسمح لـ Back Then باستخدام صور Apple لترى هذا اليوم في السنوات الماضية.</string>
+    <string name="empty_no_sources_android">اسمح لـ Back Then باستخدام صور الهاتف لترى هذا اليوم في السنوات الماضية.</string>
     <string name="empty_nearby">لم تلتقط صورًا في هذا التاريخ في السنوات الماضية. هذه أيام قريبة فيها صور.</string>
     <string name="empty_none">لم تلتقط صورًا في هذا التاريخ في السنوات الماضية.</string>
     <string name="connect_photos">اربط الصور</string>
@@ -142,29 +141,11 @@
     <string name="photo_sources">مصادر الصور</string>
     <string name="apple_photos">صور Apple</string>
     <string name="phone_photos">صور هذا الهاتف</string>
-    <string name="google_photos">صور Google</string>
     <string name="connected">متصل</string>
     <string name="not_connected">غير متصل</string>
-    <string name="n_picked">المختار: {photos}</string>
     <string name="daily_reminder">تذكير يومي</string>
     <string name="change_reminder_time">تغيير وقت التذكير</string>
     <string name="reminder_settings_note">فقط في الأيام التي فيها صور من السنوات الماضية. اضغط على الوقت لتغييره.</string>
-
-    <!-- Google Photos -->
-    <string name="google_saving">نحفظ اختياراتك</string>
-    <string name="google_waiting">بانتظار صور Google</string>
-    <string name="google_progress">{done} من {photos}</string>
-    <string name="google_waiting_body">اختر الصور في صور Google، واضغط «تم»، ثم عُد إلى هنا.</string>
-    <string name="google_connected_title">صور Google متصلة</string>
-    <string name="google_add_title">إضافة صور Google</string>
-    <string name="google_connected_body">المختار: {photos}. يمكنك اختيار المزيد في أي وقت.</string>
-    <string name="google_intro_ios">لا تسمح Google للتطبيقات إلا برؤية الصور التي تختارها. اختر ما تريد أن يعيده إليك Back Then، مثل سنة كاملة أو رحلة. نسخ الصور الموجودة في صور Apple تظهر مرة واحدة.</string>
-    <string name="google_intro_android">لا تسمح Google للتطبيقات إلا برؤية الصور التي تختارها. اختر ما تريد أن يعيده إليك Back Then، مثل سنة كاملة أو رحلة. نسخ الصور الموجودة على هذا الهاتف تظهر مرة واحدة.</string>
-    <string name="google_backup_note">الصور المنسوخة احتياطيًا من هذا الهاتف تظهر أصلًا مع صور الهاتف.</string>
-    <string name="pick_more">اختر صورًا أخرى</string>
-    <string name="continue_google">المتابعة مع Google</string>
-    <string name="disconnect">قطع الاتصال</string>
-    <string name="google_no_client">لا يحتوي هذا الإصدار على معرّف عميل Google بعد. راجع ملف README لإضافته.</string>
 
     <!-- Hidden dates, layout and the share sheet -->
     <string name="you_hid_date">أخفيت هذا التاريخ</string>
@@ -201,13 +182,6 @@
     <string name="toast_saved_photos">تم الحفظ في الصور</string>
     <string name="toast_saved_gallery">تم الحفظ في Pictures/Back Then</string>
     <string name="toast_save_failed">تعذّر حفظ الألبوم</string>
-    <string name="toast_no_picks">لم تختر أي صورة</string>
-    <string name="toast_google_connected">تم ربط صور Google</string>
-    <string name="toast_google_added">أُضيفت من صور Google: {photos}</string>
-    <string name="toast_google_failed">تعذّر الوصول إلى صور Google</string>
-    <string name="toast_google_disconnected">تم قطع الاتصال بصور Google</string>
-    <string name="toast_google_signin_failed">تعذّر تسجيل الدخول إلى Google</string>
-    <string name="toast_google_not_setup">تسجيل الدخول إلى Google غير مُعدّ في هذا الإصدار</string>
 
     <!-- iPhone photo access prompts -->
     <string name="ios_photos_permission">يعرض Back Then الصور التي التقطتها في مثل هذا اليوم من السنوات الماضية.</string>
