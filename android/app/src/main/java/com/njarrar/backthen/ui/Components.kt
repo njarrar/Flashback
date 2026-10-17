@@ -72,7 +72,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -263,7 +266,7 @@ private val PinnedBarHeight = 44.dp
 @Composable
 fun YearHeader(year: Int, count: Int, day: MonthDay, onShare: () -> Unit) {
     val p = LocalPalette.current
-    Row(
+    Column(
         Modifier
             .layout { measurable, constraints ->
                 val placeable = measurable.measure(constraints)
@@ -271,21 +274,22 @@ fun YearHeader(year: Int, count: Int, day: MonthDay, onShare: () -> Unit) {
                 layout(placeable.width, (placeable.height - up).coerceAtLeast(0)) { placeable.place(0, -up) }
             }
             .fillMaxWidth()
-            .padding(horizontal = 20.dp),
-        verticalAlignment = Alignment.Bottom,
+            .padding(start = 20.dp, end = 8.dp),
     ) {
-        T(L.num(year), size = 56, weight = FontWeight.Black, tight = true, modifier = Modifier.weight(1f).semantics { heading() })
-        Row(Modifier.padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Column(horizontalAlignment = Alignment.End) {
-                T(agoLabel(year), size = 14, weight = FontWeight.SemiBold)
-                T(L.s("weekday_photos", "weekday" to weekdayOf(year, day), "photos" to L.p("photos", count)), size = 13, muted = true)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            T(L.num(year), size = 56, weight = FontWeight.Black, tight = true, modifier = Modifier.weight(1f).semantics { heading() })
+            IconButton(onClick = onShare, modifier = Modifier.size(48.dp)) {
+                Icon(Icons.Outlined.IosShare, L.s("share_year", "year" to year), tint = p.ink, modifier = Modifier.size(22.dp))
             }
-            Box(
-                Modifier.size(36.dp).clip(CircleShape).background(p.surface).border(1.dp, p.line, CircleShape)
-                    .clickable(role = Role.Button, onClick = onShare),
-                contentAlignment = Alignment.Center,
-            ) { Icon(Icons.Outlined.IosShare, L.s("share_year", "year" to year), tint = p.ink, modifier = Modifier.size(18.dp)) }
         }
+        // One line under the year: "1 year ago · Friday, 5 photos".
+        Text(
+            buildAnnotatedString {
+                withStyle(SpanStyle(color = p.ink, fontWeight = FontWeight.Bold)) { append(agoLabel(year)) }
+                append(" · " + L.s("weekday_photos", "weekday" to weekdayOf(year, day), "photos" to L.p("photos", count)))
+            },
+            color = p.muted, fontFamily = Nunito, fontSize = 14.sp, lineHeight = (if (L.lang.arabicScript) 22 else 20).sp,
+        )
     }
 }
 

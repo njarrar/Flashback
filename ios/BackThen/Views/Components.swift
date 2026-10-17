@@ -120,27 +120,6 @@ struct RowPressStyle: ButtonStyle {
     }
 }
 
-/// Round glass button used in the iPhone header.
-struct GlassButton<Label: View>: View {
-    let accessibility: String
-    var size: CGFloat = 40
-    let action: () -> Void
-    @ViewBuilder let label: () -> Label
-
-    var body: some View {
-        Button(action: action) {
-            label()
-                .foregroundStyle(Palette.ink)
-                .frame(minWidth: size, minHeight: size)
-                .padding(.horizontal, Label.self == Text.self ? 16 : 0)
-                .background(Palette.glass, in: Capsule())
-                .overlay(Capsule().stroke(Palette.line, lineWidth: 1))
-        }
-        .buttonStyle(PressStyle())
-        .accessibilityLabel(accessibility)
-    }
-}
-
 /// The app icon from the design: two tilted prints on blue, the front one smiling.
 struct Logo: View {
     var size: CGFloat = 36
@@ -265,40 +244,27 @@ struct YearSection: View {
             .accessibilityAddTraits(.isHeader)
     }
 
-    private var details: some View {
-        HStack(spacing: 10) {
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(agoLabel(group.year)).font(.nunito(14, .semibold)).foregroundStyle(Palette.ink)
-                Text(L.s("weekday_photos", ["weekday": weekday(year: group.year, day), "photos": L.p("photos", group.photos.count)])).font(.nunito(13)).foregroundStyle(Palette.muted)
-            }
-            Button(action: share) {
-                Image(systemName: "square.and.arrow.up").font(.system(size: 18)).foregroundStyle(Palette.ink)
-                    .frame(width: 36, height: 36)
-                    .background(Palette.glass, in: Circle())
-                    .overlay(Circle().stroke(Palette.line, lineWidth: 1))
-            }
-            .buttonStyle(PressStyle())
-            .accessibilityLabel(L.s("share_year", ["year": group.year]))
-        }
-    }
-
     var body: some View {
         let layout = layoutMosaic(group.photos.count)
         let rows = CGFloat(layout.rows)
         VStack(spacing: 12) {
-            // One row when it fits; with large text the details drop under the year.
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .bottom, spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(alignment: .center, spacing: 10) {
                     year
                     Spacer(minLength: 0)
-                    details.fixedSize().padding(.bottom, 8)
+                    Button(action: share) {
+                        Image(systemName: "square.and.arrow.up").font(.system(size: 19)).foregroundStyle(Palette.ink)
+                            .frame(width: 44, height: 44).contentShape(Rectangle())
+                    }
+                    .buttonStyle(PressStyle())
+                    .accessibilityLabel(L.s("share_year", ["year": group.year]))
                 }
-                VStack(alignment: .leading, spacing: 4) {
-                    year
-                    details
-                }
+                // One line under the year: "1 year ago · Friday, 5 photos".
+                (Text(agoLabel(group.year)).foregroundStyle(Palette.ink).font(.nunito(14, .bold))
+                 + Text(" · " + L.s("weekday_photos", ["weekday": weekday(year: group.year, day), "photos": L.p("photos", group.photos.count)])).foregroundStyle(Palette.muted))
+                    .font(.nunito(14))
             }
-            .padding(.horizontal, 4)
+            .padding(.leading, 4)
 
             GeometryReader { geo in
                 let gap: CGFloat = 4, row: CGFloat = 54

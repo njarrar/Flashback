@@ -26,6 +26,8 @@ struct RootView: View {
                         .tag(AppTab.albums)
                 }
                 .tint(Palette.accent)
+                // The tab bar fills symbols on its own; keep the Favorites heart an outline until it is picked.
+                .environment(\.symbolVariants, .none)
             } else {
                 OnboardingView()
             }

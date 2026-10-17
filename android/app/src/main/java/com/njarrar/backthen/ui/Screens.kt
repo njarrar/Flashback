@@ -33,7 +33,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.HideImage
@@ -41,6 +41,8 @@ import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.IosShare
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.PhotoLibrary
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.AlertDialog
@@ -81,6 +83,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -223,6 +226,7 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
     val demo by vm.demoScene.collectAsStateWithLifecycle()
     LaunchedEffect(demo) { if (demo == "calendar") calendar = true }
     var settings by remember { mutableStateOf(false) }
+    var menu by remember { mutableStateOf(false) }
     var selecting by remember { mutableStateOf(false) }
     var picked by remember { mutableStateOf(listOf<Photo>()) }
     var albumFor by remember { mutableStateOf<List<Photo>?>(null) }
@@ -297,8 +301,33 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
                         TextButton(onClick = { if (selecting) stopSelecting() else { selecting = true; onSelectingChange(true) } }) {
                             T(L.s(if (selecting) "cancel" else "select"), size = 15, weight = FontWeight.SemiBold)
                         }
-                        IconButton(onClick = { calendar = true }) { Icon(Icons.Outlined.CalendarMonth, L.s("pick_a_day"), tint = p.ink) }
-                        IconButton(onClick = { settings = true }) { Icon(Icons.Outlined.MoreVert, L.s("options"), tint = p.ink) }
+                        // The date title opens the calendar, so the bar keeps only Select and this menu.
+                        Box {
+                            IconButton(onClick = { menu = true }) { Icon(Icons.Outlined.MoreVert, L.s("options"), tint = p.ink) }
+                            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }, containerColor = p.surface) {
+                                DropdownMenuItem(
+                                    text = { T(if (hidden) L.s("show_day_again", "day" to day.label()) else L.s("hide_date")) },
+                                    leadingIcon = { Icon(if (hidden) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff, null, tint = p.ink) },
+                                    onClick = { menu = false; vm.setHidden(day, !hidden) },
+                                )
+                                HorizontalDivider(color = p.line)
+                                listOf(YearLayout.MOSAIC to "layout_all_years", YearLayout.STRIP to "layout_one_year").forEach { (layout, key) ->
+                                    val on = state.layout == layout
+                                    DropdownMenuItem(
+                                        text = { T(L.s(key)) },
+                                        leadingIcon = { Icon(Icons.Filled.Check, null, tint = if (on) p.ink else Color.Transparent) },
+                                        onClick = { menu = false; vm.setLayout(layout) },
+                                        modifier = Modifier.semantics { selected = on },
+                                    )
+                                }
+                                HorizontalDivider(color = p.line)
+                                DropdownMenuItem(
+                                    text = { T(L.s("settings")) },
+                                    leadingIcon = { Icon(Icons.Outlined.Settings, null, tint = p.ink) },
+                                    onClick = { menu = false; settings = true },
+                                )
+                            }
+                        }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = p.bg, scrolledContainerColor = p.bg.copy(alpha = 0.92f)),
                     scrollBehavior = topBar,
@@ -312,16 +341,7 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
                 LazyColumn(state = list, contentPadding = PaddingValues(bottom = bottomPadding + 24.dp), modifier = Modifier.fillMaxSize()) {
                     item(key = "summary") {
                         Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                T(summary, size = 15, muted = true, modifier = Modifier.weight(1f))
-                                if (!hidden) {
-                                    TextButton(onClick = { vm.setHidden(day, true) }) {
-                                        Icon(Icons.Outlined.VisibilityOff, null, tint = p.muted, modifier = Modifier.size(16.dp))
-                                        Spacer(Modifier.size(6.dp))
-                                        T(L.s("hide_date"), size = 14, weight = FontWeight.SemiBold, muted = true)
-                                    }
-                                }
-                            }
+                            T(summary, size = 15, muted = true)
                             if (day != today) {
                                 Row(Modifier.padding(top = 8.dp)) {
                                     Pill(L.s("back_to_today"), { go(today) }, kind = Kind.Tint, height = 34.dp, icon = { Icon(Icons.AutoMirrored.Filled.Undo, null, tint = it, modifier = Modifier.size(14.dp)) })
