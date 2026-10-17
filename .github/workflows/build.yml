@@ -1,6 +1,7 @@
 name: Build apps
 
-# Builds both apps and commits them to the build/ folder.
+# Builds both apps and puts them on the "latest-build" GitHub release, replacing the last
+# copies. Release files stay out of git, so the repo doesn't grow with every build.
 # Run it from the Actions tab (Build apps, Run workflow) after app changes.
 on:
   workflow_dispatch:
@@ -58,22 +59,20 @@ jobs:
       - uses: actions/upload-artifact@v4
         with: { name: android, path: out }
 
-  commit:
+  release:
     needs: [ios, android]
     runs-on: ubuntu-latest
     permissions: { contents: write }
     steps:
-      - uses: actions/checkout@v4
-        with: { ref: "${{ github.head_ref || github.ref_name }}" }
       - uses: actions/download-artifact@v4
         with: { path: /tmp/apps, merge-multiple: true }
-      - name: Commit
+      - name: Upload to the latest-build release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          mkdir -p build
-          cp /tmp/apps/* build/
-          ls -l build
-          git config user.name "njarrar"
-          git config user.email "njarrar@gmail.com"
-          git add build
-          git diff --cached --quiet || git commit -m "Update built apps in build/"
-          git push
+          ls -l /tmp/apps
+          gh release view latest-build >/dev/null 2>&1 || gh release create latest-build \
+            --title "Latest build" --prerelease --target "$GITHUB_SHA" --notes "Ready-made apps for testing."
+          gh release upload latest-build /tmp/apps/* --clobber
+          gh release edit latest-build --notes "Ready-made apps for testing, built from $GITHUB_SHA. See the README for how to install each one."

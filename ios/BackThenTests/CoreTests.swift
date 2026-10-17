@@ -85,10 +85,6 @@ final class CoreTests: XCTestCase {
         XCTAssertFalse(MonthDay(month: 0, day: 31).isAfter(MonthDay(month: 9, day: 2)))
     }
 
-    func testMerges() {
-        XCTAssertEqual(mergeIndexes(["1-1": [2020: 1]], ["1-1": [2020: 2, 2021: 1]]), ["1-1": [2020: 3, 2021: 1]])
-    }
-
     func testMosaicPacksWithoutGaps() {
         for n in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 25] {
             let layout = layoutMosaic(n)

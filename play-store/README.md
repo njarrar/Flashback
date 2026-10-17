@@ -6,8 +6,8 @@ Everything the Play Console asks for is in this folder or made by the
 | What | Where |
 |---|---|
 | Package name | `com.njarrar.backthen` |
-| Version | 1.9.0 (version code 10) |
-| Release bundle | [`build/BackThen-Android.aab`](../build/) |
+| Version | 1.10.0 (version code 11) |
+| Release bundle | `BackThen-Android.aab` on the [Latest build](../../../releases/tag/latest-build) release |
 | Store text, four languages | [`listing/`](listing) |
 | App icon, feature graphics | [`graphics/`](graphics) |
 | Phone screenshots, four languages | [`screenshots/`](screenshots) |
@@ -123,7 +123,7 @@ Tablet screenshots are optional and can wait.
 ## 8. Release
 
 1. **Test and release > Testing > Closed testing > Create track.** Add your testers'
-   emails, upload `build/BackThen-Android.aab`, paste the release notes from each
+   emails, upload `BackThen-Android.aab` from the Latest build release, paste the release notes from each
    `listing/<lang>/release-notes.txt`, and roll out.
 2. Share the opt-in link with testers. After 14 days with 12 or more testers,
    **Apply for production** from the Dashboard.

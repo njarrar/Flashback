@@ -66,7 +66,14 @@ struct TodayProvider: TimelineProvider {
         func make(_ shown: TodayEntry.Shown) -> TodayEntry { TodayEntry(date: now, day: day, shown: shown) }
         let info = WidgetInfo.read()
         let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
-        guard status == .authorized || status == .limited, info?.device ?? true else { return make(.needsApp) }
+        // Without the app's settings the widget can't tell which days are hidden, so it shows
+        // no photos. Debug builds still do, since a free Apple ID can't share the settings.
+        #if DEBUG
+        let device = info?.device ?? true
+        #else
+        let device = info?.device ?? false
+        #endif
+        guard status == .authorized || status == .limited, device else { return make(.needsApp) }
         if info?.hidden.contains(day.key) == true { return make(.empty) }
         let assets = photos(on: day, now: now)
         guard !assets.isEmpty else { return make(.empty) }

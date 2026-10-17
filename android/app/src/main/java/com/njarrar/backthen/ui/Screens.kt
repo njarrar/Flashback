@@ -102,6 +102,7 @@ import com.njarrar.backthen.core.nearbyDays
 import com.njarrar.backthen.core.shortLabel
 import com.njarrar.backthen.core.yearsForDay
 import kotlinx.coroutines.flow.Flow
+import com.njarrar.backthen.data.CAN_SAVE_TO_GALLERY
 import com.njarrar.backthen.data.YearLayout
 import kotlinx.coroutines.launch
 
@@ -597,10 +598,12 @@ fun AlbumScreen(vm: AppViewModel, album: Album, bottomPadding: androidx.compose.
                         L.s("share_album"), { sharing = true }, height = 46.dp, enabled = album.photos.isNotEmpty(), modifier = Modifier.weight(1f),
                         icon = { Icon(Icons.Outlined.IosShare, null, tint = it, modifier = Modifier.size(18.dp)) },
                     )
-                    Pill(
-                        L.s("save_to_gallery"), { vm.saveToGallery(album.name, album.photos) }, kind = Kind.Secondary, height = 46.dp, enabled = album.photos.isNotEmpty(), modifier = Modifier.weight(1f),
-                        icon = { Icon(Icons.Outlined.Download, null, tint = it, modifier = Modifier.size(18.dp)) },
-                    )
+                    if (CAN_SAVE_TO_GALLERY) {
+                        Pill(
+                            L.s("save_to_gallery"), { vm.saveToGallery(album.name, album.photos) }, kind = Kind.Secondary, height = 46.dp, enabled = album.photos.isNotEmpty(), modifier = Modifier.weight(1f),
+                            icon = { Icon(Icons.Outlined.Download, null, tint = it, modifier = Modifier.size(18.dp)) },
+                        )
+                    }
                 }
             }
             squareGridItems(album.photos, favorites, showYear = false) { i -> vm.viewer.value = com.njarrar.backthen.Viewer(album.photos, i) }
