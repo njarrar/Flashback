@@ -133,7 +133,7 @@ A design pass from two reviews of the apps.
 - **"Show my photos".** The welcome button no longer shows the Apple logo, and the
   privacy line under it is easier to read.
 - **Hearts stay readable.** A soft dark wash in the tile corner keeps the heart clear
-  on bright photos, and screen readers now say "Favorite photo from 2019".
+  on bright photos, and screen readers now say "Favorite photo" for hearted photos.
 - **Photo viewer.** The header says where you are, like "3 of 5". The buttons have
   short labels under them, and filmstrip thumbnails are easier to hit. On Android the
   status bar icons stay light on the dark viewer.
