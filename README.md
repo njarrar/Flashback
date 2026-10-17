@@ -141,6 +141,15 @@ A design pass from two reviews of the apps.
   easier to tap. On iPhone, Reduce Motion turns off the press and toast motion. The
   toast check mark shows in dark mode. Android stays in portrait, like the iPhone app.
 
+## What's new in 1.11
+
+- **GitHub can send updates to Google Play.** Running the Play Store workflow now
+  uploads the new bundle to the closed test with its release notes, and updates the
+  store text, icon, feature graphics and screenshots in all four languages. It needs
+  a Google service account key in the `PLAY_SERVICE_ACCOUNT_JSON` secret; step 9 of
+  [play-store/README.md](play-store/README.md#9-let-github-send-updates-to-play) shows
+  how. Without the key the workflow works as before. No app changes.
+
 ## What's new in 1.10
 
 Fixes from a full code check.
@@ -424,7 +433,8 @@ certificate and profile. With those, a signed build can go out through TestFligh
 The Android package name is `com.njarrar.backthen`. Follow
 [play-store/README.md](play-store/README.md): make an upload key, add it to GitHub
 secrets, run the Play Store workflow, then fill in the Play Console from the files in
-[play-store/](play-store).
+[play-store/](play-store). After the first upload by hand, the workflow can send new
+bundles and store listing changes to Play by itself (step 9 of that guide).
 
 ## How the code is laid out
 

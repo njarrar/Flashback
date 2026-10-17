@@ -6,8 +6,22 @@ name: Play Store
 #   play-store/graphics/             app icon and a feature graphic per language
 #   play-store/screenshots/<lang>/   phone screenshots in English, French, Spanish and Arabic
 # Run it from the Actions tab (Play Store, Run workflow). See play-store/README.md.
+# With the PLAY_SERVICE_ACCOUNT_JSON secret set, a run from the Actions tab also sends the
+# bundle, release notes, store text, screenshots and graphics to Google Play.
 on:
   workflow_dispatch:
+    inputs:
+      send_bundle:
+        description: Send the bundle and release notes to Play
+        type: boolean
+        default: true
+      send_listing:
+        description: Send the store text, screenshots and graphics to Play
+        type: boolean
+        default: true
+      track:
+        description: Play track ("alpha" is the first closed test)
+        default: alpha
   push:
     paths: [".github/workflows/play.yml", ".github/play/**"]
 
@@ -115,3 +129,28 @@ jobs:
           gh release view latest-build >/dev/null 2>&1 || gh release create latest-build \
             --title "Latest build" --prerelease --target "$GITHUB_SHA" --notes "Ready-made apps for testing."
           gh release upload latest-build /tmp/out/bundle/BackThen-Android.aab --clobber
+
+  google-play:
+    needs: [commit]
+    # Only from the Run workflow button, never on a push.
+    if: github.event_name == 'workflow_dispatch' && (inputs.send_bundle || inputs.send_listing)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ github.head_ref || github.ref_name }}" }
+      - uses: actions/download-artifact@v4
+        with: { name: bundle, path: /tmp/bundle }
+      - name: Send to Google Play
+        shell: bash
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          TRACK: ${{ inputs.track }}
+          SEND_BUNDLE: ${{ inputs.send_bundle }}
+          SEND_LISTING: ${{ inputs.send_listing }}
+        run: |
+          if [ -z "$PLAY_SERVICE_ACCOUNT_JSON" ]; then
+            echo "No PLAY_SERVICE_ACCOUNT_JSON secret, so nothing went to Play. Upload the bundle by hand, or see play-store/README.md to turn this on." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          python3 -m venv /tmp/venv && /tmp/venv/bin/pip install -q google-api-python-client google-auth
+          /tmp/venv/bin/python .github/play/publish.py /tmp/bundle/BackThen-Android.aab play-store | tee -a "$GITHUB_STEP_SUMMARY"
