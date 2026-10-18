@@ -25,6 +25,10 @@
         <item quantity="one">{n} an</item>
         <item quantity="other">{n} ans</item>
     </plurals>
+    <plurals name="skipped_days">
+        <item quantity="one">{n} jour sans photo passé</item>
+        <item quantity="other">{n} jours sans photo passés</item>
+    </plurals>
     <plurals name="albums">
         <item quantity="one">{n} album</item>
         <item quantity="other">{n} albums</item>
@@ -66,6 +70,8 @@
     <string name="today_loading">Recherche dans votre bibliothèque…</string>
     <string name="today_none">Aucune photo à cette date</string>
     <string name="pick_another_day">Choisir un autre jour</string>
+    <string name="previous_day_photos">Jour précédent avec des photos</string>
+    <string name="next_day_photos">Jour suivant avec des photos</string>
     <string name="back_to_today">Revenir à aujourd'hui</string>
     <string name="select">Sélectionner</string>
     <string name="selected">Sélectionnée</string>

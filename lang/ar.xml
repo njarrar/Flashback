@@ -33,6 +33,14 @@
         <item quantity="many">{n} سنة</item>
         <item quantity="other">{n} سنة</item>
     </plurals>
+    <plurals name="skipped_days">
+        <item quantity="zero">لم يُتخطَّ أي يوم</item>
+        <item quantity="one">تم تخطّي يوم واحد بلا صور</item>
+        <item quantity="two">تم تخطّي يومين بلا صور</item>
+        <item quantity="few">تم تخطّي {n} أيام بلا صور</item>
+        <item quantity="many">تم تخطّي {n} يومًا بلا صور</item>
+        <item quantity="other">تم تخطّي {n} يوم بلا صور</item>
+    </plurals>
     <plurals name="albums">
         <item quantity="zero">لا ألبومات</item>
         <item quantity="one">ألبوم واحد</item>
@@ -81,6 +89,8 @@
     <string name="today_loading">نبحث في مكتبتك…</string>
     <string name="today_none">لا صور في هذا التاريخ</string>
     <string name="pick_another_day">اختر يومًا آخر</string>
+    <string name="previous_day_photos">اليوم السابق الذي فيه صور</string>
+    <string name="next_day_photos">اليوم التالي الذي فيه صور</string>
     <string name="back_to_today">العودة إلى اليوم</string>
     <string name="select">تحديد</string>
     <string name="selected">محددة</string>

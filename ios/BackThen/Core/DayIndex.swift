@@ -47,3 +47,18 @@ func nearbyDays(_ index: DayIndex, _ md: MonthDay, today: Date = Date()) -> (bef
     }
     return (before, after)
 }
+
+/// Where a swipe on Today lands: the next day with photos going forward (`step` 1) or back
+/// (`step` -1), and how many empty days it passed. Stays between January 1 and today, the days
+/// the calendar lets you pick.
+func swipeTarget(_ index: DayIndex, from md: MonthDay, step: Int, today: Date = Date()) -> (day: MonthDay, skipped: Int)? {
+    let now = MonthDay.of(today)
+    var at = md
+    for skipped in 0..<366 {
+        let next = at.shifted(by: step)
+        if next.isAfter(now) || (step < 0 && next.isAfter(at)) { return nil }
+        if hasPhotos(index, next, today: today) { return (next, skipped) }
+        at = next
+    }
+    return nil
+}
