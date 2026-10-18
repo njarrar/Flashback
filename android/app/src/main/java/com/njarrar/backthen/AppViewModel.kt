@@ -108,13 +108,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (!library.hasAccess() || refreshJob?.isActive == true) return
         refreshJob = viewModelScope.launch {
             val sig = runCatching { library.signature() }.getOrNull()
-            if (!force && _saved.value.deviceIndex.isNotEmpty() && library.isUnchanged(sig)) return@launch
+            val saved = _saved.value
+            if (!force && saved.deviceIndex.isNotEmpty() && sig != null && sig == saved.librarySignature) return@launch
             indexing.value = true
             try {
                 val index = buildDayIndex(library.readAllTimes())
-                library.recordSignature(sig)
-                if (index != _saved.value.deviceIndex) {
-                    update { it.copy(deviceIndex = index) }
+                if (index != _saved.value.deviceIndex || sig != _saved.value.librarySignature) {
+                    update { it.copy(deviceIndex = index, librarySignature = sig) }
                 }
             } finally {
                 indexing.value = false

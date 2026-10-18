@@ -114,6 +114,15 @@ final class CoreTests: XCTestCase {
         XCTAssertTrue(s.sources.device)
         XCTAssertEqual(s.layout, .mosaic)
         XCTAssertTrue(s.hiddenDates.isEmpty)
+        XCTAssertNil(s.librarySignature)
+    }
+
+    func testLibrarySignatureIsSavedWithTheIndex() throws {
+        var s = SavedState()
+        s.deviceIndex = ["9-2": [2019: 3]]
+        s.librarySignature = .init(count: 42, firstID: "a", lastID: "b", lastMod: Date(timeIntervalSince1970: 1_700_000_000))
+        let back = try JSONDecoder().decode(SavedState.self, from: JSONEncoder().encode(s))
+        XCTAssertEqual(back.librarySignature, s.librarySignature)
     }
 
     func testOldGooglePhotosAreDropped() throws {

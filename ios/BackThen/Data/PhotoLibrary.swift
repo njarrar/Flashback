@@ -4,15 +4,14 @@ import UIKit
 
 /// Reads the phone's Photos library through PhotoKit.
 enum PhotoLibrary {
-    private struct LibrarySignature: Equatable {
+    /// A quick fingerprint of the library. Saved with the day index, so a launch can skip
+    /// the full scan when nothing changed.
+    struct LibrarySignature: Codable, Equatable {
         let count: Int
         let firstID: String?
         let lastID: String?
         let lastMod: Date?
     }
-
-    private static let signatureLock = NSLock()
-    private static var lastSignature: LibrarySignature?
 
     static var hasAccess: Bool {
         let s = PHPhotoLibrary.authorizationStatus(for: .readWrite)
@@ -32,9 +31,9 @@ enum PhotoLibrary {
         return o
     }
 
-    /// Photo counts per day for the whole library, built off the main thread. Nil when nothing
-    /// changed since the last scan (same count, ends and newest edit), unless `force`.
-    static func deviceIndex(force: Bool = false) async -> DayIndex? {
+    /// Photo counts per day for the whole library, built off the main thread. Nil when the
+    /// library still matches `known` (same count, ends and newest edit).
+    static func deviceIndex(known: LibrarySignature?) async -> (index: DayIndex, signature: LibrarySignature)? {
         await Task.detached(priority: .utility) {
             let o = imageOptions()
             o.sortDescriptors = [NSSortDescriptor(key: "modificationDate", ascending: true)]
@@ -45,17 +44,13 @@ enum PhotoLibrary {
                 lastID: result.lastObject?.localIdentifier,
                 lastMod: result.lastObject?.modificationDate
             )
-            signatureLock.lock()
-            let unchanged = !force && lastSignature == sig
-            if !unchanged { lastSignature = sig }
-            signatureLock.unlock()
-            if unchanged { return nil }
+            if sig == known { return nil }
             var times: [Date] = []
             times.reserveCapacity(result.count)
             result.enumerateObjects { asset, _, _ in
                 if let d = asset.creationDate { times.append(d) }
             }
-            return buildDayIndex(times)
+            return (buildDayIndex(times), sig)
         }.value
     }
 

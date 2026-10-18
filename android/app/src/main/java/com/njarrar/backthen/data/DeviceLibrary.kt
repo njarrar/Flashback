@@ -18,10 +18,13 @@ import com.njarrar.backthen.core.dayRange
 import com.njarrar.backthen.core.localDate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
 
 /** Saving copies to the gallery needs Android 10 or later, so older phones don't show the button. */
 val CAN_SAVE_TO_GALLERY = Build.VERSION.SDK_INT >= 29
 
+/** A quick fingerprint of the library. Saved with the day index, so a launch can skip the full scan when nothing changed. */
+@Serializable
 data class LibrarySignature(
     val count: Int,
     val latestId: Long,
@@ -31,9 +34,6 @@ data class LibrarySignature(
 
 /** Reads photos on this phone through MediaStore. On most phones this includes Google Photos backups stored locally. */
 class DeviceLibrary(private val context: Context) {
-
-    @Volatile
-    private var lastSignature: LibrarySignature? = null
 
     /** The permissions to ask for on this Android version. */
     val permissions: Array<String> = when {
@@ -68,13 +68,6 @@ class DeviceLibrary(private val context: Context) {
             val oldestId = if (c.moveToLast()) c.getLong(idCol) else latestId
             LibrarySignature(count, latestId, latestMod, oldestId)
         }
-    }
-
-    fun isUnchanged(sig: LibrarySignature?): Boolean =
-        sig != null && sig == lastSignature
-
-    fun recordSignature(sig: LibrarySignature?) {
-        lastSignature = sig
     }
 
     /** Capture times of every photo the app can see. Reads two columns only, so it stays fast. */

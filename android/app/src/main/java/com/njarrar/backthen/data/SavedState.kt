@@ -34,6 +34,8 @@ data class SavedState(
     val albums: List<Album> = emptyList(),
     /** Cached photo counts per day for the phone's library. */
     val deviceIndex: Map<String, Map<Int, Int>> = emptyMap(),
+    /** The library as it was when [deviceIndex] was built. */
+    val librarySignature: LibrarySignature? = null,
     /** Days the user hid, as [com.njarrar.backthen.core.MonthDay.key]. They don't come up on their own or in reminders. */
     val hiddenDates: Set<String> = emptySet(),
     val layout: YearLayout = YearLayout.MOSAIC,

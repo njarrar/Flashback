@@ -27,6 +27,8 @@ struct SavedState: Codable {
     var albums: [Album] = []
     /// Cached photo counts per day for the phone's library.
     var deviceIndex: DayIndex = [:]
+    /// The library as it was when `deviceIndex` was built.
+    var librarySignature: PhotoLibrary.LibrarySignature?
     /// Days the user hid, as `MonthDay.key`. They don't come up on their own or in reminders.
     var hiddenDates: Set<String> = []
     var layout = YearLayout.mosaic
@@ -43,6 +45,7 @@ struct SavedState: Codable {
         favorites = (try? c.decodeIfPresent(Lossy<Photo>.self, forKey: .favorites))?.items ?? d.favorites
         albums = (try? c.decodeIfPresent(Lossy<Album>.self, forKey: .albums))?.items ?? d.albums
         deviceIndex = (try? c.decodeIfPresent(DayIndex.self, forKey: .deviceIndex)) ?? d.deviceIndex
+        librarySignature = try? c.decodeIfPresent(PhotoLibrary.LibrarySignature.self, forKey: .librarySignature)
         hiddenDates = (try? c.decodeIfPresent(Set<String>.self, forKey: .hiddenDates)) ?? d.hiddenDates
         layout = (try? c.decodeIfPresent(YearLayout.self, forKey: .layout)) ?? d.layout
     }
@@ -184,9 +187,13 @@ final class AppStore {
         refreshing = true
         if saved.deviceIndex.isEmpty || force { indexing = true }
         defer { refreshing = false; indexing = false }
-        if let updated = await PhotoLibrary.deviceIndex(force: force || saved.deviceIndex.isEmpty) {
-            if saved.deviceIndex != updated {
-                saved.deviceIndex = updated
+        let known = force || saved.deviceIndex.isEmpty ? nil : saved.librarySignature
+        if let fresh = await PhotoLibrary.deviceIndex(known: known) {
+            if saved.deviceIndex != fresh.index || saved.librarySignature != fresh.signature {
+                var next = saved
+                next.deviceIndex = fresh.index
+                next.librarySignature = fresh.signature
+                saved = next
             }
             applyReminder()
         }
