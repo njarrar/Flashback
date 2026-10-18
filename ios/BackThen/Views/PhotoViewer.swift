@@ -110,7 +110,7 @@ struct PhotoViewer: View {
     }
 
     private func header(_ photo: Photo, count: Int) -> some View {
-        var sub = L.s("ago_weekday", ["ago": agoLabel(yearOf(photo.time)), "weekday": L.date(photo.time, "EEEE")])
+        var sub = L.s("ago_weekday", ["ago": agoLabel(yearOf(photo.time)), "weekday": L.weekdayTime(photo.time)])
         // Where you are in the set: "3 of 5".
         if count > 1 { sub += " · " + L.s("n_of_total", ["n": index + 1, "total": count]) }
         return HStack(spacing: 8) {

@@ -96,6 +96,17 @@ fun formatTime(hour: Int, minute: Int, use24: Boolean? = null): String {
     }
 }
 
+/** "Friday 4:12 PM" for a photo's capture time, in the app's language and the phone's 12 or 24 hour setting. */
+fun weekdayTime(epochMs: Long, use24: Boolean): String {
+    val locale = L.locale
+    val skeleton = if (use24) "EEEEHmm" else "EEEEhmm"
+    return synchronized(dateFormats) {
+        dateFormats.getOrPut("${locale.toLanguageTag()}|$skeleton") {
+            DateFormat.getInstanceForSkeleton(GregorianCalendar(locale), skeleton, locale)
+        }.format(Date(epochMs))
+    }
+}
+
 /** Start and end (exclusive) of a local calendar day, in epoch ms. Null if the day doesn't exist that year. */
 fun dayRange(year: Int, md: MonthDay, zone: ZoneId = ZoneId.systemDefault()): Pair<Long, Long>? {
     val date = runCatching { LocalDate.of(year, md.month + 1, md.day) }.getOrNull() ?: return null

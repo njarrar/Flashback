@@ -219,11 +219,19 @@ enum L {
         monthDay(MonthDay(month: month, day: 1), "LLLL")
     }
 
+    /// The phone's 12 or 24 hour setting, which wins over the language's habit.
+    private static var twelveHour: Bool {
+        DateFormatter.dateFormat(fromTemplate: "j", options: 0, locale: .autoupdatingCurrent)?.contains("a") ?? false
+    }
+
     static func time(hour: Int, minute: Int) -> String {
         var c = DateComponents(year: 2024, month: 1, day: 1, hour: hour, minute: minute)
         c.calendar = Calendar.app
-        // The phone's 12 or 24 hour setting wins over the language's habit.
-        let twelve = DateFormatter.dateFormat(fromTemplate: "j", options: 0, locale: .autoupdatingCurrent)?.contains("a") ?? false
-        return date(c.date ?? Date(), twelve ? "hmm" : "Hmm")
+        return date(c.date ?? Date(), twelveHour ? "hmm" : "Hmm")
+    }
+
+    /// "Friday 4:12 PM" for a photo's capture time.
+    static func weekdayTime(_ time: Date) -> String {
+        date(time, twelveHour ? "EEEEhmm" : "EEEEHmm")
     }
 }

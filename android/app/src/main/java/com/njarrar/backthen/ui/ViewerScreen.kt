@@ -2,6 +2,7 @@ package com.njarrar.backthen.ui
 
 import android.app.Activity
 import android.content.ContextWrapper
+import android.text.format.DateFormat
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
@@ -66,6 +67,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.contentDescription
@@ -80,6 +82,7 @@ import com.njarrar.backthen.core.Photo
 import com.njarrar.backthen.core.agoLabel
 import com.njarrar.backthen.core.formatDate
 import com.njarrar.backthen.core.localDate
+import com.njarrar.backthen.core.weekdayTime
 import kotlinx.coroutines.launch
 import me.saket.telephoto.zoomable.DoubleClickToZoomListener
 import me.saket.telephoto.zoomable.ZoomSpec
@@ -113,6 +116,7 @@ fun ViewerScreen(
     val pager = rememberPagerState(initialPage = start) { photos.size }
     val photo = photos.getOrNull(pager.currentPage) ?: return
     val date = localDate(photo.time)
+    val use24 = DateFormat.is24HourFormat(LocalContext.current)
     val fav = photo.key in favorites
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
@@ -189,7 +193,7 @@ fun ViewerScreen(
                     }
                     Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                         T(formatDate(date, "yMMMMd"), size = 16, weight = FontWeight.Bold, color = ViewerInk)
-                        var sub = L.s("ago_weekday", "ago" to agoLabel(date.year), "weekday" to formatDate(date, "EEEE"))
+                        var sub = L.s("ago_weekday", "ago" to agoLabel(date.year), "weekday" to weekdayTime(photo.time, use24))
                         // Where you are in the set: "3 of 5".
                         if (photos.size > 1) sub += " · " + L.s("n_of_total", "n" to pager.currentPage + 1, "total" to photos.size)
                         T(sub, size = 13, color = ViewerInk.copy(alpha = 0.62f))
