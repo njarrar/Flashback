@@ -1,1 +1,1 @@
-Year cards: a new way to see Today, one big card per year. Swipe up and down between years, tap a card to see its photos. The places card now shows when you visited.
+Back Then is now called Flashback. Same app, same icon, same photos. Albums you save now go to Pictures/Flashback.

@@ -1,14 +1,14 @@
-# Back Then privacy policy
+# Flashback privacy policy
 
 **Effective date:** October 18, 2026
 
-This policy covers the Back Then app for Android and iPhone ("the app"). Back Then is
+This policy covers the Flashback app for Android and iPhone ("the app"). Flashback is
 made by an independent developer ("I", "me"). It explains what the app reads, what it
 keeps, what leaves your phone, and the choices you have.
 
 ## In short
 
-- Back Then has **no account, no server, no ads, no analytics and no tracking**.
+- Flashback has **no account, no server, no ads, no analytics and no tracking**.
 - Your photos and everything you do in the app stay **on your phone**.
 - I never receive, see, store, sell or share any of your data.
 - The app does not use the internet. It reads only the photos already on your phone.
@@ -61,7 +61,7 @@ The app saves a small file in its own private storage on your phone with:
   on, and whether Places is on.
 
 When you save an album to your gallery, the app writes normal photo files to your
-phone's gallery (Android: Pictures/Back Then; iPhone: a Photos album). Those then
+phone's gallery (Android: Pictures/Flashback; iPhone: a Photos album). Those then
 belong to your gallery like any other photo.
 
 **Backups.** Your phone may include the app's saved file in its own backup (Android's
@@ -73,7 +73,7 @@ terms. I have no access to them.
 
 When you share a photo, a year or an album, the app opens your phone's share screen
 and hands the photos to the app you pick, such as Messages or WhatsApp. From then on,
-that app's privacy policy applies. Back Then does not send anything by itself and does
+that app's privacy policy applies. Flashback does not send anything by itself and does
 not see what happens after you share.
 
 ## 4. What I collect

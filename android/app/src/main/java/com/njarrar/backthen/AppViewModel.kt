@@ -271,7 +271,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun deleteAlbum(id: String) = update { s -> s.copy(albums = s.albums.filterNot { it.id == id }) }
 
-    /** Copies photos into Pictures/Back Then/<name>. */
+    /** Copies photos into Pictures/Flashback/<name>. */
     fun saveToGallery(name: String, photos: List<Photo>) = viewModelScope.launch {
         val ok = runCatching { library.saveAlbum(name, photos) }.getOrDefault(false)
         say(L.s(if (ok) "toast_saved_gallery" else "toast_save_failed"))

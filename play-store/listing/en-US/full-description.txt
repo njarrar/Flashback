@@ -1,4 +1,4 @@
-Back Then shows you the photos you took on today's date in past years, one year at a time.
+Flashback shows you the photos you took on today's date in past years, one year at a time.
 
 Open the app and see what you were doing on this day 1, 5 or 10 years ago. Each year gets a big year number, how long ago it was, and a neat grid of that day's photos.
 
@@ -13,7 +13,7 @@ WHAT YOU CAN DO
 • Home screen widget: a photo from this day in a past year, a new one every hour.
 
 PRIVATE BY DESIGN
-• Your photos stay on your phone. Back Then has no account, no server and no ads.
+• Your photos stay on your phone. Flashback has no account, no server and no ads.
 • The app reads your photo library only to find photos by date.
 • Nothing is uploaded, tracked or sold. The app doesn't even use the internet.
 
@@ -22,4 +22,4 @@ MADE FOR EVERYONE
 • Light and dark mode.
 • Large text and screen reader support.
 
-Back Then is a calm way to look back. Open it each morning and see what this day looked like, every year.
+Flashback is a calm way to look back. Open it each morning and see what this day looked like, every year.

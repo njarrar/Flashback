@@ -70,7 +70,7 @@ def feature(out, lang):
     lines = wrap(draw, TAGLINES[lang], tag_f, width, kw)
     block = 110 + 58 * len(lines)
     y = (H - block) // 2
-    title = "Back Then"
+    title = "Flashback"
     tw = draw.textlength(title, font=title_f)
     draw.text((x0 + width - tw if rtl else x0, y - 14), title, font=title_f, fill=WHITE)
     y += 120
