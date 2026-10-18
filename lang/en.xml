@@ -11,7 +11,7 @@
 <language name="English" dir="ltr" script="latin">
 
     <!-- Shared -->
-    <string name="app_name">Back Then</string>
+    <string name="app_name">Flashback</string>
     <string name="cancel">Cancel</string>
     <string name="close">Close</string>
     <string name="create">Create</string>
@@ -68,7 +68,7 @@
 
     <!-- Welcome -->
     <string name="welcome_title">See what this day looked like, every year.</string>
-    <string name="welcome_body">Back Then finds the photos you took on today's date in past years and sorts them by year.</string>
+    <string name="welcome_body">Flashback finds the photos you took on today's date in past years and sorts them by year.</string>
     <string name="welcome_denied">Without photo access there is nothing to show. You can allow it later in Settings.</string>
     <string name="show_my_photos">Show my photos</string>
     <string name="privacy_line">Your photos stay on this phone.</string>
@@ -96,13 +96,13 @@
     <string name="places_title">Places you go back to</string>
     <string name="places_note">When you're in a city you've been to before, Today shows your photos from past trips. Your location stays on this phone. City list from GeoNames (CC BY 4.0).</string>
     <string name="places_ask_title">Show photos from places you go back to?</string>
-    <string name="places_ask_body">When you visit a city you've been to before, Back Then shows your photos from the last time you were there.</string>
+    <string name="places_ask_body">When you visit a city you've been to before, Flashback shows your photos from the last time you were there.</string>
     <string name="places_ask_private">Only the city, worked out on this phone. Nothing is sent anywhere.</string>
     <string name="places_ask_open_only">Checked only while the app is open.</string>
     <string name="places_ask_settings">Turn it off any time in Settings.</string>
     <string name="turn_on">Turn on</string>
     <string name="toast_location_off">Allow location to see places</string>
-    <string name="ios_location_permission">Back Then finds the city you're in to show photos from past trips there. Your location stays on this iPhone.</string>
+    <string name="ios_location_permission">Flashback finds the city you're in to show photos from past trips there. Your location stays on this iPhone.</string>
     <string name="previous_day_photos">Previous day with photos</string>
     <string name="next_day_photos">Next day with photos</string>
     <string name="back_to_today">Back to today</string>
@@ -115,8 +115,8 @@
     <string name="share_year">Share {year}</string>
     <string name="empty_no_sources_title">No photos connected</string>
     <string name="empty_title">Nothing from {day} yet</string>
-    <string name="empty_no_sources_ios">Allow Back Then to use Apple Photos to see this day in past years.</string>
-    <string name="empty_no_sources_android">Allow Back Then to use your phone's photos to see this day in past years.</string>
+    <string name="empty_no_sources_ios">Allow Flashback to use Apple Photos to see this day in past years.</string>
+    <string name="empty_no_sources_android">Allow Flashback to use your phone's photos to see this day in past years.</string>
     <string name="empty_nearby">You didn't take photos on this date in past years. These nearby days have some.</string>
     <string name="empty_none">You didn't take photos on this date in past years.</string>
     <string name="connect_photos">Connect photos</string>
@@ -201,18 +201,18 @@
     <string name="toast_new_album_hint">Tap Select, pick photos, then tap Album</string>
     <string name="toast_allow_save">Allow photo access to save</string>
     <string name="toast_saved_photos">Saved to Photos</string>
-    <string name="toast_saved_gallery">Saved to Pictures/Back Then</string>
+    <string name="toast_saved_gallery">Saved to Pictures/Flashback</string>
     <string name="toast_save_failed">Could not save the album</string>
 
     <!-- iPhone photo access prompts -->
-    <string name="ios_photos_permission">Back Then shows the photos you took on this day in past years.</string>
-    <string name="ios_photos_add_permission">Back Then saves your albums to Photos when you ask it to.</string>
+    <string name="ios_photos_permission">Flashback shows the photos you took on this day in past years.</string>
+    <string name="ios_photos_add_permission">Flashback saves your albums to Photos when you ask it to.</string>
 
     <!-- Home screen widget -->
     <string name="widget_name">On this day</string>
     <string name="widget_description">A photo from this day in a past year</string>
     <string name="widget_empty">No photos from this day yet</string>
-    <string name="widget_open_app">Open Back Then to see photos from this day</string>
+    <string name="widget_open_app">Open Flashback to see photos from this day</string>
 
     <!-- Sample albums for the README screenshots -->
     <string name="demo_album_fall">Fall weekends</string>

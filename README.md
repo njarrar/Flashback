@@ -1,8 +1,8 @@
-# Back Then
+# Flashback
 
 **See what this day looked like, every year.**
 
-Back Then is an iPhone and Android app that opens on today's date and shows the
+Flashback is an iPhone and Android app that opens on today's date and shows the
 photos you took on this same day in past years, one year at a time. Pick any other
 day from a calendar, keep the best shots in Favorites, and gather photos into albums
 you can share.
@@ -106,7 +106,7 @@ loads the samples from a folder in the app instead.)
 - **Favorites.** Every photo you've hearted, from any day, with its year on each tile.
 - **Albums.** On Today, tap Select (or long press a photo), pick photos, then tap Album. Share an album
   through any app, or save it as a real album in Photos (iPhone) or under
-  Pictures/Back Then (Android). Rename or delete it from the album's menu.
+  Pictures/Flashback (Android). Rename or delete it from the album's menu.
 - **Home screen widget.** A photo from this day in a past year, with its year and
   how long ago, in small and medium sizes. It picks another photo every hour and
   opens Today when tapped.
@@ -115,6 +115,15 @@ loads the samples from a folder in the app instead.)
 - **Looks native on each phone.** The system tab bar and sheets on iPhone, with text
   that grows with the system text size; a large top app bar and navigation bar on
   Android. Light and dark mode.
+
+## What's new in 1.15
+
+- **New name: Flashback.** The app used to be called Back Then. The icon, colors and
+  everything else stay the same. The new name shows under the icon, on the welcome
+  screen, in the widget, in the photo and location prompts, and on Google Play, in all
+  four languages.
+- On Android, albums you save now go to Pictures/Flashback. Albums saved before stay in
+  Pictures/Back Then; saving one again puts the new copy in Pictures/Flashback.
 
 ## What's new in 1.14
 
@@ -252,7 +261,7 @@ Google Photos sign-in.
 
 ## What's new in 1.7
 
-- **Home screen widget, on both phones.** Add "Back Then" from the widget picker. It
+- **Home screen widget, on both phones.** Add "Flashback" from the widget picker. It
   shows a photo from this day in a past year, with the year and how long ago, and
   picks another photo from the day every hour. Tap it to open Today. With no photos
   that day, or before you allow photo access, it shows the date and a short note.
@@ -392,7 +401,7 @@ apps.
   of photos, and arrows step to the next or previous year.
 - **Share sheet.** Sharing a year, a selection or an album now opens a sheet with a
   preview first. From there, send the photos through any app or save copies to an
-  album in Photos (iPhone) or under Pictures/Back Then (Android).
+  album in Photos (iPhone) or under Pictures/Flashback (Android).
 - **Reminder time** shows in the phone's 12 or 24 hour style.
 - **Fixes.** Settings are saved in order, so a fast run of taps can't leave an older
   state on disk. A failed album save on Android no longer leaves empty files in the

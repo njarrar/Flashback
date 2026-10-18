@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Back Then</string>
+    <string name="app_name">Flashback</string>
     <!-- The widget picker reads this before the app runs, so it can't come from lang/.
          Keep it the same as widget_description in lang/en.xml (and each values-<code> folder
          the same as lang/<code>.xml); a unit test checks they match. -->

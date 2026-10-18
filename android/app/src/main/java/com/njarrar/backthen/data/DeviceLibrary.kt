@@ -133,13 +133,13 @@ class DeviceLibrary(private val context: Context) {
     }
 
     /**
-     * Copies photos into Pictures/Back Then/<album>, so the album shows up in the gallery
+     * Copies photos into Pictures/Flashback/<album>, so the album shows up in the gallery
      * and Google Photos. Each file keeps its own type (JPEG, HEIC, PNG), and a photo already
      * in that folder is skipped, so saving again doesn't make copies. See [CAN_SAVE_TO_GALLERY].
      */
     suspend fun saveAlbum(name: String, photos: List<Photo>): Boolean = withContext(Dispatchers.IO) {
         if (!CAN_SAVE_TO_GALLERY) return@withContext false
-        val folder = "${Environment.DIRECTORY_PICTURES}/Back Then/${name.replace('/', '-')}"
+        val folder = "${Environment.DIRECTORY_PICTURES}/Flashback/${name.replace('/', '-')}"
         val resolver = context.contentResolver
         val saveTo = MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
         val there = HashSet<String>()

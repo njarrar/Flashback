@@ -1,4 +1,4 @@
-# Publishing Back Then on Google Play
+# Publishing Flashback on Google Play
 
 Everything the Play Console asks for is in this folder or made by the
 [Play Store workflow](../.github/workflows/play.yml). Work through the steps in order.
@@ -69,7 +69,7 @@ won't take it.
 
 ## 5. Create the app
 
-**Home > Create app:** name `Back Then`, default language English (United States),
+**Home > Create app:** name `Flashback`, default language English (United States),
 App, Free. Tick the declarations.
 
 ## 6. App content (Policy > App content)
@@ -98,7 +98,7 @@ App, Free. Tick the declarations.
 - **Photo and video permissions** (Play asks because the app uses
   `READ_MEDIA_IMAGES`). Pick "core functionality" and paste:
 
-  > Back Then's core feature is showing the photos a user took on today's date in
+  > Flashback's core feature is showing the photos a user took on today's date in
   > every past year. To find them, the app must read the capture date of every photo
   > in the library each day, including new photos, so a one-time photo picker can't
   > do the job. The app shows the photos on screen only and never uploads them.
@@ -150,7 +150,7 @@ do this once. Play needs the first bundle uploaded by hand, which you have done.
      file downloads. Keep it safe: it can change your app on Play.
    - Copy the account's email (like `github-play@your-project.iam.gserviceaccount.com`).
 2. **Let it into Play Console.** **Users and permissions > Invite new users.** Paste the
-   email. Under **App permissions**, add Back Then and tick:
+   email. Under **App permissions**, add Flashback and tick:
    - Release apps to testing tracks
    - Manage testing tracks and edit tester lists
    - Manage store presence
