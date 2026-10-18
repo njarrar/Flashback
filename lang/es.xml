@@ -78,6 +78,9 @@
     <string name="today_loading">Buscando en tu fototeca…</string>
     <string name="today_none">No hay fotos en esta fecha</string>
     <string name="pick_another_day">Elegir otro día</string>
+    <string name="layout_cards">Tarjetas por año</string>
+    <string name="place_card_range">{trips}, de {first} a {last}. {photos}.</string>
+    <string name="place_card_one">{trips}, {first}. {photos}.</string>
     <string name="place_been_before">Ya has estado en {city}</string>
     <string name="trips_photos">{trips} · {photos}</string>
     <string name="days_photos">{days}, {photos}</string>

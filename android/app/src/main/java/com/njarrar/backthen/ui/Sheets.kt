@@ -207,14 +207,19 @@ fun SettingsSheet(
                 HorizontalDivider(color = p.line)
             }
             T(L.s("layout"), size = 13, weight = FontWeight.Bold, muted = true)
-            Row(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(50)).background(p.fill).padding(4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            // Stacked, not side by side: three long names don't fit in one row.
+            Column(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(p.fill).padding(4.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                listOf(YearLayout.MOSAIC to L.s("layout_all_years"), YearLayout.STRIP to L.s("layout_one_year")).forEach { (layout, label) ->
+                listOf(
+                    YearLayout.MOSAIC to L.s("layout_all_years"),
+                    YearLayout.STRIP to L.s("layout_one_year"),
+                    YearLayout.CARDS to L.s("layout_cards"),
+                ).forEach { (layout, label) ->
                     val on = state.layout == layout
                     Box(
-                        Modifier.weight(1f).height(40.dp).clip(RoundedCornerShape(50))
+                        Modifier.fillMaxWidth().height(40.dp).clip(RoundedCornerShape(50))
                             .background(if (on) p.surface else Color.Transparent)
                             .clickable(role = Role.RadioButton) { onLayout(layout) },
                         contentAlignment = Alignment.Center,

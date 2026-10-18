@@ -31,6 +31,8 @@ enum Palette {
     /// Year chip on browse grid tiles: white text on a dark capsule, the same in both themes.
     static let chip = Color(uiColor: ui(0x000000, 0.36))
     static let chipInk = Color.white
+    /// Year cards: a dark wash rising from the bottom of the photo, under white text.
+    static let cardScrim = Color(uiColor: ui(0x000000, 0.55))
     /// Photo viewer: photos on near-black, light text and controls, a brighter heart.
     static let viewerBg = Color(uiColor: ui(0x0D0D0E))
     static let viewerInk = Color(uiColor: ui(0xF4F4F2))

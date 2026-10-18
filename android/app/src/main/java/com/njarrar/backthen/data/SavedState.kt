@@ -24,9 +24,9 @@ data class Reminder(val on: Boolean = false, val hour: Int = 9, val minute: Int 
 @Serializable
 data class PlaceSetting(val on: Boolean = false, val asked: Boolean = false)
 
-/** How Today lays out each year: all years in mosaics, or one year at a time. */
+/** How Today lays out each year: all years in mosaics, one year at a time, or a deck of year cards. */
 @Serializable
-enum class YearLayout { MOSAIC, STRIP }
+enum class YearLayout { MOSAIC, STRIP, CARDS }
 
 /** Everything the app keeps between launches. */
 @Serializable

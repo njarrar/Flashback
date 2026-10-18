@@ -308,11 +308,21 @@ struct SettingsSheet: View {
                     Divider()
                 }
                 Text(L.s("layout")).font(.nunito(13, .bold)).foregroundStyle(Palette.muted)
-                Picker(L.s("layout"), selection: Binding(get: { store.saved.layout }, set: { store.saved.layout = $0 })) {
-                    Text(L.s("layout_all_years")).tag(YearLayout.mosaic)
-                    Text(L.s("layout_one_year")).tag(YearLayout.strip)
+                // Stacked, not side by side: three long names don't fit in one row.
+                VStack(spacing: 4) {
+                    ForEach([(YearLayout.mosaic, "layout_all_years"), (.strip, "layout_one_year"), (.cards, "layout_cards")], id: \.0) { layout, key in
+                        let on = store.saved.layout == layout
+                        Button { store.saved.layout = layout } label: {
+                            Text(L.s(key)).font(.nunito(15, .semibold)).foregroundStyle(on ? Palette.ink : Palette.muted)
+                                .frame(maxWidth: .infinity, minHeight: 40)
+                                .background(on ? Palette.surface : .clear, in: Capsule())
+                                .contentShape(Capsule())
+                        }
+                        .accessibilityAddTraits(on ? .isSelected : [])
+                    }
                 }
-                .pickerStyle(.segmented)
+                .padding(4)
+                .background(Palette.fill, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
                 Divider()
                 let day = store.day
                 let hidden = store.isHidden(day)

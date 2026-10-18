@@ -92,8 +92,9 @@ loads the samples from a folder in the app instead.)
 - **Today.** Every past year that has photos on this date, newest first. Each year
   gets a large year number, how long ago it was, a share button, and a mosaic of
   that day's photos. While you scroll, the year you are in stays pinned at the top.
-  Or switch to one year at a time from the ••• menu. Pull down to check the library
-  for new photos. Hide a date you'd rather not see again.
+  Or switch to one year at a time, or to year cards, from the ••• menu. Swipe
+  sideways to move to the next or previous day with photos. Pull down to check the
+  library for new photos. Hide a date you'd rather not see again.
 - **Pick a day.** A month-and-day calendar (no year, since every year shows at once).
   Tap the date title to open it. Each day with photos shows a tiny copy of one of
   them: a favorite from that day, or the newest year's first photo. One tap opens a
@@ -114,6 +115,20 @@ loads the samples from a folder in the app instead.)
 - **Looks native on each phone.** The system tab bar and sheets on iPhone, with text
   that grows with the system text size; a large top app bar and navigation bar on
   Android. Light and dark mode.
+
+## What's new in 1.14
+
+- **Year cards.** A third way to see Today, next to All years and One year at a time:
+  pick Year cards from the ••• menu or Settings. Each year becomes a big card with a
+  favorite from that year (or its first photo), the year, and a line like "6 years
+  ago · Friday, 4 photos". Swipe up and down to move from year to year, with dots
+  below showing where you are; sideways still moves between days. Tap a card to see
+  all of that year's photos, or use its share button. While selecting, a tap picks
+  or unpicks the whole year.
+- **Dates on the places card.** The "You've been to Paris before" card now says when:
+  "3 trips, from May 2019 to June 2023. 214 photos."
+- The layout choice in Settings now lists its three options one above the other, so
+  the longer names fit in every language.
 
 ## What's new in 1.13
 

@@ -20,6 +20,7 @@ struct TodayView: View {
     @State private var swipeX: CGFloat = 0
     @State private var neighbors: (back: (day: MonthDay, skipped: Int)?, forward: (day: MonthDay, skipped: Int)?) = (nil, nil)
     @State private var pageWidth: CGFloat = 400
+    @State private var pageHeight: CGFloat = 800
     /// Where the year pills sit, so a sideways drag on them scrolls them and keeps the day.
     @State private var pillsFrame: CGRect = .zero
     @Environment(\.layoutDirection) private var direction
@@ -83,6 +84,10 @@ struct TodayView: View {
                     if groups.isEmpty {
                         EmptyDay(day: day, noSources: !store.saved.sources.device,
                                  near: nearbyDays(store.index, day), go: go, connect: { settings = true })
+                    } else if store.saved.layout == .cards {
+                        YearCards(groups: groups, day: day, selection: selection, height: max(360, pageHeight * 0.64)) { g in
+                            shareFor = ShareRequest(title: fullDate(year: g.year, day), photos: g.photos)
+                        }
                     } else if store.saved.layout == .strip {
                         let years = groups.map(\.year)
                         let at = stripPick.flatMap { years.firstIndex(of: $0) } ?? 0
@@ -123,7 +128,7 @@ struct TodayView: View {
               .opacity(1 - min(abs(swipeX) / max(pageWidth, 1), 1) * 0.5)
             }
             .simultaneousGesture(daySwipe)
-            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { pageWidth = $0 }
+            .onGeometryChange(for: CGSize.self) { $0.size } action: { pageWidth = $0.width; pageHeight = $0.height }
             .refreshable {
                 await store.refreshIndex(force: true)
                 result = (day, await store.photos(for: day))
@@ -232,6 +237,7 @@ struct TodayView: View {
             Picker(L.s("layout"), selection: Binding(get: { store.saved.layout }, set: { store.saved.layout = $0 })) {
                 Text(L.s("layout_all_years")).tag(YearLayout.mosaic)
                 Text(L.s("layout_one_year")).tag(YearLayout.strip)
+                Text(L.s("layout_cards")).tag(YearLayout.cards)
             }
             .pickerStyle(.inline)
             Button { settings = true } label: { Label(L.s("settings"), systemImage: "gearshape") }

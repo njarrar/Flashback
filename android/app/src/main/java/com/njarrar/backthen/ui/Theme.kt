@@ -23,6 +23,9 @@ val Accent = Color(0xFFE5533D)
 val Chip = Color(0x73000000)
 val ChipInk = Color.White
 
+/** Year cards: a dark wash rising from the bottom of the photo, under white text. */
+val CardScrim = Color(0x8C000000)
+
 /** Photo viewer: photos on near-black, light text and controls, a brighter heart. */
 val ViewerBg = Color(0xFF0D0D0E)
 val ViewerInk = Color(0xFFF4F4F2)

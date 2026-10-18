@@ -105,6 +105,9 @@
     <string name="today_loading">نبحث في مكتبتك…</string>
     <string name="today_none">لا صور في هذا التاريخ</string>
     <string name="pick_another_day">اختر يومًا آخر</string>
+    <string name="layout_cards">بطاقات السنوات</string>
+    <string name="place_card_range">{trips}، من {first} إلى {last}. {photos}.</string>
+    <string name="place_card_one">{trips}، {first}. {photos}.</string>
     <string name="place_been_before">زرت {city} من قبل</string>
     <string name="trips_photos">{trips} · {photos}</string>
     <string name="days_photos">{days}، {photos}</string>

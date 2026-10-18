@@ -361,7 +361,7 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
                                     onClick = { menu = false; vm.setHidden(day, !hidden) },
                                 )
                                 HorizontalDivider(color = p.line)
-                                listOf(YearLayout.MOSAIC to "layout_all_years", YearLayout.STRIP to "layout_one_year").forEach { (layout, key) ->
+                                listOf(YearLayout.MOSAIC to "layout_all_years", YearLayout.STRIP to "layout_one_year", YearLayout.CARDS to "layout_cards").forEach { (layout, key) ->
                                     val on = state.layout == layout
                                     DropdownMenuItem(
                                         text = { T(L.s(key)) },
@@ -450,6 +450,13 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
                         groups.isEmpty() -> item {
                             val noSources = !state.sources.device
                             EmptyDay(day, noSources, nearbyDays(index, day), onGo = ::go, onConnect = { settings = true })
+                        }
+                        state.layout == YearLayout.CARDS -> item(key = "cards-${day.key}") {
+                            YearCards(
+                                groups, day, favorites, selection,
+                                onOpen = { photos, i -> vm.viewer.value = com.njarrar.backthen.Viewer(photos, i) },
+                                onShare = { year, photos -> shareFor = ShareRequest(fullDate(year, day), photos) },
+                            )
                         }
                         state.layout == YearLayout.STRIP -> {
                             val years = groups.map { it.year }

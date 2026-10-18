@@ -17,7 +17,7 @@ struct PlaceCardView: View {
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(L.s("place_been_before", ["city": card.city.name])).font(.nunito(17, .heavy)).foregroundStyle(Palette.ink)
-                    Text(tripsAndPhotos(card.trips)).font(.nunito(14)).foregroundStyle(Palette.muted)
+                    Text(tripsRange(card.trips)).font(.nunito(14)).foregroundStyle(Palette.muted)
                 }
                 Spacer(minLength: 0)
                 Button { store.dismissPlaceCard() } label: {
@@ -47,6 +47,14 @@ struct PlaceCardView: View {
             photos = Array(await PlaceLibrary.photos(city: card.city.id, trip: trip, cities: cities).prefix(4))
         }
     }
+}
+
+/// "3 trips, from May 2019 to June 2023. 214 photos." Trips come newest first.
+func tripsRange(_ trips: [Trip]) -> String {
+    guard let newest = trips.first, let oldest = trips.last else { return "" }
+    let first = L.date(oldest.start, "yMMMM"), last = L.date(newest.start, "yMMMM")
+    let key = first == last ? "place_card_one" : "place_card_range"
+    return L.s(key, ["trips": L.p("trips", trips.count), "photos": L.p("photos", trips.reduce(0) { $0 + $1.photos }), "first": first, "last": last])
 }
 
 /// "3 trips · 214 photos".

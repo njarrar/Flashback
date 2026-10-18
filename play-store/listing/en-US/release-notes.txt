@@ -1,1 +1,1 @@
-Swipe sideways on Today to move between days. Places: in a city you've been to before, Today shows your photos from past trips there (optional, and your location stays on your phone). Long press a photo to start selecting. The viewer shows the time each photo was taken. Faster launches on big libraries.
+Year cards: a new way to see Today, one big card per year. Swipe up and down between years, tap a card to see its photos. The places card now shows when you visited.
