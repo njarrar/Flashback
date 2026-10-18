@@ -78,6 +78,7 @@
     <string name="today_loading">Recherche dans votre bibliothèque…</string>
     <string name="today_none">Aucune photo à cette date</string>
     <string name="pick_another_day">Choisir un autre jour</string>
+    <string name="layout_cards">Cartes par année</string>
     <string name="place_been_before">Vous êtes déjà venu à {city}</string>
     <string name="trips_photos">{trips} · {photos}</string>
     <string name="days_photos">{days}, {photos}</string>

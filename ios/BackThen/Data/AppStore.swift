@@ -20,9 +20,9 @@ struct PlaceSetting: Codable, Equatable {
     var asked = false
 }
 
-/// How Today lays out each year: all years in mosaics, or one year at a time.
+/// How Today lays out each year: all years in mosaics, one year at a time, or a deck of year cards.
 enum YearLayout: String, Codable {
-    case mosaic, strip
+    case mosaic, strip, cards
 }
 
 /// Everything the app keeps between launches.
