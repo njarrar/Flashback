@@ -87,6 +87,8 @@
     <string name="today_none">No photos on this date</string>
     <string name="pick_another_day">Pick another day</string>
     <string name="layout_cards">Year cards</string>
+    <string name="place_card_range">{trips}, from {first} to {last}. {photos}.</string>
+    <string name="place_card_one">{trips}, {first}. {photos}.</string>
     <string name="place_been_before">You've been to {city} before</string>
     <string name="trips_photos">{trips} · {photos}</string>
     <string name="days_photos">{days}, {photos}</string>

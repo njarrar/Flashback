@@ -61,6 +61,17 @@ import com.njarrar.backthen.core.agoLabel
 import com.njarrar.backthen.core.formatDate
 import com.njarrar.backthen.core.trips
 
+/** "3 trips, from May 2019 to June 2023. 214 photos." Trips come newest first. */
+fun tripsRange(trips: List<Trip>): String {
+    if (trips.isEmpty()) return ""
+    val first = formatDate(trips.last().start, "yMMMM")
+    val last = formatDate(trips.first().start, "yMMMM")
+    return L.s(
+        if (first == last) "place_card_one" else "place_card_range",
+        "trips" to L.p("trips", trips.size), "photos" to L.p("photos", trips.sumOf { it.photos }), "first" to first, "last" to last,
+    )
+}
+
 /** "3 trips · 214 photos". */
 fun tripsAndPhotos(trips: List<Trip>): String =
     L.s("trips_photos", "trips" to L.p("trips", trips.size), "photos" to L.p("photos", trips.sumOf { it.photos }))
@@ -87,7 +98,7 @@ fun PlaceCardView(vm: AppViewModel, card: PlaceCard, onOpen: () -> Unit, modifie
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 T(L.s("place_been_before", "city" to card.city.name), size = 17, weight = FontWeight.ExtraBold)
-                T(tripsAndPhotos(card.trips), size = 14, muted = true)
+                T(tripsRange(card.trips), size = 14, muted = true)
             }
             IconButton(onClick = vm::dismissPlaceCard, modifier = Modifier.size(48.dp).padding(start = 8.dp)) {
                 Icon(Icons.Filled.Close, L.s("close"), tint = p.muted, modifier = Modifier.size(18.dp))
