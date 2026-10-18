@@ -16,6 +16,15 @@ struct TodayView: View {
     @State private var pinnedYears: Set<Int> = []
     @State private var shareFor: ShareRequest?
     @State private var stripPick: Int?
+    /// How far the day has moved sideways under a swipe, and the days a swipe would land on.
+    @State private var swipeX: CGFloat = 0
+    @State private var neighbors: (back: (day: MonthDay, skipped: Int)?, forward: (day: MonthDay, skipped: Int)?) = (nil, nil)
+    @State private var pageWidth: CGFloat = 400
+    /// Where the year pills sit, so a sideways drag on them scrolls them and keeps the day.
+    @State private var pillsFrame: CGRect = .zero
+    @Environment(\.layoutDirection) private var direction
+    @State private var placeOpen: City?
+    @State private var placeAsk = false
 
     var body: some View {
         let day = store.day
@@ -26,12 +35,16 @@ struct TodayView: View {
         let summary = hidden ? L.s("you_hid_date") : groups == nil ? L.s("today_loading")
             : groups!.isEmpty ? (store.indexing ? L.s("today_loading") : L.s("today_none"))
             : L.s("photos_from_years", ["photos": L.p("photos", total), "years": L.p("years", groups!.count)])
-        let selection = Selection(on: selecting, keys: Set(picked.map(\.key))) { p in
+        let selection = Selection(on: selecting, keys: Set(picked.map(\.key)), start: { p in
+            selecting = true
+            picked = [p]
+        }) { p in
             if let i = picked.firstIndex(where: { $0.key == p.key }) { picked.remove(at: i) } else { picked.append(p) }
         }
 
         ScrollViewReader { scroll in
             ScrollView {
+              Group {
                 VStack(alignment: .leading, spacing: 4) {
                     Button { calendar = true } label: {
                         HStack(spacing: 8) {
@@ -41,6 +54,10 @@ struct TodayView: View {
                     }
                     .accessibilityAddTraits(.isHeader)
                     .accessibilityHint(L.s("pick_another_day"))
+                    .accessibilityActions {
+                        if let t = neighbors.back { Button(L.s("previous_day_photos")) { land(on: t) } }
+                        if let t = neighbors.forward { Button(L.s("next_day_photos")) { land(on: t) } }
+                    }
                     .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).maxY } action: { titleBottom = $0 }
                     Text(summary).font(.nunito(15)).foregroundStyle(Palette.muted)
                     if day != today {
@@ -53,6 +70,12 @@ struct TodayView: View {
                 .padding(.bottom, 12)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .id("top")
+
+                if let card = store.placeCard, !selecting {
+                    PlaceCardView(card: card) { placeOpen = card.city }
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 22)
+                }
 
                 if hidden {
                     HiddenDay(day: day) { store.setHidden(day, false) }
@@ -72,6 +95,7 @@ struct TodayView: View {
                                           pick: { stripPick = $0 })
                             } header: {
                                 YearPills(years: years, selected: g.year) { stripPick = $0 }
+                                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { pillsFrame = $0 }
                             }
                         }
                     } else {
@@ -93,7 +117,13 @@ struct TodayView: View {
                     Skeleton()
                 }
                 Color.clear.frame(height: 120)
+              }
+              // Offsets flip right to left; swipeX is in screen terms, like the finger.
+              .offset(x: direction == .rightToLeft ? -swipeX : swipeX)
+              .opacity(1 - min(abs(swipeX) / max(pageWidth, 1), 1) * 0.5)
             }
+            .simultaneousGesture(daySwipe)
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { pageWidth = $0 }
             .refreshable {
                 await store.refreshIndex(force: true)
                 result = (day, await store.photos(for: day))
@@ -103,6 +133,7 @@ struct TodayView: View {
         }
         .background(Palette.bg)
         .task(id: "\(day.key)-\(store.indexVersion)") {
+            neighbors = (swipeTarget(store.index, from: day, step: -1), swipeTarget(store.index, from: day, step: 1))
             let groups = await store.photos(for: day)
             result = (day, groups)
         }
@@ -118,12 +149,24 @@ struct TodayView: View {
             CalendarSheet(start: store.day) { md in go(md) }
         }
         .sheet(isPresented: $settings) { SettingsSheet() }
+        .sheet(isPresented: $placeAsk) { PlaceAskSheet() }
+        .navigationDestination(item: $placeOpen) { PlacePage(city: $0) }
+        .task(id: store.indexVersion) {
+            // Asked once, a moment after Today has photos to show. Never in the screenshots.
+            #if DEBUG
+            if AppStore.launchScene != nil { return }
+            #endif
+            guard !store.saved.places.asked, store.samplePhotos.isEmpty, !store.index.isEmpty, CityList.shared != nil else { return }
+            try? await Task.sleep(for: .seconds(1.5))
+            if !Task.isCancelled, !store.saved.places.asked, store.samplePhotos.isEmpty, !calendar, !settings { placeAsk = true }
+        }
         .sheet(item: $shareFor) { ShareSheetView(request: $0) }
         .sheet(isPresented: Binding(get: { albumFor != nil }, set: { if !$0 { albumFor = nil } })) {
             AlbumSheet(photos: albumFor ?? [], created: { album in store.openAlbumID = album.id }, done: stopSelecting)
         }
         .toolbar(selecting ? .hidden : .visible, for: .tabBar)
         .sensoryFeedback(.selection, trigger: picked.count) { _, _ in selecting }
+        .sensoryFeedback(.selection, trigger: day)
         .onChange(of: store.tab) { _, _ in stopSelecting() }
         .onChange(of: store.demoCalendar) { _, on in if on { calendar = true } }
     }
@@ -197,6 +240,51 @@ struct TodayView: View {
                 .frame(width: 44, height: size).contentShape(Rectangle())
         }
         .accessibilityLabel(L.s("options"))
+    }
+
+    /// Sideways drags move between days with photos: toward the left for the next day,
+    /// mirrored right to left. A drag that is mostly up and down stays a scroll.
+    private var daySwipe: some Gesture {
+        DragGesture(minimumDistance: 24, coordinateSpace: .global)
+            .onChanged { v in
+                guard sideways(v) else { if swipeX != 0 { swipeX = 0 }; return }
+                let dx = v.translation.width
+                // Gives way slowly when there is no day that way.
+                swipeX = target(dx) == nil ? dx / 4 : dx
+            }
+            .onEnded { v in
+                let dx = v.translation.width
+                if sideways(v), abs(dx) > 80 || abs(v.predictedEndTranslation.width) > 240, let t = target(dx) {
+                    turn(to: t, leaving: dx < 0 ? -pageWidth : pageWidth)
+                } else {
+                    withAnimation(reduceMotion ? nil : .spring(duration: 0.25)) { swipeX = 0 }
+                }
+            }
+    }
+
+    private func sideways(_ v: DragGesture.Value) -> Bool {
+        if selecting { return false }
+        if store.saved.layout == .strip, pillsFrame.contains(v.startLocation) { return false }
+        return abs(v.translation.width) > abs(v.translation.height) * 1.5
+    }
+
+    private func target(_ dx: CGFloat) -> (day: MonthDay, skipped: Int)? {
+        (dx < 0) != (direction == .rightToLeft) ? neighbors.forward : neighbors.back
+    }
+
+    /// Slides the day out, swaps it, and slides the new one in from the other side.
+    private func turn(to t: (day: MonthDay, skipped: Int), leaving out: CGFloat) {
+        if reduceMotion { swipeX = 0; land(on: t); return }
+        withAnimation(.easeIn(duration: 0.15)) { swipeX = out } completion: {
+            land(on: t)
+            swipeX = -out
+            withAnimation(.easeOut(duration: 0.22)) { swipeX = 0 }
+        }
+    }
+
+    private func land(on t: (day: MonthDay, skipped: Int)) {
+        go(t.day)
+        if t.skipped > 0 { store.say(L.p("skipped_days", t.skipped)) }
     }
 
     private func toggleSelect() {

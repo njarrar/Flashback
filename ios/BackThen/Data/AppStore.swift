@@ -13,6 +13,13 @@ struct ReminderSetting: Codable, Equatable {
     var minute = 0
 }
 
+/// Places you go back to: shows photos from a city when you're there again.
+struct PlaceSetting: Codable, Equatable {
+    var on = false
+    /// The app asked once, whatever the answer.
+    var asked = false
+}
+
 /// How Today lays out each year: all years in mosaics, or one year at a time.
 enum YearLayout: String, Codable {
     case mosaic, strip
@@ -27,9 +34,16 @@ struct SavedState: Codable {
     var albums: [Album] = []
     /// Cached photo counts per day for the phone's library.
     var deviceIndex: DayIndex = [:]
+    /// The library as it was when `deviceIndex` was built.
+    var librarySignature: PhotoLibrary.LibrarySignature?
     /// Days the user hid, as `MonthDay.key`. They don't come up on their own or in reminders.
     var hiddenDates: Set<String> = []
     var layout = YearLayout.mosaic
+    var places = PlaceSetting()
+    /// Photo days per city, from photo locations. Kept on the phone like everything else.
+    var placeIndex: PlaceIndex = [:]
+    /// The city whose card was closed, until the phone is somewhere else.
+    var placeDismissed: Int?
 
     init() {}
 
@@ -43,8 +57,12 @@ struct SavedState: Codable {
         favorites = (try? c.decodeIfPresent(Lossy<Photo>.self, forKey: .favorites))?.items ?? d.favorites
         albums = (try? c.decodeIfPresent(Lossy<Album>.self, forKey: .albums))?.items ?? d.albums
         deviceIndex = (try? c.decodeIfPresent(DayIndex.self, forKey: .deviceIndex)) ?? d.deviceIndex
+        librarySignature = try? c.decodeIfPresent(PhotoLibrary.LibrarySignature.self, forKey: .librarySignature)
         hiddenDates = (try? c.decodeIfPresent(Set<String>.self, forKey: .hiddenDates)) ?? d.hiddenDates
         layout = (try? c.decodeIfPresent(YearLayout.self, forKey: .layout)) ?? d.layout
+        places = (try? c.decodeIfPresent(PlaceSetting.self, forKey: .places)) ?? d.places
+        placeIndex = (try? c.decodeIfPresent(PlaceIndex.self, forKey: .placeIndex)) ?? d.placeIndex
+        placeDismissed = try? c.decodeIfPresent(Int.self, forKey: .placeDismissed)
     }
 
     /// Photo counts per day in the phone's library, leaving out hidden days.
@@ -99,6 +117,10 @@ final class AppStore {
     private(set) var indexVersion: Int = 0
     /// Keys of favorite photos, kept here so each tile doesn't build the set again.
     private(set) var favoriteKeys: Set<String> = []
+    /// The card Today shows in a city you've been to before, away from home.
+    private(set) var placeCard: PlaceCard?
+    /// The city the phone is in, when places are on.
+    @ObservationIgnored private var here: Int?
 
     /// Calendar thumbnails by `MonthDay.key`, kept until the index or the favorites change.
     @ObservationIgnored private var covers: (version: String, photos: [String: Photo]) = ("", [:])
@@ -184,12 +206,63 @@ final class AppStore {
         refreshing = true
         if saved.deviceIndex.isEmpty || force { indexing = true }
         defer { refreshing = false; indexing = false }
-        if let updated = await PhotoLibrary.deviceIndex(force: force || saved.deviceIndex.isEmpty) {
-            if saved.deviceIndex != updated {
-                saved.deviceIndex = updated
+        let known = force || saved.deviceIndex.isEmpty ? nil : saved.librarySignature
+        let fresh = await PhotoLibrary.deviceIndex(known: known)
+        if let fresh {
+            if saved.deviceIndex != fresh.index || saved.librarySignature != fresh.signature {
+                var next = saved
+                next.deviceIndex = fresh.index
+                next.librarySignature = fresh.signature
+                saved = next
             }
             applyReminder()
         }
+        if saved.places.on {
+            let rebuild = fresh != nil || saved.placeIndex.isEmpty
+            Task { if rebuild { await refreshPlaces() } else { await checkPlace() } }
+        }
+    }
+
+    // MARK: Places
+
+    /// Turns places on (asking for the phone's rough location) or off.
+    func setPlaces(_ on: Bool) async {
+        saved.places.asked = true
+        guard on else {
+            saved.places.on = false
+            placeCard = nil
+            return
+        }
+        guard await Locator.shared.requestAccess() else {
+            saved.places.on = false
+            return say(L.s("toast_location_off"))
+        }
+        saved.places.on = true
+        await refreshPlaces()
+    }
+
+    /// Finds the city of every photo with a location, then checks where the phone is.
+    func refreshPlaces() async {
+        guard saved.places.on, PhotoLibrary.hasAccess, let cities = CityList.shared else { return }
+        let built = await PlaceLibrary.index(cities)
+        if built != saved.placeIndex { saved.placeIndex = built }
+        await checkPlace()
+    }
+
+    /// Looks up the city the phone is in, and whether Today shows a card for it.
+    func checkPlace() async {
+        guard saved.places.on, let cities = CityList.shared, let spot = await Locator.shared.current() else {
+            placeCard = nil
+            return
+        }
+        here = cities.city(lat: spot.lat, lon: spot.lon)
+        if let closed = saved.placeDismissed, closed != here { saved.placeDismissed = nil }
+        placeCard = here == saved.placeDismissed ? nil : makePlaceCard(saved.placeIndex, here: here, cities: cities)
+    }
+
+    func dismissPlaceCard() {
+        saved.placeDismissed = here
+        placeCard = nil
     }
 
     func photos(for md: MonthDay) async -> [YearGroup] {

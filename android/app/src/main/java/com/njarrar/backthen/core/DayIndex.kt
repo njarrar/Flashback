@@ -49,3 +49,20 @@ fun nearbyDays(index: DayIndex, md: MonthDay, today: LocalDate = LocalDate.now()
     }
     return before to after
 }
+
+/**
+ * Where a swipe on Today lands: the next day with photos going forward ([step] 1) or back
+ * ([step] -1), and how many empty days it passed. Stays between January 1 and today, the days
+ * the calendar lets you pick.
+ */
+fun swipeTarget(index: DayIndex, from: MonthDay, step: Int, today: LocalDate = LocalDate.now()): Pair<MonthDay, Int>? {
+    val now = MonthDay.of(today)
+    var at = from
+    for (skipped in 0 until 366) {
+        val next = at.shift(step)
+        if (next.isAfter(now) || (step < 0 && next.isAfter(at))) return null
+        if (hasPhotos(index, next, today)) return next to skipped
+        at = next
+    }
+    return null
+}

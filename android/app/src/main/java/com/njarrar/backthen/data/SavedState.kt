@@ -20,6 +20,10 @@ data class Sources(val device: Boolean = false)
 @Serializable
 data class Reminder(val on: Boolean = false, val hour: Int = 9, val minute: Int = 0)
 
+/** Places you go back to: shows photos from a city when you're there again. [asked]: the app asked once, whatever the answer. */
+@Serializable
+data class PlaceSetting(val on: Boolean = false, val asked: Boolean = false)
+
 /** How Today lays out each year: all years in mosaics, or one year at a time. */
 @Serializable
 enum class YearLayout { MOSAIC, STRIP }
@@ -34,9 +38,16 @@ data class SavedState(
     val albums: List<Album> = emptyList(),
     /** Cached photo counts per day for the phone's library. */
     val deviceIndex: Map<String, Map<Int, Int>> = emptyMap(),
+    /** The library as it was when [deviceIndex] was built. */
+    val librarySignature: LibrarySignature? = null,
     /** Days the user hid, as [com.njarrar.backthen.core.MonthDay.key]. They don't come up on their own or in reminders. */
     val hiddenDates: Set<String> = emptySet(),
     val layout: YearLayout = YearLayout.MOSAIC,
+    val places: PlaceSetting = PlaceSetting(),
+    /** Photo days per city, from photo locations. Kept on the phone like everything else. */
+    val placeIndex: Map<Int, Map<String, Int>> = emptyMap(),
+    /** The city whose card was closed, until the phone is somewhere else. */
+    val placeDismissed: Int? = null,
 )
 
 /** Photo counts per day in the phone's library, leaving out hidden days. */

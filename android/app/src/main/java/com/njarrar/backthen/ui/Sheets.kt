@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.PhoneAndroid
+import androidx.compose.material.icons.outlined.Place
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -157,6 +158,7 @@ fun SettingsSheet(
     onLayout: (YearLayout) -> Unit,
     onHidden: (MonthDay, Boolean) -> Unit,
     onDismiss: () -> Unit,
+    onPlaces: ((Boolean) -> Unit)? = null,
 ) {
     val p = LocalPalette.current
     BottomSheet(onDismiss) {
@@ -191,6 +193,19 @@ fun SettingsSheet(
             }
             T(L.s("reminder_settings_note"), size = 13, muted = true)
             HorizontalDivider(color = p.line)
+            if (onPlaces != null) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Icon(Icons.Outlined.Place, null, tint = p.ink)
+                    T(L.s("places_title"), weight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                    Switch(
+                        checked = state.places.on,
+                        onCheckedChange = onPlaces,
+                        colors = SwitchDefaults.colors(checkedTrackColor = Accent, checkedThumbColor = Color.White),
+                    )
+                }
+                T(L.s("places_note"), size = 13, muted = true)
+                HorizontalDivider(color = p.line)
+            }
             T(L.s("layout"), size = 13, weight = FontWeight.Bold, muted = true)
             Row(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(50)).background(p.fill).padding(4.dp),

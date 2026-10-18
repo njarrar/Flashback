@@ -2,9 +2,9 @@ name: iOS
 
 on:
   push:
-    paths: ["ios/**", "lang/**", ".github/workflows/ios.yml"]
+    paths: ["ios/**", "lang/**", "places/**", ".github/workflows/ios.yml"]
   pull_request:
-    paths: ["ios/**", "lang/**", ".github/workflows/ios.yml"]
+    paths: ["ios/**", "lang/**", "places/**", ".github/workflows/ios.yml"]
 
 jobs:
   build:

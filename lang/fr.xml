@@ -25,6 +25,18 @@
         <item quantity="one">{n} an</item>
         <item quantity="other">{n} ans</item>
     </plurals>
+    <plurals name="skipped_days">
+        <item quantity="one">{n} jour sans photo passé</item>
+        <item quantity="other">{n} jours sans photo passés</item>
+    </plurals>
+    <plurals name="trips">
+        <item quantity="one">{n} voyage</item>
+        <item quantity="other">{n} voyages</item>
+    </plurals>
+    <plurals name="days">
+        <item quantity="one">{n} jour</item>
+        <item quantity="other">{n} jours</item>
+    </plurals>
     <plurals name="albums">
         <item quantity="one">{n} album</item>
         <item quantity="other">{n} albums</item>
@@ -66,6 +78,22 @@
     <string name="today_loading">Recherche dans votre bibliothèque…</string>
     <string name="today_none">Aucune photo à cette date</string>
     <string name="pick_another_day">Choisir un autre jour</string>
+    <string name="place_been_before">Vous êtes déjà venu à {city}</string>
+    <string name="trips_photos">{trips} · {photos}</string>
+    <string name="days_photos">{days}, {photos}</string>
+    <string name="see_city">Voir {city}</string>
+    <string name="places_title">Lieux où vous revenez</string>
+    <string name="places_note">Quand vous êtes dans une ville déjà visitée, Aujourd'hui montre vos photos des voyages passés. Votre position reste sur ce téléphone. Liste des villes : GeoNames (CC BY 4.0).</string>
+    <string name="places_ask_title">Montrer les photos des lieux où vous revenez ?</string>
+    <string name="places_ask_body">Quand vous visitez une ville déjà vue, Back Then montre vos photos de la dernière fois.</string>
+    <string name="places_ask_private">Seulement la ville, trouvée sur ce téléphone. Rien n'est envoyé.</string>
+    <string name="places_ask_open_only">Vérifié seulement quand l'app est ouverte.</string>
+    <string name="places_ask_settings">Désactivez-le quand vous voulez dans Réglages.</string>
+    <string name="turn_on">Activer</string>
+    <string name="toast_location_off">Autorisez la position pour voir les lieux</string>
+    <string name="ios_location_permission">Back Then trouve la ville où vous êtes pour montrer vos photos de voyages passés. Votre position reste sur cet iPhone.</string>
+    <string name="previous_day_photos">Jour précédent avec des photos</string>
+    <string name="next_day_photos">Jour suivant avec des photos</string>
     <string name="back_to_today">Revenir à aujourd'hui</string>
     <string name="select">Sélectionner</string>
     <string name="selected">Sélectionnée</string>

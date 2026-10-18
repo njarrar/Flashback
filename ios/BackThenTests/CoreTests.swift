@@ -59,6 +59,17 @@ final class CoreTests: XCTestCase {
         XCTAssertEqual(near.after, MonthDay(month: 9, day: 9))
     }
 
+    func testSwipeSkipsEmptyDaysAndStopsAtTheEnds() {
+        let back = swipeTarget(index, from: MonthDay(month: 9, day: 2), step: -1, today: today)
+        XCTAssertEqual(back?.day, MonthDay(month: 8, day: 20))
+        XCTAssertEqual(back?.skipped, 11)
+        let forward = swipeTarget(index, from: MonthDay(month: 8, day: 20), step: 1, today: today)
+        XCTAssertEqual(forward?.day, MonthDay(month: 9, day: 2))
+        // Past today is the future; before January 1 is last year.
+        XCTAssertNil(swipeTarget(index, from: MonthDay(month: 9, day: 2), step: 1, today: today))
+        XCTAssertNil(swipeTarget(index, from: MonthDay(month: 8, day: 20), step: -1, today: today))
+    }
+
     func testPhotoCountAndFavoriteCover() {
         XCTAssertEqual(photoCount(index, MonthDay(month: 9, day: 2), today: today), 3)
         let cal = Calendar.app
@@ -114,6 +125,15 @@ final class CoreTests: XCTestCase {
         XCTAssertTrue(s.sources.device)
         XCTAssertEqual(s.layout, .mosaic)
         XCTAssertTrue(s.hiddenDates.isEmpty)
+        XCTAssertNil(s.librarySignature)
+    }
+
+    func testLibrarySignatureIsSavedWithTheIndex() throws {
+        var s = SavedState()
+        s.deviceIndex = ["9-2": [2019: 3]]
+        s.librarySignature = .init(count: 42, firstID: "a", lastID: "b", lastMod: Date(timeIntervalSince1970: 1_700_000_000))
+        let back = try JSONDecoder().decode(SavedState.self, from: JSONEncoder().encode(s))
+        XCTAssertEqual(back.librarySignature, s.librarySignature)
     }
 
     func testOldGooglePhotosAreDropped() throws {

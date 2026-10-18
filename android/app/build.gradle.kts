@@ -13,12 +13,14 @@ android {
         applicationId = "com.njarrar.backthen"
         minSdk = 26
         targetSdk = 36
-        versionCode = 13
-        versionName = "1.12.0"
+        versionCode = 14
+        versionName = "1.13.0"
     }
 
     // The language files in lang/ at the top of the repo ship as app assets (en.xml, ar.xml, ...).
     sourceSets["main"].assets.srcDir("../../lang")
+    // The city list for places (cities.tsv).
+    sourceSets["main"].assets.srcDir("../../places")
 
     // Builds sign with the Play upload key when these are set (the Play Store and Build
     // apps workflows set them from GitHub secrets). Without them the release bundle is
@@ -81,6 +83,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.1")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.1")
     implementation("androidx.work:work-runtime-ktx:2.10.1")
+    implementation("androidx.exifinterface:exifinterface:1.3.7")
     implementation("io.coil-kt.coil3:coil-compose:3.2.0")
     implementation("me.saket.telephoto:zoomable-image-coil3:0.16.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.1")

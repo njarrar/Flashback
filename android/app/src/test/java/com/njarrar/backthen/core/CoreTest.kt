@@ -47,6 +47,14 @@ class CoreTest {
         assertEquals(MonthDay(9, 9), after)
     }
 
+    @Test fun swipeSkipsEmptyDaysAndStopsAtTheEnds() {
+        assertEquals(MonthDay(8, 20) to 11, swipeTarget(index, MonthDay(9, 2), -1, today))
+        assertEquals(MonthDay(9, 2) to 11, swipeTarget(index, MonthDay(8, 20), 1, today))
+        // Past today is the future; before January 1 is last year.
+        assertEquals(null, swipeTarget(index, MonthDay(9, 2), 1, today))
+        assertEquals(null, swipeTarget(index, MonthDay(8, 20), -1, today))
+    }
+
     @Test fun photoCountAndFavoriteCover() {
         assertEquals(3, photoCount(index, MonthDay(9, 2), today))
         val time = java.time.LocalDate.of(2020, 10, 2).atTime(12, 0).atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()

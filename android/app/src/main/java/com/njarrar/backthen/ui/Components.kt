@@ -13,6 +13,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -220,7 +221,13 @@ fun Toast(message: String?, modifier: Modifier = Modifier) {
 
 /** Selection state shared by the photo grids. */
 @Immutable
-data class Selection(val on: Boolean, val keys: Set<String>, val toggle: (Photo) -> Unit)
+data class Selection(
+    val on: Boolean,
+    val keys: Set<String>,
+    /** Long press on a photo while not selecting: start selecting with that photo picked. */
+    val start: ((Photo) -> Unit)? = null,
+    val toggle: (Photo) -> Unit,
+)
 
 @Composable
 fun PhotoTile(
@@ -234,11 +241,17 @@ fun PhotoTile(
     val p = LocalPalette.current
     val picked = selection?.keys?.contains(photo.key) == true
     val shape = RoundedCornerShape(radius)
+    val startSelecting = selection?.takeIf { !it.on }?.start
     Box(
         modifier
             .clip(shape)
             .background(p.fill)
-            .clickable(role = Role.Image) { if (selection?.on == true) selection.toggle(photo) else onOpen() },
+            .combinedClickable(
+                role = Role.Image,
+                onLongClickLabel = L.s("select"),
+                onLongClick = startSelecting?.let { start -> { start(photo) } },
+                onClick = { if (selection?.on == true) selection.toggle(photo) else onOpen() },
+            ),
     ) {
         AsyncImage(
             model = photo.uri,
@@ -338,9 +351,9 @@ fun YearBar(year: Int, count: Int, day: MonthDay, pinned: Boolean, onShare: () -
     }
 }
 
-/** One year's photos for the chosen day, as a mosaic of rounded tiles. */
+/** One year's photos for the chosen day, as a mosaic of rounded tiles. With [more], the last tile says how many more there are. */
 @Composable
-fun YearMosaic(photos: List<Photo>, favorites: Set<String>, selection: Selection, onOpen: (Int) -> Unit) {
+fun YearMosaic(photos: List<Photo>, favorites: Set<String>, selection: Selection?, onOpen: (Int) -> Unit, more: Int = 0) {
     val (tiles, rows) = remember(photos.size) { layoutMosaic(photos.size) }
     if (rows == 0) return
     val gap = 4.dp
@@ -348,7 +361,14 @@ fun YearMosaic(photos: List<Photo>, favorites: Set<String>, selection: Selection
     Layout(
         content = {
             photos.forEachIndexed { i, photo ->
-                PhotoTile(photo, 12.dp, photo.key in favorites, selection, onOpen = { onOpen(i) }, modifier = Modifier.fillMaxSize())
+                Box(Modifier.fillMaxSize()) {
+                    PhotoTile(photo, 12.dp, photo.key in favorites, selection, onOpen = { onOpen(i) }, modifier = Modifier.fillMaxSize())
+                    if (more > 0 && i == photos.lastIndex) {
+                        Box(Modifier.matchParentSize().clip(RoundedCornerShape(12.dp)).background(Chip), contentAlignment = Alignment.Center) {
+                            T("+" + L.num(more), size = 18, weight = FontWeight.ExtraBold, color = ChipInk)
+                        }
+                    }
+                }
             }
         },
         modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 28.dp),
@@ -436,6 +456,10 @@ fun Print(year: Int, label: String, @DrawableRes drawing: Int, width: Dp, angle:
 object Haptics {
     fun tick(view: View) {
         view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+    }
+
+    fun longPress(view: View) {
+        view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
     }
 
     fun confirm(view: View) {

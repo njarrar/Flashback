@@ -29,6 +29,13 @@ class DataTest {
         assertEquals(listOf("d:2"), s.albums.single().photos.map { it.key })
     }
 
+    @Test fun librarySignatureIsSavedWithTheIndex() {
+        val file = File(Files.createTempDirectory("state").toFile(), "state.json")
+        val sig = LibrarySignature(count = 42, latestId = 7, latestModified = 1_700_000_000, oldestId = 1)
+        StateFile(file).write(SavedState(deviceIndex = mapOf("9-2" to mapOf(2019 to 3)), librarySignature = sig))
+        assertEquals(sig, StateFile(file).read().librarySignature)
+    }
+
     @Test fun aFileThatWontLoadIsKept() {
         val dir = Files.createTempDirectory("state").toFile()
         val file = File(dir, "state.json")
