@@ -293,6 +293,20 @@ struct SettingsSheet: View {
                 }
                 Text(L.s("reminder_settings_note")).font(.nunito(13)).foregroundStyle(Palette.muted)
                 Divider()
+                if CityList.shared != nil {
+                    HStack(spacing: 12) {
+                        Image(systemName: "mappin.and.ellipse").foregroundStyle(Palette.ink)
+                        Text(L.s("places_title")).font(.nunito(16, .semibold)).foregroundStyle(Palette.ink)
+                        Spacer()
+                        Toggle(L.s("places_title"), isOn: Binding(get: { s.places.on }, set: { on in
+                            Task { await store.setPlaces(on) }
+                        }))
+                        .labelsHidden()
+                        .tint(Palette.accent)
+                    }
+                    Text(L.s("places_note")).font(.nunito(13)).foregroundStyle(Palette.muted)
+                    Divider()
+                }
                 Text(L.s("layout")).font(.nunito(13, .bold)).foregroundStyle(Palette.muted)
                 Picker(L.s("layout"), selection: Binding(get: { store.saved.layout }, set: { store.saved.layout = $0 })) {
                     Text(L.s("layout_all_years")).tag(YearLayout.mosaic)

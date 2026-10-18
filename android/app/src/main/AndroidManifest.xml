@@ -8,6 +8,10 @@
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
+    <!-- Places you go back to: the city you're in (rough location, only while the app is
+         open) and where photos were taken. Neither leaves the phone. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_MEDIA_LOCATION" />
     <!-- Daily reminder. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- No ads or tracking. Keeps a library from adding the advertising ID permission,

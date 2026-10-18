@@ -1,6 +1,6 @@
 # Back Then privacy policy
 
-**Effective date:** October 17, 2026
+**Effective date:** October 18, 2026
 
 This policy covers the Back Then app for Android and iPhone ("the app"). Back Then is
 made by an independent developer ("I", "me"). It explains what the app reads, what it
@@ -22,15 +22,25 @@ the Photos library). For each photo it reads:
 
 - the image itself, to show it on screen;
 - the date and time it was taken, to find photos from the same day in past years;
-- basic details such as its size, to lay it out on screen.
+- basic details such as its size, to lay it out on screen;
+- if you turn on Places (below), the place it was taken, to find its city.
 
 The app does this on your phone only. It does not upload, copy to a server, scan for
-faces, read location to build maps, or send any photo or detail about a photo
-anywhere.
+faces, or send any photo or detail about a photo anywhere.
 
 You decide how much the app can see. On Android 14 and later and on iPhone you can share
 only selected photos. You can change or turn off access at any time in your phone's
 settings. Without access the app has nothing to show, but nothing breaks.
+
+### Location, only if you turn on Places
+
+Places is off until you turn it on. When it is on, the app asks for your rough
+location (not your exact spot) while the app is open, never in the background. It
+matches that spot and the place each photo was taken to a list of cities built into
+the app, so it can show photos from past trips to the city you're in. The app keeps
+only the city name for each photo. Your location and photo locations never leave your
+phone. Turn Places off at any time in the app's Settings, or take back the location
+permission in your phone's settings.
 
 ### Notifications
 
@@ -45,8 +55,10 @@ The app saves a small file in its own private storage on your phone with:
 - the photos you marked as favorites (as references to the photos, not copies);
 - your albums: their names and which photos are in them;
 - dates you chose to hide;
-- your settings: reminder on or off and its time, layout, and whether photo access is
-  on.
+- if Places is on, the city each photo was taken in and the days you took photos
+  there;
+- your settings: reminder on or off and its time, layout, whether photo access is
+  on, and whether Places is on.
 
 When you save an album to your gallery, the app writes normal photo files to your
 phone's gallery (Android: Pictures/Back Then; iPhone: a Photos album). Those then

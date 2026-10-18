@@ -29,6 +29,14 @@
         <item quantity="one">{n} día sin fotos omitido</item>
         <item quantity="other">{n} días sin fotos omitidos</item>
     </plurals>
+    <plurals name="trips">
+        <item quantity="one">{n} viaje</item>
+        <item quantity="other">{n} viajes</item>
+    </plurals>
+    <plurals name="days">
+        <item quantity="one">{n} día</item>
+        <item quantity="other">{n} días</item>
+    </plurals>
     <plurals name="albums">
         <item quantity="one">{n} álbum</item>
         <item quantity="other">{n} álbumes</item>
@@ -70,6 +78,20 @@
     <string name="today_loading">Buscando en tu fototeca…</string>
     <string name="today_none">No hay fotos en esta fecha</string>
     <string name="pick_another_day">Elegir otro día</string>
+    <string name="place_been_before">Ya has estado en {city}</string>
+    <string name="trips_photos">{trips} · {photos}</string>
+    <string name="days_photos">{days}, {photos}</string>
+    <string name="see_city">Ver {city}</string>
+    <string name="places_title">Lugares a los que vuelves</string>
+    <string name="places_note">Cuando estás en una ciudad que ya visitaste, Hoy muestra tus fotos de viajes pasados. Tu ubicación no sale de este teléfono. Lista de ciudades de GeoNames (CC BY 4.0).</string>
+    <string name="places_ask_title">¿Mostrar fotos de lugares a los que vuelves?</string>
+    <string name="places_ask_body">Cuando visitas una ciudad en la que ya estuviste, Back Then muestra tus fotos de la última vez.</string>
+    <string name="places_ask_private">Solo la ciudad, calculada en este teléfono. No se envía nada.</string>
+    <string name="places_ask_open_only">Solo se comprueba con la app abierta.</string>
+    <string name="places_ask_settings">Desactívalo cuando quieras en Ajustes.</string>
+    <string name="turn_on">Activar</string>
+    <string name="toast_location_off">Permite la ubicación para ver lugares</string>
+    <string name="ios_location_permission">Back Then busca la ciudad en la que estás para mostrar fotos de viajes pasados. Tu ubicación no sale de este iPhone.</string>
     <string name="previous_day_photos">Día anterior con fotos</string>
     <string name="next_day_photos">Día siguiente con fotos</string>
     <string name="back_to_today">Volver a hoy</string>

@@ -117,6 +117,7 @@ import com.njarrar.backthen.core.localDate
 import com.njarrar.backthen.core.nearbyDays
 import com.njarrar.backthen.core.shortLabel
 import com.njarrar.backthen.core.yearsForDay
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import com.njarrar.backthen.data.CAN_SAVE_TO_GALLERY
 import com.njarrar.backthen.data.YearLayout
@@ -252,6 +253,16 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
     val askPhotos = rememberPhotoPermission(vm) { ok -> if (!ok) vm.say(L.s("toast_allow_access")) }
     val askNotify = rememberNotificationPermission { ok ->
         if (ok) vm.setReminder { it.copy(on = true) } else vm.say(L.s("toast_notifications_off"))
+    }
+    val placeCard by vm.placeCard.collectAsStateWithLifecycle()
+    var placeOpen by remember { mutableStateOf<com.njarrar.backthen.core.City?>(null) }
+    var placeAsk by remember { mutableStateOf(false) }
+    val askPlaces = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { vm.setPlaces(true) }
+    // Ask about places once, a moment after the first photos show, never during screenshots.
+    LaunchedEffect(index.isEmpty(), state.places.asked, demo) {
+        if (index.isEmpty() || state.places.asked || demo != null || vm.places.cities == null) return@LaunchedEffect
+        delay(1500)
+        placeAsk = true
     }
 
     LaunchedEffect(day, index) { result = (day to vm.photosFor(day)).also { vm.lastDay = it } }
@@ -428,6 +439,11 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
                             }
                         }
                     }
+                    placeCard?.takeIf { !selecting }?.let { card ->
+                        item(key = "place") {
+                            PlaceCardView(vm, card, onOpen = { placeOpen = card.city }, modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 20.dp))
+                        }
+                    }
                     when {
                         hidden -> item { HiddenDay(day) { vm.setHidden(day, false) } }
                         groups == null -> item { Skeleton() }
@@ -483,6 +499,13 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
                 modifier = Modifier.align(Alignment.BottomCenter).padding(12.dp).padding(bottom = bottomPadding),
             )
         }
+        placeOpen?.let { city -> PlaceScreen(vm, city, state.placeIndex, bottomPadding, onBack = { placeOpen = null }) }
+    }
+    if (placeAsk) {
+        PlaceAskSheet(
+            onTurnOn = { placeAsk = false; askPlaces.launch(vm.places.permissions) },
+            onNotNow = { placeAsk = false; vm.placesAsked() },
+        )
     }
 
     if (calendar) CalendarSheet(day, index, cover = vm::coverFor, onPick = ::go, onDismiss = { calendar = false })
@@ -495,6 +518,7 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
             onLayout = vm::setLayout,
             onHidden = { md, on -> vm.setHidden(md, on); if (md == day) settings = false },
             onDismiss = { settings = false },
+            onPlaces = if (vm.places.cities == null) null else { on -> if (on) askPlaces.launch(vm.places.permissions) else vm.setPlaces(false) },
         )
     }
     albumFor?.let { photos ->

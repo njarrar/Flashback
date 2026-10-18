@@ -37,6 +37,14 @@
         <item quantity="one">Skipped {n} day with no photos</item>
         <item quantity="other">Skipped {n} days with no photos</item>
     </plurals>
+    <plurals name="trips">
+        <item quantity="one">{n} trip</item>
+        <item quantity="other">{n} trips</item>
+    </plurals>
+    <plurals name="days">
+        <item quantity="one">{n} day</item>
+        <item quantity="other">{n} days</item>
+    </plurals>
     <plurals name="albums">
         <item quantity="one">{n} album</item>
         <item quantity="other">{n} albums</item>
@@ -78,6 +86,20 @@
     <string name="today_loading">Looking through your library…</string>
     <string name="today_none">No photos on this date</string>
     <string name="pick_another_day">Pick another day</string>
+    <string name="place_been_before">You've been to {city} before</string>
+    <string name="trips_photos">{trips} · {photos}</string>
+    <string name="days_photos">{days}, {photos}</string>
+    <string name="see_city">See {city}</string>
+    <string name="places_title">Places you go back to</string>
+    <string name="places_note">When you're in a city you've been to before, Today shows your photos from past trips. Your location stays on this phone. City list from GeoNames (CC BY 4.0).</string>
+    <string name="places_ask_title">Show photos from places you go back to?</string>
+    <string name="places_ask_body">When you visit a city you've been to before, Back Then shows your photos from the last time you were there.</string>
+    <string name="places_ask_private">Only the city, worked out on this phone. Nothing is sent anywhere.</string>
+    <string name="places_ask_open_only">Checked only while the app is open.</string>
+    <string name="places_ask_settings">Turn it off any time in Settings.</string>
+    <string name="turn_on">Turn on</string>
+    <string name="toast_location_off">Allow location to see places</string>
+    <string name="ios_location_permission">Back Then finds the city you're in to show photos from past trips there. Your location stays on this iPhone.</string>
     <string name="previous_day_photos">Previous day with photos</string>
     <string name="next_day_photos">Next day with photos</string>
     <string name="back_to_today">Back to today</string>

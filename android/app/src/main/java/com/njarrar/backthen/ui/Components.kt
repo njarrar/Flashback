@@ -351,9 +351,9 @@ fun YearBar(year: Int, count: Int, day: MonthDay, pinned: Boolean, onShare: () -
     }
 }
 
-/** One year's photos for the chosen day, as a mosaic of rounded tiles. */
+/** One year's photos for the chosen day, as a mosaic of rounded tiles. With [more], the last tile says how many more there are. */
 @Composable
-fun YearMosaic(photos: List<Photo>, favorites: Set<String>, selection: Selection, onOpen: (Int) -> Unit) {
+fun YearMosaic(photos: List<Photo>, favorites: Set<String>, selection: Selection?, onOpen: (Int) -> Unit, more: Int = 0) {
     val (tiles, rows) = remember(photos.size) { layoutMosaic(photos.size) }
     if (rows == 0) return
     val gap = 4.dp
@@ -361,7 +361,14 @@ fun YearMosaic(photos: List<Photo>, favorites: Set<String>, selection: Selection
     Layout(
         content = {
             photos.forEachIndexed { i, photo ->
-                PhotoTile(photo, 12.dp, photo.key in favorites, selection, onOpen = { onOpen(i) }, modifier = Modifier.fillMaxSize())
+                Box(Modifier.fillMaxSize()) {
+                    PhotoTile(photo, 12.dp, photo.key in favorites, selection, onOpen = { onOpen(i) }, modifier = Modifier.fillMaxSize())
+                    if (more > 0 && i == photos.lastIndex) {
+                        Box(Modifier.matchParentSize().clip(RoundedCornerShape(12.dp)).background(Chip), contentAlignment = Alignment.Center) {
+                            T("+" + L.num(more), size = 18, weight = FontWeight.ExtraBold, color = ChipInk)
+                        }
+                    }
+                }
             }
         },
         modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 28.dp),

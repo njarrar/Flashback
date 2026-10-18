@@ -396,6 +396,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = "Back Then";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.photography";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Back Then saves your albums to Photos when you ask it to.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Back Then checks which city you are in, so it can show your photos from places you go back to. Your location stays on your phone.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Back Then shows the photos you took on this day in past years.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -429,6 +430,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = "Back Then";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.photography";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Back Then saves your albums to Photos when you ask it to.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Back Then checks which city you are in, so it can show your photos from places you go back to. Your location stays on your phone.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Back Then shows the photos you took on this day in past years.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;

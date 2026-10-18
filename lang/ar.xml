@@ -41,6 +41,22 @@
         <item quantity="many">تم تخطّي {n} يومًا بلا صور</item>
         <item quantity="other">تم تخطّي {n} يوم بلا صور</item>
     </plurals>
+    <plurals name="trips">
+        <item quantity="zero">لا رحلات</item>
+        <item quantity="one">رحلة واحدة</item>
+        <item quantity="two">رحلتان</item>
+        <item quantity="few">{n} رحلات</item>
+        <item quantity="many">{n} رحلة</item>
+        <item quantity="other">{n} رحلة</item>
+    </plurals>
+    <plurals name="days">
+        <item quantity="zero">لا أيام</item>
+        <item quantity="one">يوم واحد</item>
+        <item quantity="two">يومان</item>
+        <item quantity="few">{n} أيام</item>
+        <item quantity="many">{n} يومًا</item>
+        <item quantity="other">{n} يوم</item>
+    </plurals>
     <plurals name="albums">
         <item quantity="zero">لا ألبومات</item>
         <item quantity="one">ألبوم واحد</item>
@@ -89,6 +105,20 @@
     <string name="today_loading">نبحث في مكتبتك…</string>
     <string name="today_none">لا صور في هذا التاريخ</string>
     <string name="pick_another_day">اختر يومًا آخر</string>
+    <string name="place_been_before">زرت {city} من قبل</string>
+    <string name="trips_photos">{trips} · {photos}</string>
+    <string name="days_photos">{days}، {photos}</string>
+    <string name="see_city">عرض {city}</string>
+    <string name="places_title">أماكن تعود إليها</string>
+    <string name="places_note">عندما تكون في مدينة زرتها من قبل، تعرض صفحة اليوم صورك من رحلاتك السابقة. يبقى موقعك على هذا الهاتف. قائمة المدن من GeoNames (CC BY 4.0).</string>
+    <string name="places_ask_title">هل تريد عرض صور الأماكن التي تعود إليها؟</string>
+    <string name="places_ask_body">عندما تزور مدينة زرتها من قبل، يعرض Back Then صورك من آخر مرة كنت فيها هناك.</string>
+    <string name="places_ask_private">المدينة فقط، تُحدَّد على هذا الهاتف. لا يُرسَل أي شيء.</string>
+    <string name="places_ask_open_only">يتم التحقق فقط أثناء فتح التطبيق.</string>
+    <string name="places_ask_settings">يمكنك إيقافه في أي وقت من الإعدادات.</string>
+    <string name="turn_on">تشغيل</string>
+    <string name="toast_location_off">اسمح بالموقع لعرض الأماكن</string>
+    <string name="ios_location_permission">يحدد Back Then المدينة التي أنت فيها ليعرض صورك من رحلات سابقة إليها. يبقى موقعك على هذا الـ iPhone.</string>
     <string name="previous_day_photos">اليوم السابق الذي فيه صور</string>
     <string name="next_day_photos">اليوم التالي الذي فيه صور</string>
     <string name="back_to_today">العودة إلى اليوم</string>

@@ -117,6 +117,23 @@ loads the samples from a folder in the app instead.)
 
 ## What's new in 1.13
 
+- **Swipe between days.** On Today, swipe sideways to go to the next or previous day
+  with photos. Empty days get skipped, and a short note says how many. It stops at
+  today and at January 1, like the calendar. Up and down still scrolls, and the year
+  buttons keep their own sideways scroll. Screen readers get next and previous day
+  actions on the date title.
+- **Places you go back to.** When you're in a city you've been to before, away from
+  home, Today shows a card: "You've been to Paris before", with your trip and photo
+  counts and a few photos from the last visit. "See Paris" opens a page with every
+  trip there, newest first. Places is off until you turn it on (the app asks once,
+  and Settings has a switch). It uses rough location only while the app is open, and
+  only the city ever counts, matched against a list of cities with 50,000 people or
+  more built into the app ([places/](places/)). Nothing leaves the phone. Home is the
+  city with the most photo days in the last two years, so it never shows a card
+  there. Closing the card hides it until you're somewhere else. City names show in
+  English or the local Latin spelling in every language. On Android the first pass
+  reads the place from each photo file, which takes a while on big libraries; it
+  runs in the background and keeps its progress.
 - **Long press to select.** On Today, long press any photo to start selecting, with
   that photo already picked. The Select button still works too.
 - **Time in the viewer.** The viewer header now shows when the photo was taken, like

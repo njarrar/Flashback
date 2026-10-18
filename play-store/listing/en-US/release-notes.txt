@@ -1,1 +1,1 @@
-Long press a photo on Today to start selecting. The photo viewer now shows the time each photo was taken. Faster, lighter launches on big libraries.
+Swipe sideways on Today to move between days. Places: in a city you've been to before, Today shows your photos from past trips there (optional, and your location stays on your phone). Long press a photo to start selecting. The viewer shows the time each photo was taken. Faster launches on big libraries.

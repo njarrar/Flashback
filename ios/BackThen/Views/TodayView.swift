@@ -23,6 +23,8 @@ struct TodayView: View {
     /// Where the year pills sit, so a sideways drag on them scrolls them and keeps the day.
     @State private var pillsFrame: CGRect = .zero
     @Environment(\.layoutDirection) private var direction
+    @State private var placeOpen: City?
+    @State private var placeAsk = false
 
     var body: some View {
         let day = store.day
@@ -68,6 +70,12 @@ struct TodayView: View {
                 .padding(.bottom, 12)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .id("top")
+
+                if let card = store.placeCard, !selecting {
+                    PlaceCardView(card: card) { placeOpen = card.city }
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 22)
+                }
 
                 if hidden {
                     HiddenDay(day: day) { store.setHidden(day, false) }
@@ -141,6 +149,17 @@ struct TodayView: View {
             CalendarSheet(start: store.day) { md in go(md) }
         }
         .sheet(isPresented: $settings) { SettingsSheet() }
+        .sheet(isPresented: $placeAsk) { PlaceAskSheet() }
+        .navigationDestination(item: $placeOpen) { PlacePage(city: $0) }
+        .task(id: store.indexVersion) {
+            // Asked once, a moment after Today has photos to show. Never in the screenshots.
+            #if DEBUG
+            if AppStore.launchScene != nil { return }
+            #endif
+            guard !store.saved.places.asked, store.samplePhotos.isEmpty, !store.index.isEmpty, CityList.shared != nil else { return }
+            try? await Task.sleep(for: .seconds(1.5))
+            if !Task.isCancelled, !store.saved.places.asked, store.samplePhotos.isEmpty, !calendar, !settings { placeAsk = true }
+        }
         .sheet(item: $shareFor) { ShareSheetView(request: $0) }
         .sheet(isPresented: Binding(get: { albumFor != nil }, set: { if !$0 { albumFor = nil } })) {
             AlbumSheet(photos: albumFor ?? [], created: { album in store.openAlbumID = album.id }, done: stopSelecting)

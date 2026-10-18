@@ -7,6 +7,9 @@ import com.njarrar.backthen.core.Album
 import com.njarrar.backthen.core.DayIndex
 import com.njarrar.backthen.core.L
 import com.njarrar.backthen.core.MonthDay
+import com.njarrar.backthen.core.PlaceCard
+import com.njarrar.backthen.core.Trip
+import com.njarrar.backthen.core.makePlaceCard
 import com.njarrar.backthen.core.Photo
 import com.njarrar.backthen.core.YearGroup
 import com.njarrar.backthen.core.buildDayIndex
@@ -14,6 +17,7 @@ import com.njarrar.backthen.core.favoriteCover
 import com.njarrar.backthen.core.shortLabel
 import com.njarrar.backthen.core.yearsForDay
 import com.njarrar.backthen.data.DeviceLibrary
+import com.njarrar.backthen.data.PlaceLibrary
 import com.njarrar.backthen.data.Reminder
 import com.njarrar.backthen.data.Reminders
 import com.njarrar.backthen.data.SavedState
@@ -36,6 +40,7 @@ data class Viewer(val photos: List<Photo>, val start: Int)
 /** App state: what is saved on disk, plus what only lives while the app runs. */
 class AppViewModel(app: Application) : AndroidViewModel(app) {
     val library = DeviceLibrary(app)
+    val places = PlaceLibrary(app)
     private val stateFile = StateFile(app)
 
     private val _saved = MutableStateFlow(stateFile.read())
@@ -45,6 +50,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** What today was when the app last checked, so it can tell when midnight has passed. */
     private var lastToday = MonthDay.today()
     val indexing = MutableStateFlow(false)
+    /** The card Today shows in a city you've been to before, away from home. */
+    val placeCard = MutableStateFlow<PlaceCard?>(null)
+    /** The city the phone is in, when places are on. */
+    private var here: Int? = null
+    private var placesJob: Job? = null
     val viewer = MutableStateFlow<Viewer?>(null)
     val toast = MutableStateFlow<String?>(null)
     /** Fires when a reminder opens a day, so the app switches to Today. */
@@ -109,7 +119,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         refreshJob = viewModelScope.launch {
             val sig = runCatching { library.signature() }.getOrNull()
             val saved = _saved.value
-            if (!force && saved.deviceIndex.isNotEmpty() && sig != null && sig == saved.librarySignature) return@launch
+            if (!force && saved.deviceIndex.isNotEmpty() && sig != null && sig == saved.librarySignature) {
+                if (saved.places.on) { if (saved.placeIndex.isEmpty()) refreshPlaces() else checkPlace() }
+                return@launch
+            }
             indexing.value = true
             try {
                 val index = buildDayIndex(library.readAllTimes())
@@ -119,8 +132,53 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             } finally {
                 indexing.value = false
             }
+            if (_saved.value.places.on) refreshPlaces()
         }
     }
+
+    /** Turns places on or off, after the permission prompt. On needs the location permissions. */
+    fun setPlaces(on: Boolean) {
+        val allowed = places.hasAccess()
+        update { it.copy(places = it.places.copy(asked = true, on = on && allowed)) }
+        if (on && !allowed) say(L.s("toast_location_off"))
+        if (_saved.value.places.on) refreshPlaces() else placeCard.value = null
+    }
+
+    fun placesAsked() = update { it.copy(places = it.places.copy(asked = true)) }
+
+    /** Finds the city of every photo with a location, then checks where the phone is. */
+    fun refreshPlaces() {
+        val cities = places.cities ?: return
+        if (!_saved.value.places.on || !library.hasAccess() || !places.hasAccess() || placesJob?.isActive == true) return
+        placesJob = viewModelScope.launch {
+            val built = runCatching { places.index(cities) }.getOrNull()
+            if (built != null && built != _saved.value.placeIndex) update { it.copy(placeIndex = built) }
+            findPlace()
+        }
+    }
+
+    fun checkPlace() {
+        viewModelScope.launch { findPlace() }
+    }
+
+    /** Looks up the city the phone is in, and whether Today shows a card for it. */
+    private suspend fun findPlace() {
+        val cities = places.cities
+        val spot = if (_saved.value.places.on && cities != null) runCatching { places.currentSpot() }.getOrNull() else null
+        if (cities == null || spot == null) { placeCard.value = null; return }
+        val city = cities.city(spot.first, spot.second)
+        here = city
+        val closed = _saved.value.placeDismissed
+        if (closed != null && closed != city) update { it.copy(placeDismissed = null) }
+        placeCard.value = if (city != null && city == _saved.value.placeDismissed) null else makePlaceCard(_saved.value.placeIndex, city, cities)
+    }
+
+    fun dismissPlaceCard() {
+        update { it.copy(placeDismissed = here) }
+        placeCard.value = null
+    }
+
+    suspend fun tripPhotos(city: Int, trip: Trip): List<Photo> = runCatching { places.photos(city, trip) }.getOrDefault(emptyList())
 
     suspend fun photosFor(md: MonthDay): List<YearGroup> {
         val s = _saved.value
