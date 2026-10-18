@@ -103,7 +103,7 @@ loads the samples from a folder in the app instead.)
   or double tap to zoom, swipe down to close, tap to hide the buttons. Heart a photo,
   share it, or add it to an album.
 - **Favorites.** Every photo you've hearted, from any day, with its year on each tile.
-- **Albums.** On Today, tap Select, pick photos, then tap Album. Share an album
+- **Albums.** On Today, tap Select (or long press a photo), pick photos, then tap Album. Share an album
   through any app, or save it as a real album in Photos (iPhone) or under
   Pictures/Back Then (Android). Rename or delete it from the album's menu.
 - **Home screen widget.** A photo from this day in a past year, with its year and
@@ -114,6 +114,17 @@ loads the samples from a folder in the app instead.)
 - **Looks native on each phone.** The system tab bar and sheets on iPhone, with text
   that grows with the system text size; a large top app bar and navigation bar on
   Android. Light and dark mode.
+
+## What's new in 1.13
+
+- **Long press to select.** On Today, long press any photo to start selecting, with
+  that photo already picked. The Select button still works too.
+- **Time in the viewer.** The viewer header now shows when the photo was taken, like
+  "1 year ago · Friday 4:12 PM", in your phone's 12 or 24 hour setting.
+- **Less work at launch.** The app used to read every photo's date in the background
+  each time it started cold, just to check that nothing had changed. It now saves
+  that check with the day index, so a launch skips the scan when the library is the
+  same. This saves battery on big libraries.
 
 ## What's new in 1.12
 
