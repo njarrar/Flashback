@@ -13,6 +13,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -220,7 +221,13 @@ fun Toast(message: String?, modifier: Modifier = Modifier) {
 
 /** Selection state shared by the photo grids. */
 @Immutable
-data class Selection(val on: Boolean, val keys: Set<String>, val toggle: (Photo) -> Unit)
+data class Selection(
+    val on: Boolean,
+    val keys: Set<String>,
+    /** Long press on a photo while not selecting: start selecting with that photo picked. */
+    val start: ((Photo) -> Unit)? = null,
+    val toggle: (Photo) -> Unit,
+)
 
 @Composable
 fun PhotoTile(
@@ -234,11 +241,17 @@ fun PhotoTile(
     val p = LocalPalette.current
     val picked = selection?.keys?.contains(photo.key) == true
     val shape = RoundedCornerShape(radius)
+    val startSelecting = selection?.takeIf { !it.on }?.start
     Box(
         modifier
             .clip(shape)
             .background(p.fill)
-            .clickable(role = Role.Image) { if (selection?.on == true) selection.toggle(photo) else onOpen() },
+            .combinedClickable(
+                role = Role.Image,
+                onLongClickLabel = L.s("select"),
+                onLongClick = startSelecting?.let { start -> { start(photo) } },
+                onClick = { if (selection?.on == true) selection.toggle(photo) else onOpen() },
+            ),
     ) {
         AsyncImage(
             model = photo.uri,
@@ -436,6 +449,10 @@ fun Print(year: Int, label: String, @DrawableRes drawing: Int, width: Dp, angle:
 object Haptics {
     fun tick(view: View) {
         view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+    }
+
+    fun longPress(view: View) {
+        view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
     }
 
     fun confirm(view: View) {

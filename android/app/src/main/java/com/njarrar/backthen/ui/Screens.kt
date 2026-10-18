@@ -271,7 +271,15 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
     val view = LocalView.current
     val pickedKeys = remember(picked) { picked.map { it.key }.toSet() }
     val selection = remember(selecting, pickedKeys, view) {
-        Selection(selecting, pickedKeys) { ph ->
+        Selection(
+            selecting, pickedKeys,
+            start = { ph ->
+                Haptics.longPress(view)
+                selecting = true
+                picked = listOf(ph)
+                onSelectingChange(true)
+            },
+        ) { ph ->
             Haptics.tick(view)
             picked = if (picked.any { it.key == ph.key }) picked.filterNot { it.key == ph.key } else picked + ph
         }

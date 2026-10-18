@@ -26,7 +26,10 @@ struct TodayView: View {
         let summary = hidden ? L.s("you_hid_date") : groups == nil ? L.s("today_loading")
             : groups!.isEmpty ? (store.indexing ? L.s("today_loading") : L.s("today_none"))
             : L.s("photos_from_years", ["photos": L.p("photos", total), "years": L.p("years", groups!.count)])
-        let selection = Selection(on: selecting, keys: Set(picked.map(\.key))) { p in
+        let selection = Selection(on: selecting, keys: Set(picked.map(\.key)), start: { p in
+            selecting = true
+            picked = [p]
+        }) { p in
             if let i = picked.firstIndex(where: { $0.key == p.key }) { picked.remove(at: i) } else { picked.append(p) }
         }
 

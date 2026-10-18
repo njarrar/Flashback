@@ -191,6 +191,8 @@ struct ToastView: View {
 struct Selection {
     var on: Bool
     var keys: Set<String>
+    /// Long press on a photo while not selecting: start selecting with that photo picked.
+    var start: ((Photo) -> Void)? = nil
     var toggle: (Photo) -> Void
 }
 
@@ -202,11 +204,15 @@ struct PhotoTile: View {
     var selection: Selection?
     var showHeart = true
     let open: () -> Void
+    /// Set by a long press, so the tap that ends it doesn't also open or unpick the photo.
+    @State private var longPressed = false
 
     var body: some View {
         let picked = selection?.keys.contains(photo.key) ?? false
         let heart = showHeart && store.favoriteKeys.contains(photo.key)
+        let startSelecting = selection.flatMap { $0.on ? nil : $0.start }
         Button {
+            if longPressed { longPressed = false; return }
             if let selection, selection.on { selection.toggle(photo) } else { open() }
         } label: {
             PhotoImage(photo: photo)
@@ -237,6 +243,14 @@ struct PhotoTile: View {
                 .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
         }
         .buttonStyle(PressStyle())
+        .simultaneousGesture(LongPressGesture(minimumDuration: 0.4).onEnded { _ in
+            guard let startSelecting else { return }
+            longPressed = true
+            startSelecting(photo)
+        }, isEnabled: startSelecting != nil)
+        .accessibilityActions {
+            if let startSelecting { Button(L.s("select")) { startSelecting(photo) } }
+        }
         .accessibilityLabel(L.s(heart ? "favorite_photo_from" : "photo_from", ["date": L.date(photo.time, "yMMMMd")]))
         .accessibilityAddTraits(picked ? .isSelected : [])
     }
