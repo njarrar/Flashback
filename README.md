@@ -116,6 +116,18 @@ loads the samples from a folder in the app instead.)
   that grows with the system text size; a large top app bar and navigation bar on
   Android. Light and dark mode.
 
+## What's new in 1.16
+
+- **Ready for the App Store.** A new [App Store workflow](.github/workflows/app-store.yml),
+  run by hand from the Actions tab, builds the iPhone app with Xcode 26, signs it and
+  sends it to App Store Connect, where it shows up in TestFlight. It also takes 6.9 inch
+  iPhone screenshots in all four languages. [app-store/](app-store) holds the store
+  text in English, French, Spanish and Arabic and a step by step guide.
+- The iPhone app now has a privacy manifest that says it collects nothing and tracks
+  nothing, and it tells App Store Connect it uses no encryption of its own, so that
+  question no longer comes up on each upload.
+- No changes to how either app works.
+
 ## What's new in 1.15
 
 - **New name: Flashback.** The app used to be called Back Then. The icon, colors and
@@ -457,7 +469,7 @@ add a line to `pluralForm` in `ios/BackThen/Core/Lang.swift` and
 
 | | iPhone | Android |
 |---|---|---|
-| Needs | Xcode 16, iOS 17 or later | Android Studio, Android 8 or later |
+| Needs | Xcode 16 (Xcode 26 for the App Store), iOS 17 or later | Android Studio, Android 8 or later |
 | Open | `ios/BackThen.xcodeproj` | the `android/` folder |
 | Run | pick your team under Signing, then Run | Run, or `cd android && ./gradlew installDebug` |
 | Tests | Product > Test (⌘U) | `./gradlew testDebugUnitTest` |
@@ -477,8 +489,9 @@ again from the Actions tab after app changes. Each run replaces the files.
 | `BackThen-Android.aab` | Release bundle for Google Play, made by the [Play Store workflow](.github/workflows/play.yml) | Upload to the Play Console. It can't be installed on a phone directly. See [play-store/README.md](play-store/README.md). |
 | `BackThen-iOS-Simulator.zip` | Unsigned iPhone app built for the simulator | Only the iOS Simulator on a Mac. Unzip it and drag `Back Then.app` onto a running simulator. It will not install on a real iPhone. |
 
-A build for a real iPhone needs an Apple Developer account and its signing
-certificate and profile. With those, a signed build can go out through TestFlight.
+A build for a real iPhone needs a paid Apple Developer account. With one, the
+[App Store workflow](.github/workflows/app-store.yml) sends a signed build to
+TestFlight. See [app-store/README.md](app-store/README.md).
 
 ### Publishing on Google Play
 
@@ -487,6 +500,14 @@ The Android package name is `com.njarrar.backthen`. Follow
 secrets, run the Play Store workflow, then fill in the Play Console from the files in
 [play-store/](play-store). After the first upload by hand, the workflow can send new
 bundles and store listing changes to Play by itself (step 9 of that guide).
+
+### Publishing on the App Store
+
+The iPhone bundle ID is `com.njarrar.backthen`. Follow
+[app-store/README.md](app-store/README.md): join the Apple Developer Program, move the
+project to your paid team, add the signing certificates and an App Store Connect API
+key to GitHub secrets, then run the App Store workflow. Each run sends a new build to
+TestFlight; from there you pick it for App Store review.
 
 ## How the code is laid out
 

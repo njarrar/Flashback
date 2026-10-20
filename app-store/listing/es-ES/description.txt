@@ -1,0 +1,25 @@
+Flashback te muestra las fotos que tomaste en la fecha de hoy en años pasados, un año a la vez.
+
+Abre la app y mira qué hacías este día hace 1, 5 o 10 años. Cada año tiene su número grande, cuánto tiempo ha pasado y una cuadrícula con las fotos de ese día.
+
+QUÉ PUEDES HACER
+• Hoy: las fotos de esta fecha en cada año pasado, empezando por el más reciente.
+• Calendario: elige cualquier otro día. Los días con más fotos tienen un tono más oscuro, para ver de un vistazo los días importantes.
+• Pantalla completa: desliza entre las fotos del día, amplía con dos dedos, marca una foto con un corazón o compártela.
+• Favoritos: todas las fotos con corazón, en un solo lugar.
+• Álbumes: selecciona fotos y crea un álbum. Compártelo con cualquier app o guárdalo como un álbum real en Fotos.
+• Recordatorio diario: un aviso al día, a la hora que elijas, y solo los días que tienen fotos.
+• Ocultar una fecha: deja fuera de la app un día difícil. Sin recordatorio y sin tono en el calendario.
+• Widget de pantalla de inicio: una foto de este día en un año pasado, una nueva cada hora.
+
+TUS FOTOS SON TUYAS
+• Tus fotos se quedan en tu iPhone. Flashback no tiene cuenta, ni servidor, ni anuncios.
+• La app lee tu galería solo para encontrar fotos por fecha.
+• Nada se sube, se rastrea ni se vende. La app ni siquiera usa internet.
+
+PARA TODOS
+• Inglés, francés, español y árabe, con diseño de derecha a izquierda en árabe.
+• Modo claro y modo oscuro.
+• Texto grande y compatible con lectores de pantalla.
+
+Flashback es una forma tranquila de mirar atrás. Ábrela cada mañana y mira cómo fue este día, cada año.
