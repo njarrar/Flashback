@@ -45,6 +45,10 @@ def call(method, path, body=None, **params):
     if r.status_code >= 400:
         for e in r.json().get("errors", []):
             print(f"  {e.get('title')}: {e.get('detail')}")
+            # Apple lists what blocks a review under associatedErrors.
+            for errors in (e.get("meta") or {}).get("associatedErrors", {}).values():
+                for a in errors:
+                    print(f"    - {a.get('title')}: {a.get('detail')}")
         sys.exit(f"{method} {path} failed with {r.status_code}")
     return r.json() if r.content else {}
 
