@@ -155,6 +155,12 @@ its own), so App Store Connect won't ask.
 
 Then click **Add for Review** and **Submit**. Reviews often take one or two days.
 
+Or let GitHub send it: add a `REVIEW_PHONE` secret (the number App Review can call),
+then run **Actions > App Store review > Run workflow**. It sets the App Review contact
+and notes, lists every store field in every language, and sends the version for review
+only when none is missing. App Privacy and the Digital Services Act answer can only be
+set on the website.
+
 ## 9. Later updates
 
 1. Raise `MARKETING_VERSION` (like 1.17) and `CURRENT_PROJECT_VERSION` (like 18) in

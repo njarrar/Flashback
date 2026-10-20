@@ -1,0 +1,31 @@
+name: App Store review
+
+# Sets the App Review contact and notes on the version being prepared in App Store Connect,
+# then sends it for review. Run it from the Actions tab once the store page has its text,
+# screenshots and build. See app-store/README.md.
+on:
+  workflow_dispatch:
+    inputs:
+      submit:
+        description: Send the version for review (off only sets the contact and notes)
+        type: boolean
+        default: true
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Send for review
+        shell: bash
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          REVIEW_PHONE: ${{ secrets.REVIEW_PHONE }}
+          REVIEW_NAME: Najeeb Jarrar
+          REVIEW_EMAIL: njarrar@gmail.com
+          SUBMIT: ${{ inputs.submit }}
+        run: |
+          python3 -m venv /tmp/venv && /tmp/venv/bin/pip install -q "pyjwt[crypto]" requests
+          /tmp/venv/bin/python .github/app-store/submit.py | tee -a "$GITHUB_STEP_SUMMARY"
