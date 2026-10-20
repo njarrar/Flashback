@@ -53,7 +53,7 @@ Team. Delete the app from your iPhone, wait a day and try again.
 In [App Store Connect](https://appstoreconnect.apple.com), **Apps > + > New App**:
 
 - Platform: **iOS**
-- Name: **Flashback: On This Day**. Names are unique across the App Store. If it's
+- Name: **Flashback: Blast from the past**. Names are unique across the App Store. If it's
   taken, try `Flashback: Photos of This Day`, and paste the same name in
   `listing/en-US/name.txt`.
 - Primary language: **English (U.S.)**
