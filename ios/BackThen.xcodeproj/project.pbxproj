@@ -394,6 +394,7 @@
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Flashback";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.photography";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Flashback saves your albums to Photos when you ask it to.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Flashback checks which city you are in, so it can show your photos from places you go back to. Your location stays on your phone.";
@@ -428,6 +429,7 @@
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Flashback";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.photography";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Flashback saves your albums to Photos when you ask it to.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Flashback checks which city you are in, so it can show your photos from places you go back to. Your location stays on your phone.";
