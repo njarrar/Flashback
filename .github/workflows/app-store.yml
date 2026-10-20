@@ -1,0 +1,213 @@
+name: App Store
+
+# Makes everything the App Store upload needs:
+#   a signed build, sent to App Store Connect (TestFlight) when the signing secrets are set
+#   app-store/screenshots/<lang>/   6.9" iPhone screenshots in English, French, Spanish and Arabic
+# Run it from the Actions tab (App Store, Run workflow). See app-store/README.md.
+# A push that changes this file only checks that the app still builds for a real iPhone
+# and takes fresh screenshots. Nothing goes to Apple.
+on:
+  workflow_dispatch:
+    inputs:
+      upload:
+        description: Send the build to App Store Connect (TestFlight)
+        type: boolean
+        default: true
+      screenshots:
+        description: Take new App Store screenshots
+        type: boolean
+        default: true
+  push:
+    paths: [".github/workflows/app-store.yml"]
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      # Since April 2026 Apple only takes builds made with Xcode 26 or later.
+      - name: Pick Xcode 26
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | grep -vi beta | sort -V | tail -1)
+          [ -n "$XCODE" ] || { echo "::error::No Xcode 26 on this runner."; exit 1; }
+          sudo xcode-select -s "$XCODE"
+          xcodebuild -version
+      - name: Load the signing key and certificates
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          APPLE_CERTS_P12: ${{ secrets.APPLE_CERTS_P12 }}
+          APPLE_CERTS_PASSWORD: ${{ secrets.APPLE_CERTS_PASSWORD }}
+          UPLOAD: ${{ github.event_name == 'workflow_dispatch' && inputs.upload }}
+        run: |
+          if [ "$UPLOAD" != "true" ]; then
+            echo "Build check only, nothing goes to Apple." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          for s in APPLE_TEAM_ID ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8 APPLE_CERTS_P12 APPLE_CERTS_PASSWORD; do
+            if [ -z "${!s}" ]; then
+              echo "No $s secret, so the build is unsigned and nothing goes to Apple. See app-store/README.md." | tee -a "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+          done
+          # A keychain of its own holds the certificates for this run only.
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD=$(uuidgen)
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          echo "$APPLE_CERTS_P12" | base64 -d > "$RUNNER_TEMP/certs.p12"
+          security import "$RUNNER_TEMP/certs.p12" -P "$APPLE_CERTS_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          rm "$RUNNER_TEMP/certs.p12"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" >/dev/null
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          security find-identity -v -p codesigning "$KEYCHAIN"
+          printf '%s\n' "$ASC_KEY_P8" > "$RUNNER_TEMP/AuthKey.p8"
+          echo "SIGN=yes" >> "$GITHUB_ENV"
+      - name: Build the archive
+        working-directory: ios
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          if [ "$SIGN" = "yes" ]; then
+            SIGNING=(-allowProvisioningUpdates
+              -authenticationKeyPath "$RUNNER_TEMP/AuthKey.p8"
+              -authenticationKeyID "$ASC_KEY_ID"
+              -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+              DEVELOPMENT_TEAM="$APPLE_TEAM_ID")
+          else
+            SIGNING=(CODE_SIGNING_ALLOWED=NO)
+          fi
+          xcodebuild -project BackThen.xcodeproj -scheme BackThen -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/Flashback.xcarchive" \
+            "${SIGNING[@]}" archive -quiet
+          PLIST="$RUNNER_TEMP/Flashback.xcarchive/Info.plist"
+          echo "Built version $(/usr/libexec/PlistBuddy -c 'Print :ApplicationProperties:CFBundleShortVersionString' "$PLIST") (build $(/usr/libexec/PlistBuddy -c 'Print :ApplicationProperties:CFBundleVersion' "$PLIST"))." | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Send to App Store Connect
+        if: env.SIGN == 'yes'
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>$APPLE_TEAM_ID</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+            <key>uploadSymbols</key><true/>
+          </dict>
+          </plist>
+          EOF
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Flashback.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/AuthKey.p8" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+          echo "Sent to App Store Connect. It shows up in TestFlight after Apple processes it, often 10 to 30 minutes." | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Clean up
+        if: always()
+        run: |
+          rm -f "$RUNNER_TEMP/AuthKey.p8"
+          security delete-keychain "$RUNNER_TEMP/signing.keychain-db" 2>/dev/null || true
+
+  screenshots:
+    if: github.event_name == 'push' || inputs.screenshots
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pick Xcode 26
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | grep -vi beta | sort -V | tail -1)
+          [ -n "$XCODE" ] || { echo "::error::No Xcode 26 on this runner."; exit 1; }
+          sudo xcode-select -s "$XCODE"
+      - name: Make sample photos
+        run: |
+          python3 -m venv /tmp/venv && /tmp/venv/bin/pip install -q pillow piexif
+          /tmp/venv/bin/python .github/screenshots/make_photos.py /tmp/photos
+      - name: Build
+        working-directory: ios
+        run: |
+          xcodebuild -project BackThen.xcodeproj -scheme BackThen -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/dd \
+            CODE_SIGNING_ALLOWED=NO build -quiet
+      - name: Take screenshots
+        run: |
+          set -x
+          # The App Store wants 6.9" iPhone screenshots: the newest Pro Max.
+          DEVICE=$(xcrun simctl list devices available | grep -E "iPhone [0-9]+ Pro Max \(" | sort -V | tail -1 | grep -oE "[0-9A-F-]{36}")
+          xcrun simctl boot "$DEVICE"
+          xcrun simctl bootstatus "$DEVICE" -b
+          xcrun simctl status_bar "$DEVICE" override --time "9:41" --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3
+          xcrun simctl install "$DEVICE" "/tmp/dd/Build/Products/Debug-iphonesimulator/Back Then.app"
+          # Photo access needs a tap on the simulator, so the debug demo reads these
+          # files from the app's samples folder instead (see Demo.swift).
+          DATA=$(xcrun simctl get_app_container "$DEVICE" com.njarrar.backthen data)
+          mkdir -p "$DATA/Library/Application Support/samples"
+          cp /tmp/photos/*.jpg "$DATA/Library/Application Support/samples/"
+          APP=com.njarrar.backthen
+          locale() { case $1 in en) echo en_US;; fr) echo fr_FR;; es) echo es_ES;; ar) echo ar_SA;; esac; }
+          # The welcome screen only shows before a demo scene runs, so take it first in each language.
+          for lang in en fr es ar; do
+            mkdir -p "shots/$lang"
+            xcrun simctl terminate "$DEVICE" $APP || true
+            xcrun simctl launch "$DEVICE" $APP -AppleLanguages "($lang)" -AppleLocale "$(locale $lang)"
+            sleep 8
+            xcrun simctl io "$DEVICE" screenshot "shots/$lang/1-welcome.png"
+          done
+          for lang in en fr es ar; do
+            n=2
+            for scene in today calendar viewer favorites album; do
+              xcrun simctl terminate "$DEVICE" $APP || true
+              xcrun simctl launch "$DEVICE" $APP -AppleLanguages "($lang)" -AppleLocale "$(locale $lang)" -scene $scene
+              sleep 10
+              xcrun simctl io "$DEVICE" screenshot "shots/$lang/$n-$scene.png"
+              n=$((n + 1))
+            done
+          done
+      - name: Drop the alpha channel
+        run: |
+          # App Store Connect refuses screenshots with transparency.
+          /tmp/venv/bin/python - <<'PY'
+          import pathlib
+          from PIL import Image
+          for p in pathlib.Path("shots").rglob("*.png"):
+              im = Image.open(p)
+              print(p, im.size)
+              im.convert("RGB").save(p, optimize=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        with: { name: app-store-screenshots, path: shots }
+
+  commit:
+    needs: [build, screenshots]
+    if: needs.screenshots.result == 'success'
+    runs-on: ubuntu-latest
+    permissions: { contents: write }
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ github.head_ref || github.ref_name }}" }
+      - uses: actions/download-artifact@v4
+        with: { name: app-store-screenshots, path: /tmp/shots }
+      - name: Commit
+        run: |
+          rm -rf app-store/screenshots
+          mkdir -p app-store
+          cp -r /tmp/shots app-store/screenshots
+          ls -R app-store/screenshots
+          git config user.name "njarrar"
+          git config user.email "njarrar@gmail.com"
+          git add app-store/screenshots
+          git diff --cached --quiet || git commit -m "Update App Store screenshots"
+          # Other workflows commit to the same branch, so catch up before pushing.
+          for i in 1 2 3; do git pull --rebase -q && git push && break; sleep 10; done
