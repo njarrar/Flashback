@@ -8,7 +8,7 @@ Steps 1 to 6 happen once.
 |---|---|
 | Bundle ID | `com.njarrar.backthen` (widget: `com.njarrar.backthen.widget`) |
 | App Group | `group.com.njarrar.backthen` |
-| Version | 1.16 (build 17) |
+| Version | 1.16 (build 18) |
 | Store text, four languages | [`listing/`](listing) |
 | iPhone screenshots, four languages | [`screenshots/`](screenshots), made by the workflow |
 | Privacy policy | [`../play-store/privacy-policy.md`](../play-store/privacy-policy.md) (covers both apps) |
