@@ -14,7 +14,7 @@ sleep 5
 adb shell pm grant $PKG android.permission.READ_MEDIA_IMAGES
 adb shell pm grant $PKG android.permission.POST_NOTIFICATIONS
 adb shell cmd overlay enable com.android.internal.systemui.navbar.threebutton || true
-SCENES=$(cat .github/screenshots/scenes.txt)
+SCENES=$(cat .github/text-check/scenes.txt)
 shoot() {
   adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS || true
   sleep 1

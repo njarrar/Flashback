@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
   push:
     branches-ignore: [main]
-    paths: ["ios/**", "android/**", "lang/**", ".github/workflows/text-check.yml", ".github/screenshots/text-check-*"]
+    paths: ["ios/**", "android/**", "lang/**", ".github/workflows/text-check.yml", ".github/text-check/**"]
 
 jobs:
   ios:
@@ -27,9 +27,9 @@ jobs:
             -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/dd \
             CODE_SIGNING_ALLOWED=NO build -quiet
       - name: Small phone, largest standard text
-        run: bash .github/screenshots/text-check-ios.sh "iPhone SE \(3rd generation\)" extra-extra-extra-large se-xxxl
+        run: bash .github/text-check/ios.sh "iPhone SE \(3rd generation\)" extra-extra-extra-large se-xxxl
       - name: Tall phone, accessibility text
-        run: bash .github/screenshots/text-check-ios.sh "iPhone 16 Pro Max" accessibility-large promax-ax2
+        run: bash .github/text-check/ios.sh "iPhone 16 Pro Max" accessibility-large promax-ax2
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: ios-text-check, path: shots }
@@ -60,7 +60,7 @@ jobs:
           arch: x86_64
           profile: pixel_7
           disable-animations: true
-          script: bash .github/screenshots/text-check-android.sh
+          script: bash .github/text-check/android.sh
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: android-text-check, path: shots }

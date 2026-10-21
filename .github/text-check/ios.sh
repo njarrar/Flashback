@@ -15,7 +15,7 @@ mkdir -p "$DATA/Library/Application Support/samples"
 cp /tmp/photos/*.jpg "$DATA/Library/Application Support/samples/"
 OUT="shots/$3"
 mkdir -p "$OUT"
-SCENES=$(cat .github/screenshots/scenes.txt)
+SCENES=$(cat .github/text-check/scenes.txt)
 for lang in en ar; do
   if [ $lang = ar ]; then ARGS="-AppleLanguages (ar) -AppleLocale ar_SA"; else ARGS="-AppleLanguages (en) -AppleLocale en_US"; fi
   # Welcome first, before a demo scene marks the app as set up.
