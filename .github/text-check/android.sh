@@ -29,12 +29,12 @@ run() { # folder font_scale density
     adb shell pm clear $PKG >/dev/null || true
     adb shell pm grant $PKG android.permission.READ_MEDIA_IMAGES
     adb shell pm grant $PKG android.permission.POST_NOTIFICATIONS
-    adb shell am start -W -n $PKG/.MainActivity --es lang $l
+    timeout 30 adb shell am start -W -n $PKG/.MainActivity --es lang $l || true
     sleep 6
     shoot "$OUT/$l-welcome.png"
     for scene in $SCENES; do
       adb shell am force-stop $PKG
-      adb shell am start -W -n $PKG/.MainActivity --es scene $scene --es lang $l
+      timeout 30 adb shell am start -W -n $PKG/.MainActivity --es scene $scene --es lang $l || true
       sleep 8
       shoot "$OUT/$l-$scene.png"
     done
