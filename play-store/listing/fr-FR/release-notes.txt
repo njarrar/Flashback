@@ -1,1 +1,1 @@
-Back Then s'appelle maintenant Flashback. Même app, même icône, mêmes photos. Les albums que vous enregistrez vont maintenant dans Pictures/Flashback.
+Choisissez plusieurs photos d'un coup : en mode Sélectionner, faites glisser un doigt dessus. Le texte ne se chevauche plus sur les téléphones avec un grand texte ou un affichage agrandi, et rien ne se cache sous les boutons de navigation.

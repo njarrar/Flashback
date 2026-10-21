@@ -104,7 +104,8 @@ loads the samples from a folder in the app instead.)
   or double tap to zoom, swipe down to close, tap to hide the buttons. Heart a photo,
   share it, or add it to an album.
 - **Favorites.** Every photo you've hearted, from any day, with its year on each tile.
-- **Albums.** On Today, tap Select (or long press a photo), pick photos, then tap Album. Share an album
+- **Albums.** On Today, tap Select (or long press a photo), pick photos (tap each one, or drag a
+  finger across them), then tap Album. Share an album
   through any app, or save it as a real album in Photos (iPhone) or under
   Pictures/Flashback (Android). Rename or delete it from the album's menu.
 - **Home screen widget.** A photo from this day in a past year, with its year and
@@ -115,6 +116,32 @@ loads the samples from a folder in the app instead.)
 - **Looks native on each phone.** The system tab bar and sheets on iPhone, with text
   that grows with the system text size; a large top app bar and navigation bar on
   Android. Light and dark mode.
+
+## What's new in 1.17
+
+- **Drag to pick many photos.** In select mode, drag a finger sideways across the
+  photos on Today to pick every one it passes, as in the Photos app. Up and down still
+  scrolls. After a long press starts selecting, keep the same finger moving to pick
+  more. Start on a photo that is already picked to unpick instead. Near the top or
+  bottom edge the list scrolls on its own.
+- **No more overlapping text with large text sizes.** On a Samsung S23 Ultra with a
+  bigger font and display size, the welcome screen drew the front print's caption over
+  the headline, cut off the year on the left print, and put the privacy line under the
+  navigation buttons. The prints now scale to the room the words leave (and step aside
+  when there is too little), the words scroll when they must, and the buttons stay above
+  the system bars. Buttons grow and wrap their words instead of cutting them off, sheets
+  on Android open all the way, Android tab labels stop growing past 130%, and on iPhone
+  the select bar, album buttons and share sheet make room for large text.
+- **Text check.** A new [Text check workflow](.github/workflows/text-check.yml) takes
+  every screen in English and Arabic with big text: on an iPhone SE at the largest
+  standard size and an iPhone 16 Pro Max at an accessibility size, and on an Android
+  phone at 130% font with a bigger display size and at 200% font, with the three-button
+  navigation bar. It runs on every branch push and puts the pictures on a
+  `text-check-shots/<branch>` branch.
+- **App Store updates from GitHub.** The App Store review workflow now makes the new
+  version in App Store Connect (or renames one that was never released, so Apple's
+  messages about it stay with it), waits for the uploaded build and picks it, fills in
+  What's New, and sends it for review.
 
 ## What's new in 1.16
 
