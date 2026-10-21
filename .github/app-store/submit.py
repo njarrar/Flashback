@@ -274,41 +274,40 @@ def main():
         print("Not sending for review (SUBMIT is off).")
         return
 
-    # A submission Apple sent back (unresolved issues) is sent again as it is.
-    open_ones = call("GET", "/v1/reviewSubmissions", **{
-        "filter[app]": app["id"], "filter[platform]": "IOS", "filter[state]": "READY_FOR_REVIEW,UNRESOLVED_ISSUES"})["data"]
-    if open_ones:
-        submission = open_ones[0]
+    # A submission that already holds this version (one Apple sent back) is sent again as it
+    # is, so Apple's messages stay with it. Apple won't add the version to a second one.
+    holding = empty = None
+    for sub in call("GET", "/v1/reviewSubmissions", **{
+            "filter[app]": app["id"], "filter[platform]": "IOS", "limit": 50})["data"]:
+        st = sub["attributes"].get("state")
+        its = call("GET", f"/v1/reviewSubmissions/{sub['id']}/items", include="appStoreVersion")["data"]
+        mine = any(((i["relationships"].get("appStoreVersion") or {}).get("data") or {}).get("id") == version["id"]
+                   for i in its)
+        print(f"Submission {sub['id']}: {st}, items {[i['attributes'].get('state') for i in its]}"
+              f"{', holds this version' if mine else ''}")
+        if mine and st not in ("COMPLETE", "COMPLETING", "CANCELING"):
+            holding = (sub, its)
+        elif not its and st == "READY_FOR_REVIEW":
+            empty = sub
+    if holding:
+        submission, items = holding
     else:
-        submission = call("POST", "/v1/reviewSubmissions", {"data": {
+        submission = empty or call("POST", "/v1/reviewSubmissions", {"data": {
             "type": "reviewSubmissions", "attributes": {"platform": "IOS"},
             "relationships": {"app": {"data": {"type": "apps", "id": app["id"]}}}}})["data"]
-    items = call("GET", f"/v1/reviewSubmissions/{submission['id']}/items")["data"]
-    if not items:
         call("POST", "/v1/reviewSubmissionItems", {"data": {
             "type": "reviewSubmissionItems",
             "relationships": {
                 "reviewSubmission": {"data": {"type": "reviewSubmissions", "id": submission["id"]}},
                 "appStoreVersion": {"data": {"type": "appStoreVersions", "id": version["id"]}}}}})
+        items = []
     # Apple won't take a sent-back submission again until its items are marked resolved.
     for item in items:
         if item["attributes"].get("state") not in (None, "READY_FOR_REVIEW", "ACCEPTED", "APPROVED"):
             call("PATCH", f"/v1/reviewSubmissionItems/{item['id']}", {"data": {
                 "type": "reviewSubmissionItems", "id": item["id"], "attributes": {"resolved": True}}}, soft=True)
-    sent = call("PATCH", f"/v1/reviewSubmissions/{submission['id']}", {"data": {
-        "type": "reviewSubmissions", "id": submission["id"], "attributes": {"submitted": True}}}, soft=True)
-    if sent is None:
-        # Some sent-back submissions can't be sent again; a fresh one carries the version.
-        submission = call("POST", "/v1/reviewSubmissions", {"data": {
-            "type": "reviewSubmissions", "attributes": {"platform": "IOS"},
-            "relationships": {"app": {"data": {"type": "apps", "id": app["id"]}}}}})["data"]
-        call("POST", "/v1/reviewSubmissionItems", {"data": {
-            "type": "reviewSubmissionItems",
-            "relationships": {
-                "reviewSubmission": {"data": {"type": "reviewSubmissions", "id": submission["id"]}},
-                "appStoreVersion": {"data": {"type": "appStoreVersions", "id": version["id"]}}}}})
-        call("PATCH", f"/v1/reviewSubmissions/{submission['id']}", {"data": {
-            "type": "reviewSubmissions", "id": submission["id"], "attributes": {"submitted": True}}})
+    call("PATCH", f"/v1/reviewSubmissions/{submission['id']}", {"data": {
+        "type": "reviewSubmissions", "id": submission["id"], "attributes": {"submitted": True}}})
     print(f"Version {version['attributes']['versionString']} sent for App Review.")
 
 
