@@ -17,6 +17,9 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -90,7 +93,14 @@ fun BackThenApp(vm: AppViewModel) {
                                             contentDescription = null,
                                         )
                                     },
-                                    label = { T(t.label, size = 12, weight = FontWeight.SemiBold, color = if (on) p.ink else p.muted2) },
+                                    label = {
+                                        // The bar has a fixed height, so its labels stop growing a little past
+                                        // the default text size rather than run into the system buttons.
+                                        val d = LocalDensity.current
+                                        CompositionLocalProvider(LocalDensity provides Density(d.density, minOf(d.fontScale, 1.3f))) {
+                                            T(t.label, size = 12, weight = FontWeight.SemiBold, color = if (on) p.ink else p.muted2, maxLines = 1)
+                                        }
+                                    },
                                     colors = NavigationBarItemDefaults.colors(
                                         selectedIconColor = Accent,
                                         unselectedIconColor = p.muted2,

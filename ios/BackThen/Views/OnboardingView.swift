@@ -98,6 +98,7 @@ struct OnboardingView: View {
                             Text(L.s("reminder_onboarding_title")).font(.nunito(32, .bold)).tight(32).foregroundStyle(Palette.ink).accessibilityAddTraits(.isHeader)
                             Text(L.s("reminder_onboarding_body")).font(.nunito(16)).foregroundStyle(Palette.muted)
                         }
+                        .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     .frame(minHeight: geo.size.height)

@@ -130,6 +130,7 @@ struct AlbumDetailView: View {
     @State private var renaming = false
     @State private var newName = ""
     @State private var shareFor: ShareRequest?
+    @Environment(\.dynamicTypeSize) private var textSize
 
     var body: some View {
         ScrollView {
@@ -140,7 +141,9 @@ struct AlbumDetailView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 20).padding(.top, 4).padding(.bottom, 16)
-            HStack(spacing: 10) {
+            // Side by side, or one above the other once large text no longer fits both.
+            let buttons = textSize >= .xxLarge ? AnyLayout(VStackLayout(spacing: 10)) : AnyLayout(HStackLayout(spacing: 10))
+            buttons {
                 Pill(label: L.s("share_album"), systemImage: "square.and.arrow.up", height: 46, wide: true) {
                     shareFor = ShareRequest(title: album.name, photos: album.photos)
                 }

@@ -87,11 +87,13 @@ struct Pill: View {
             HStack(spacing: 8) {
                 if let systemImage, !iconAfter { Image(systemName: systemImage).font(.system(size: height < 48 ? 14 : 18, weight: .semibold)) }
                 Text(label).font(.nunito(height < 48 ? 15 : 16, .semibold))
+                    .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
                 if let systemImage, iconAfter { Image(systemName: systemImage).font(.system(size: height < 48 ? 14 : 18, weight: .semibold)) }
             }
             .foregroundStyle(fg)
-            .padding(.horizontal, height < 48 ? 16 : 20)
-            .frame(height: height)
+            .padding(.horizontal, height < 48 ? 16 : 20).padding(.vertical, 6)
+            // Grows past its usual height when large text wraps the label.
+            .frame(minHeight: height)
             .frame(maxWidth: wide ?? (kind == .ghost || height >= 54) ? .infinity : nil)
             .background(bg, in: Capsule())
             .overlay(Capsule().stroke(kind == .secondary ? Palette.line : .clear, lineWidth: 1))
@@ -418,21 +420,25 @@ struct SelectBar: View {
     let count: Int
     let share: () -> Void
     let album: () -> Void
+    @Environment(\.dynamicTypeSize) private var textSize
 
     var body: some View {
         HStack(spacing: 4) {
             Text(count == 0 ? L.s("select_hint") : L.s("n_selected", ["photos": L.p("photos", count)]))
                 .font(.nunito(15, .semibold)).foregroundStyle(Palette.bg)
+                .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
             Button(action: share) {
+                // With large text the word gives way to the icon, so the count keeps its room.
                 Label(L.s("share"), systemImage: "square.and.arrow.up").font(.nunito(15, .semibold)).foregroundStyle(Palette.bg)
-                    .padding(.horizontal, 14).frame(height: 44)
+                    .labelStyle(textSize >= .xxLarge ? AnyLabelStyle(.iconOnly) : AnyLabelStyle(.titleAndIcon))
+                    .padding(.horizontal, 14).frame(minWidth: 44, minHeight: 44)
             }
             .disabled(count == 0).opacity(count == 0 ? 0.4 : 1)
             Pill(label: L.s("album"), systemImage: "plus", kind: .accent, height: 44, action: album).disabled(count == 0).fixedSize()
         }
-        .padding(.leading, 20).padding(.trailing, 8)
-        .frame(height: 62)
+        .padding(.leading, 20).padding(.trailing, 8).padding(.vertical, 4)
+        .frame(minHeight: 62)
         .background(Palette.ink, in: Capsule())
         .shadow(color: .black.opacity(0.25), radius: 15, y: 10)
         .padding(.horizontal, 16)
@@ -556,4 +562,11 @@ struct StripYear: View {
             .padding(.horizontal, 16).padding(.top, 10)
         }
     }
+}
+
+/// Lets a view pick a label style at run time.
+struct AnyLabelStyle: LabelStyle {
+    private let make: (Configuration) -> AnyView
+    init<S: LabelStyle>(_ style: S) { make = { AnyView(style.makeBody(configuration: $0)) } }
+    func makeBody(configuration: Configuration) -> some View { make(configuration) }
 }
