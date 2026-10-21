@@ -3,10 +3,19 @@ import SwiftUI
 struct OnboardingView: View {
     @Environment(AppStore.self) private var store
     @State private var denied = false
-    @State private var chosePhotos = false
+    @State private var chosePhotos = Self.demoReminder
 
     var body: some View {
         if chosePhotos { reminder } else { welcome }
+    }
+
+    /// Debug screenshots only: start on the reminder step.
+    private static var demoReminder: Bool {
+        #if DEBUG
+        AppStore.launchScene == "reminder"
+        #else
+        false
+        #endif
     }
 
     /// The header and buttons stay put. Between them the prints take whatever room the words

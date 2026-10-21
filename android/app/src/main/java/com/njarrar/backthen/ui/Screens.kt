@@ -161,7 +161,8 @@ fun OnboardingScreen(vm: AppViewModel) {
     val p = LocalPalette.current
     val state by vm.saved.collectAsStateWithLifecycle()
     var denied by remember { mutableStateOf(false) }
-    var chosePhone by remember { mutableStateOf(false) }
+    val demo by vm.demoScene.collectAsStateWithLifecycle()
+    var chosePhone by remember(demo) { mutableStateOf(demo == "reminder") }
     val today = MonthDay.today()
     val askPhotos = rememberPhotoPermission(vm) { ok -> denied = !ok; chosePhone = ok }
     val time = timeLabel(state.reminder.hour, state.reminder.minute)
@@ -292,7 +293,6 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
     var result by remember { mutableStateOf(vm.lastDay) }
     var calendar by remember { mutableStateOf(false) }
     val demo by vm.demoScene.collectAsStateWithLifecycle()
-    LaunchedEffect(demo) { if (demo == "calendar") calendar = true }
     var settings by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
     var selecting by remember { mutableStateOf(false) }
@@ -327,6 +327,16 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
         }
     }
     val groups = result?.takeIf { it.first == day }?.second
+    LaunchedEffect(demo, groups) {
+        val first = groups?.firstOrNull() ?: return@LaunchedEffect
+        when (demo) {
+            "calendar" -> calendar = true
+            "settings" -> settings = true
+            "select" -> { selecting = true; picked = first.photos.take(3); onSelectingChange(true) }
+            "share" -> shareFor = ShareRequest(fullDate(first.year, day), first.photos)
+            "addalbum" -> albumFor = first.photos.take(3)
+        }
+    }
 
     fun stopSelecting() { selecting = false; picked = emptyList(); onSelectingChange(false) }
     fun go(md: MonthDay) {

@@ -184,7 +184,25 @@ struct TodayView: View {
         .sensoryFeedback(.selection, trigger: day)
         .onChange(of: store.tab) { _, _ in stopSelecting() }
         .onChange(of: store.demoCalendar) { _, on in if on { calendar = true } }
+        #if DEBUG
+        .task(id: result?.groups.first?.year) { demoScene() }
+        #endif
     }
+
+    #if DEBUG
+    /// Debug screenshots only: opens a sheet or mode once the photos show.
+    private func demoScene() {
+        guard let scene = store.demoScene, let first = result?.groups.first else { return }
+        store.demoScene = nil
+        switch scene {
+        case "settings": settings = true
+        case "select": selecting = true; picked = Array(first.photos.prefix(3))
+        case "share": shareFor = ShareRequest(title: fullDate(year: first.year, store.day), photos: first.photos)
+        case "addalbum": albumFor = Array(first.photos.prefix(3))
+        default: break
+        }
+    }
+    #endif
 
     /// How far the big title has gone under the top bar: 0 at rest, 1 once it is hidden.
     private var scrolled: CGFloat {

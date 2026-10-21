@@ -107,6 +107,8 @@ final class AppStore {
     var albumSaves = 0
     /// Debug screenshots only: opens the calendar on Today.
     var demoCalendar = false
+    /// Debug screenshots only: a sheet or mode Today opens once its photos show.
+    var demoScene: String?
     /// Debug screenshots only: sample photos shown in place of the phone's library.
     var samplePhotos: [Photo] = []
 
