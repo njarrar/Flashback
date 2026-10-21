@@ -7,12 +7,15 @@ Settings come from the environment:
     ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8   the App Store Connect API key (see app-store/README.md)
     REVIEW_PHONE                            the phone number App Review can call
     REVIEW_EMAIL, REVIEW_NAME               who App Review contacts
+
+The App Review notes come from app-store/review-notes.txt.
     SUBMIT                                  "true" sends the version for review
 
 The store text, screenshots and build must already be on the version. Apple says what is
 still missing when the submission fails.
 """
 import os
+import pathlib
 import sys
 import time
 
@@ -21,12 +24,7 @@ import requests
 
 BUNDLE_ID = "com.njarrar.backthen"
 API = "https://api.appstoreconnect.apple.com"
-NOTES = (
-    "Flashback has no account and no server. It shows photos from the device library taken "
-    "on today's date in past years. Please allow photo access when asked; with an empty "
-    "library the app shows an empty state. Places (Settings) is optional and uses coarse "
-    "location while the app is open, only on the device."
-)
+NOTES = (pathlib.Path(__file__).parents[2] / "app-store" / "review-notes.txt").read_text(encoding="utf-8").strip()
 
 
 def token():

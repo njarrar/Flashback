@@ -12,3 +12,4 @@ ios/build/
 ios/DerivedData/
 xcuserdata/
 *.xcuserstate
+__pycache__/
