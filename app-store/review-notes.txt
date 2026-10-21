@@ -1,0 +1,34 @@
+2. Purpose and audience
+
+Flashback shows the photos you took on today's date in past years, grouped by year. It is for anyone with a photo library on their iPhone who wants an easy way to look back at their own memories. The Photos app has many photos but no simple daily view of "this day, every year". Flashback opens straight to that view, with a calendar to pick any other day, favorites, and albums you can share or save to Photos. It also offers a home screen widget, an optional daily reminder, and an optional Places card that shows past photos from the city you are in.
+
+The app is free, has no ads, no accounts, no tracking and no in-app purchases.
+
+3. How to use the main features
+
+No login or demo account is needed.
+
+- Launch the app and tap "Show my photos". Allow photo access when asked.
+- Today: photos taken on today's date in past years, newest year first. Tap a photo to open the full screen viewer. Swipe left or right on Today to move to the next or previous day.
+- Calendar: tap the date at the top. Days with photos show a small photo. Tap any day to see it. If the test device has no photos from today's date, use the calendar to pick a day that has photos.
+- Viewer: swipe between photos, pinch to zoom, tap the heart to add a favorite, or share.
+- Favorites tab: all hearted photos.
+- Albums: on Today tap Select (or long press a photo), pick photos, then tap Album. Open the album to share it or save it to Photos.
+- Settings (the "..." menu on Today): daily reminder time, layout, and Places. Places is off by default. When turned on, it asks for approximate location while the app is open.
+- Widget: add the Flashback widget from the home screen widget gallery.
+
+The app needs photos in the library. If the test device has none, please add a few photos with different dates, or pick a day with photos in the calendar.
+
+4. External services
+
+None. The app does not use the internet at all. It uses only Apple frameworks on the device: Photos (to read and save photos), Core Location (approximate location, only when Places is turned on, only while the app is open), User Notifications (local daily reminder, scheduled on the device), and WidgetKit. Photos and location never leave the device. There are no analytics, ads, sign-in, payment or AI services.
+
+The city names for Places come from a list built into the app (GeoNames, CC BY 4.0), so no location lookup goes to any server.
+
+5. Regional differences
+
+None. The app works the same in all regions. The interface is in English, French, Spanish and Arabic (with right to left layout in Arabic), and follows the phone's language. Dates always use the Gregorian calendar.
+
+6. Regulated industry or third-party material
+
+Not applicable. The app is not in a regulated industry and shows no third-party content. It only shows the user's own photos from their own library. The bundled city list (GeoNames) is used under the CC BY 4.0 license, and the bundled fonts (Nunito and Tajawal) under the SIL Open Font License.
