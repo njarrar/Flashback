@@ -1,8 +1,9 @@
 name: App Store review
 
-# Sets the App Review contact and notes on the version being prepared in App Store Connect,
-# then sends it for review. Run it from the Actions tab once the store page has its text,
-# screenshots and build. See app-store/README.md.
+# Gets the version in the Xcode project ready in App Store Connect (renaming or making the
+# version record, picking the uploaded build, What's New, App Review contact and notes),
+# then sends it for review. Run it from the Actions tab after the App Store workflow has
+# uploaded the build. See app-store/README.md.
 on:
   workflow_dispatch:
     inputs:
@@ -10,6 +11,10 @@ on:
         description: Send the version for review (off only sets the contact and notes)
         type: boolean
         default: true
+      replace:
+        description: If an older version is still waiting for review, pull it back and send this one instead
+        type: boolean
+        default: false
 
 jobs:
   review:
@@ -26,6 +31,7 @@ jobs:
           REVIEW_NAME: Najeeb Jarrar
           REVIEW_EMAIL: njarrar@gmail.com
           SUBMIT: ${{ inputs.submit }}
+          REPLACE: ${{ inputs.replace }}
         run: |
           python3 -m venv /tmp/venv && /tmp/venv/bin/pip install -q "pyjwt[crypto]" requests
           /tmp/venv/bin/python .github/app-store/submit.py | tee -a "$GITHUB_STEP_SUMMARY"
