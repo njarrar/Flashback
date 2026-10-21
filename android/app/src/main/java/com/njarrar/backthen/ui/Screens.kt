@@ -171,72 +171,110 @@ fun OnboardingScreen(vm: AppViewModel) {
     }
 
     if (chosePhone) {
-        // Step two: the reminder.
+        // Step two: the reminder. The middle scrolls when large text no longer fits; the buttons stay.
         val years = yearsForDay(vm.index(state), today)
-        Column(Modifier.fillMaxSize().background(p.bg).statusBarsPadding().padding(24.dp)) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(28.dp, Alignment.CenterVertically)) {
-                Row(
-                    Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(p.surface).padding(14.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+        Column(Modifier.fillMaxSize().background(p.bg).systemBarsPadding().padding(24.dp)) {
+            BoxWithConstraints(Modifier.weight(1f)) {
+                Column(
+                    Modifier.verticalScroll(rememberScrollState()).heightIn(min = maxHeight),
+                    verticalArrangement = Arrangement.spacedBy(28.dp, Alignment.CenterVertically),
                 ) {
-                    Logo(40.dp)
-                    Column(Modifier.weight(1f)) {
-                        Row {
-                            T(L.s("app_name"), size = 14, weight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                            T(time, size = 14, muted = true)
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(p.surface).padding(14.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Logo(40.dp)
+                        Column(Modifier.weight(1f)) {
+                            Row {
+                                T(L.s("app_name"), size = 14, weight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                                T(time, size = 14, muted = true)
+                            }
+                            T(
+                                if (years.isEmpty()) L.s("reminder_title_any", "day" to today.shortLabel())
+                                else L.s("reminder_title_years", "day" to today.shortLabel(), "years" to L.p("years", years.size)),
+                                size = 14, weight = FontWeight.SemiBold,
+                            )
+                            T(if (years.isEmpty()) L.s("reminder_body") else L.s("reminder_body_oldest", "year" to years.last()), size = 14, muted = true)
                         }
-                        T(
-                            if (years.isEmpty()) L.s("reminder_title_any", "day" to today.shortLabel())
-                            else L.s("reminder_title_years", "day" to today.shortLabel(), "years" to L.p("years", years.size)),
-                            size = 14, weight = FontWeight.SemiBold,
-                        )
-                        T(if (years.isEmpty()) L.s("reminder_body") else L.s("reminder_body_oldest", "year" to years.last()), size = 14, muted = true)
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        T(L.s("reminder_onboarding_title"), size = 32, weight = FontWeight.Bold, tight = true, modifier = Modifier.semantics { heading() })
+                        T(L.s("reminder_onboarding_body"), muted = true)
                     }
                 }
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    T(L.s("reminder_onboarding_title"), size = 32, weight = FontWeight.Bold, tight = true, modifier = Modifier.semantics { heading() })
-                    T(L.s("reminder_onboarding_body"), muted = true)
-                }
             }
-            Pill(L.s("turn_on_reminder"), askNotify, modifier = Modifier.fillMaxWidth())
+            Pill(L.s("turn_on_reminder"), askNotify, modifier = Modifier.fillMaxWidth().padding(top = 16.dp))
             Pill(L.s("not_now"), { vm.finishOnboarding(false) }, kind = Kind.Ghost, height = 48.dp, modifier = Modifier.fillMaxWidth())
         }
         return
     }
 
-    Column(Modifier.fillMaxSize().background(p.bg).statusBarsPadding().padding(24.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
+    // The header and buttons stay put. Between them the prints take whatever room the words
+    // leave, and step aside when large text needs it all; past that, the words scroll.
+    Column(Modifier.fillMaxSize().background(p.bg).systemBarsPadding().padding(24.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Logo(36.dp)
             T(L.s("app_name"), size = 22, weight = FontWeight.Black, tight = true)
         }
-        Box(Modifier.weight(1f).fillMaxWidth().heightIn(min = 260.dp)) {
-            val label = today.shortLabel()
-            Print(2016, label, R.drawable.welcome_2016_hills, 150.dp, -7f, Modifier.offset(8.dp, 36.dp))
-            Print(2021, label, R.drawable.welcome_2021_sail, 150.dp, 6f, Modifier.align(Alignment.TopEnd).offset((-4).dp, 8.dp))
-            Print(2025, label, R.drawable.welcome_2025_cake, 176.dp, -1.5f, Modifier.align(Alignment.TopCenter).offset(y = 118.dp))
-        }
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            T(L.s("welcome_title"), size = 32, weight = FontWeight.Bold, tight = true, modifier = Modifier.semantics { heading() })
-            T(L.s("welcome_body"), muted = true)
-        }
-        if (denied) {
-            Row(Modifier.clip(RoundedCornerShape(14.dp)).background(p.accTint).padding(12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Icon(Icons.Outlined.WarningAmber, null, tint = p.accInk, modifier = Modifier.size(18.dp))
-                T(L.s("welcome_denied"), size = 14, weight = FontWeight.Medium, color = p.accInk)
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+            val viewport = maxHeight
+            Layout(
+                content = {
+                    WelcomePrints(today.shortLabel())
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        T(L.s("welcome_title"), size = 32, weight = FontWeight.Bold, tight = true, modifier = Modifier.semantics { heading() })
+                        T(L.s("welcome_body"), muted = true)
+                        if (denied) {
+                            Row(Modifier.padding(top = 6.dp).clip(RoundedCornerShape(14.dp)).background(p.accTint).padding(12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Icon(Icons.Outlined.WarningAmber, null, tint = p.accInk, modifier = Modifier.size(18.dp))
+                                T(L.s("welcome_denied"), size = 14, weight = FontWeight.Medium, color = p.accInk)
+                            }
+                        }
+                    }
+                },
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+            ) { (art, words), c ->
+                val gap = 24.dp.roundToPx()
+                val text = words.measure(Constraints(maxWidth = c.maxWidth))
+                val room = viewport.roundToPx() - text.height - gap * 2
+                val artHeight = if (room < 150.dp.roundToPx()) 0 else minOf(room, (c.maxWidth * 1.3f).toInt())
+                val prints = art.measure(Constraints.fixed(c.maxWidth, artHeight))
+                val height = maxOf(viewport.roundToPx(), artHeight + text.height + gap * 2)
+                layout(c.maxWidth, height) {
+                    if (artHeight > 0) prints.place(0, gap)
+                    text.place(0, height - text.height - gap)
+                }
             }
         }
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Pill(L.s("show_my_photos"), askPhotos, modifier = Modifier.fillMaxWidth())
-            Row(
-                Modifier.fillMaxWidth().padding(top = 2.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(Icons.Outlined.Lock, null, tint = p.muted2, modifier = Modifier.size(13.dp))
-                Text(
-                    L.s("privacy_line"), color = p.muted2, textAlign = TextAlign.Center,
-                    style = TextStyle(fontFamily = Nunito, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, lineHeight = 18.sp),
-                )
+        Pill(L.s("show_my_photos"), askPhotos, modifier = Modifier.fillMaxWidth())
+        Row(
+            Modifier.fillMaxWidth().padding(top = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Outlined.Lock, null, tint = p.muted2, modifier = Modifier.size(13.dp))
+            Text(
+                L.s("privacy_line"), color = p.muted2, textAlign = TextAlign.Center,
+                style = TextStyle(fontFamily = Nunito, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, lineHeight = 18.sp),
+            )
+        }
+    }
+}
+
+/**
+ * The three tilted prints, drawn on a 312 x 400 board and scaled to fit the room they get.
+ * Their captions are part of the drawing, so they keep their size whatever the phone's text size.
+ */
+@Composable
+private fun WelcomePrints(label: String) {
+    BoxWithConstraints(Modifier.fillMaxSize().clearAndSetSemantics {}, contentAlignment = Alignment.Center) {
+        val scale = minOf(maxWidth / 312.dp, maxHeight / 400.dp)
+        val density = LocalDensity.current
+        CompositionLocalProvider(LocalDensity provides Density(density.density, 1f)) {
+            Box(Modifier.requiredSize(312.dp, 400.dp).graphicsLayer { scaleX = scale; scaleY = scale }) {
+                Print(2016, label, R.drawable.welcome_2016_hills, 150.dp, -7f, Modifier.offset(8.dp, 36.dp))
+                Print(2021, label, R.drawable.welcome_2021_sail, 150.dp, 6f, Modifier.align(Alignment.TopEnd).offset((-4).dp, 8.dp))
+                Print(2025, label, R.drawable.welcome_2025_cake, 176.dp, -1.5f, Modifier.align(Alignment.TopCenter).offset(y = 118.dp))
             }
         }
     }
