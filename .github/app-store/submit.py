@@ -1,5 +1,12 @@
-"""Fills in the App Review details for the version being prepared and sends it for review,
+"""Gets the App Store version for the app in this repo ready and sends it for review,
 through the App Store Connect API.
+
+The version and build number come from the Xcode project. If App Store Connect has no
+version by that number yet, the script renames a version that was never released (one
+being prepared, or one Apple sent back), or makes a new one after a release. A version
+still waiting for review is pulled back first only when REPLACE is "true". It then picks
+the uploaded build with that number, the "What's New" text from app-store/listing, and
+the App Review contact and notes.
 
     python submit.py
 
@@ -10,12 +17,14 @@ Settings come from the environment:
 
 The App Review notes come from app-store/review-notes.txt.
     SUBMIT                                  "true" sends the version for review
+    REPLACE                                 "true" pulls back a version waiting for review
 
 The store text, screenshots and build must already be on the version. Apple says what is
 still missing when the submission fails.
 """
 import os
 import pathlib
+import re
 import sys
 import time
 
@@ -24,7 +33,18 @@ import requests
 
 BUNDLE_ID = "com.njarrar.backthen"
 API = "https://api.appstoreconnect.apple.com"
-NOTES = (pathlib.Path(__file__).parents[2] / "app-store" / "review-notes.txt").read_text(encoding="utf-8").strip()
+ROOT = pathlib.Path(__file__).parents[2]
+NOTES = (ROOT / "app-store" / "review-notes.txt").read_text(encoding="utf-8").strip()
+PROJECT = (ROOT / "ios" / "BackThen.xcodeproj" / "project.pbxproj").read_text(encoding="utf-8")
+VERSION = re.search(r"MARKETING_VERSION = ([0-9.]+);", PROJECT).group(1)
+BUILD = re.search(r"CURRENT_PROJECT_VERSION = ([0-9]+);", PROJECT).group(1)
+LISTING = ROOT / "app-store" / "listing"
+# Versions Apple has released, or approved for release.
+RELEASED = {"READY_FOR_SALE", "READY_FOR_DISTRIBUTION", "PROCESSING_FOR_DISTRIBUTION", "PENDING_DEVELOPER_RELEASE",
+            "PENDING_APPLE_RELEASE", "ACCEPTED", "REPLACED_WITH_NEW_VERSION", "REMOVED_FROM_SALE",
+            "DEVELOPER_REMOVED_FROM_SALE"}
+EDITABLE = {"PREPARE_FOR_SUBMISSION", "DEVELOPER_REJECTED", "REJECTED", "METADATA_REJECTED", "INVALID_BINARY"}
+WAITING = {"WAITING_FOR_REVIEW", "IN_REVIEW"}
 
 
 def token():
@@ -37,9 +57,12 @@ def token():
     )
 
 
-def call(method, path, body=None, **params):
+def call(method, path, body=None, soft=False, **params):
     r = requests.request(method, API + path, json=body, params=params,
                          headers={"Authorization": f"Bearer {token()}"}, timeout=60)
+    if r.status_code >= 400 and soft:
+        print(f"  {method} {path} answered {r.status_code}")
+        return None
     if r.status_code >= 400:
         for e in r.json().get("errors", []):
             print(f"  {e.get('title')}: {e.get('detail')}")
@@ -99,17 +122,99 @@ def check(app, version):
     return ok
 
 
+def state(version):
+    a = version["attributes"]
+    return a.get("appVersionState") or a.get("appStoreState")
+
+
+def versions(app):
+    return call("GET", f"/v1/apps/{app['id']}/appStoreVersions", **{"filter[platform]": "IOS", "limit": 50})["data"]
+
+
+def pull_back(app, version):
+    """Cancels the review of a version still waiting for one, so it can be changed."""
+    for s in call("GET", "/v1/reviewSubmissions", **{
+            "filter[app]": app["id"], "filter[platform]": "IOS",
+            "filter[state]": "WAITING_FOR_REVIEW,IN_REVIEW"})["data"]:
+        call("PATCH", f"/v1/reviewSubmissions/{s['id']}", {"data": {
+            "type": "reviewSubmissions", "id": s["id"], "attributes": {"canceled": True}}})
+    for _ in range(30):
+        version = call("GET", f"/v1/appStoreVersions/{version['id']}")["data"]
+        if state(version) in EDITABLE:
+            return version
+        time.sleep(10)
+    sys.exit(f"Version {version['attributes']['versionString']} is still {state(version)}.")
+
+
+def target_version(app):
+    """The version numbered as in the Xcode project, renamed or made if need be."""
+    all_versions = versions(app)
+    for v in all_versions:
+        if v["attributes"]["versionString"] == VERSION:
+            print(f"Version {VERSION} is {state(v)}.")
+            return v
+    open_ones = [v for v in all_versions if state(v) not in RELEASED]
+    if open_ones:
+        v = open_ones[0]
+        old = v["attributes"]["versionString"]
+        print(f"Version {old} was never released and is {state(v)}.")
+        if state(v) in WAITING:
+            if os.environ.get("REPLACE") != "true":
+                sys.exit(f"Version {old} is waiting for review. Run again with replace on to send {VERSION} in its place.")
+            v = pull_back(app, v)
+            print(f"Pulled version {old} back from review.")
+        elif state(v) not in EDITABLE:
+            sys.exit(f"Version {old} can't be changed while it is {state(v)}.")
+        # Same record, new number: Apple's messages about it and its store page stay.
+        v = call("PATCH", f"/v1/appStoreVersions/{v['id']}", {"data": {
+            "type": "appStoreVersions", "id": v["id"], "attributes": {"versionString": VERSION}}})["data"]
+        print(f"Renamed version {old} to {VERSION}.")
+        return v
+    v = call("POST", "/v1/appStoreVersions", {"data": {
+        "type": "appStoreVersions", "attributes": {"platform": "IOS", "versionString": VERSION, "releaseType": "AFTER_APPROVAL"},
+        "relationships": {"app": {"data": {"type": "apps", "id": app["id"]}}}}})["data"]
+    print(f"Made version {VERSION}.")
+    return v
+
+
+def attach_build(app, version):
+    """Picks the uploaded build with the project's build number, once Apple has processed it."""
+    for _ in range(60):
+        builds = call("GET", "/v1/builds", **{
+            "filter[app]": app["id"], "filter[version]": BUILD,
+            "filter[preReleaseVersion.version]": VERSION, "filter[preReleaseVersion.platform]": "IOS"})["data"]
+        if builds and builds[0]["attributes"].get("processingState") == "VALID":
+            call("PATCH", f"/v1/appStoreVersions/{version['id']}/relationships/build",
+                 {"data": {"type": "builds", "id": builds[0]["id"]}})
+            print(f"Build {BUILD} picked.")
+            return
+        print(f"Waiting for build {VERSION} ({BUILD}): {builds[0]['attributes'].get('processingState') if builds else 'not uploaded yet'}")
+        time.sleep(30)
+    sys.exit(f"Build {VERSION} ({BUILD}) never showed up. Run the App Store workflow first.")
+
+
+def whats_new(app, version):
+    """Sets "What's New" from the listing files. The first release has none."""
+    if not any(state(v) in RELEASED for v in versions(app)):
+        return
+    for loc in call("GET", f"/v1/appStoreVersions/{version['id']}/appStoreVersionLocalizations")["data"]:
+        notes = LISTING / loc["attributes"]["locale"] / "release-notes.txt"
+        if notes.exists():
+            call("PATCH", f"/v1/appStoreVersionLocalizations/{loc['id']}", {"data": {
+                "type": "appStoreVersionLocalizations", "id": loc["id"],
+                "attributes": {"whatsNew": notes.read_text(encoding="utf-8").strip()}}})
+    print("What's New set.")
+
+
 def main():
     app = call("GET", "/v1/apps", **{"filter[bundleId]": BUNDLE_ID})["data"][0]
-    print(f"App: {app['attributes']['name']}")
+    print(f"App: {app['attributes']['name']}, project version {VERSION} ({BUILD})")
 
-    versions = call("GET", f"/v1/apps/{app['id']}/appStoreVersions", **{"filter[platform]": "IOS"})["data"]
-    editable = [v for v in versions if v["attributes"].get("appVersionState", v["attributes"].get("appStoreState"))
-                in ("PREPARE_FOR_SUBMISSION", "DEVELOPER_REJECTED", "REJECTED", "METADATA_REJECTED")]
-    if not editable:
-        sys.exit("No version waiting to be sent for review.")
-    version = editable[0]
-    print(f"Version: {version['attributes']['versionString']}")
+    version = target_version(app)
+    if state(version) not in EDITABLE:
+        sys.exit(f"Version {VERSION} is {state(version)}, so there is nothing to send.")
+    attach_build(app, version)
+    whats_new(app, version)
 
     name = os.environ.get("REVIEW_NAME", "").split(" ", 1)
     details = {
@@ -137,8 +242,9 @@ def main():
         print("Not sending for review (SUBMIT is off).")
         return
 
+    # A submission Apple sent back (unresolved issues) is sent again as it is.
     open_ones = call("GET", "/v1/reviewSubmissions", **{
-        "filter[app]": app["id"], "filter[platform]": "IOS", "filter[state]": "READY_FOR_REVIEW"})["data"]
+        "filter[app]": app["id"], "filter[platform]": "IOS", "filter[state]": "READY_FOR_REVIEW,UNRESOLVED_ISSUES"})["data"]
     if open_ones:
         submission = open_ones[0]
     else:
@@ -152,8 +258,20 @@ def main():
             "relationships": {
                 "reviewSubmission": {"data": {"type": "reviewSubmissions", "id": submission["id"]}},
                 "appStoreVersion": {"data": {"type": "appStoreVersions", "id": version["id"]}}}}})
-    call("PATCH", f"/v1/reviewSubmissions/{submission['id']}", {"data": {
-        "type": "reviewSubmissions", "id": submission["id"], "attributes": {"submitted": True}}})
+    sent = call("PATCH", f"/v1/reviewSubmissions/{submission['id']}", {"data": {
+        "type": "reviewSubmissions", "id": submission["id"], "attributes": {"submitted": True}}}, soft=True)
+    if sent is None:
+        # Some sent-back submissions can't be sent again; a fresh one carries the version.
+        submission = call("POST", "/v1/reviewSubmissions", {"data": {
+            "type": "reviewSubmissions", "attributes": {"platform": "IOS"},
+            "relationships": {"app": {"data": {"type": "apps", "id": app["id"]}}}}})["data"]
+        call("POST", "/v1/reviewSubmissionItems", {"data": {
+            "type": "reviewSubmissionItems",
+            "relationships": {
+                "reviewSubmission": {"data": {"type": "reviewSubmissions", "id": submission["id"]}},
+                "appStoreVersion": {"data": {"type": "appStoreVersions", "id": version["id"]}}}}})
+        call("PATCH", f"/v1/reviewSubmissions/{submission['id']}", {"data": {
+            "type": "reviewSubmissions", "id": submission["id"], "attributes": {"submitted": True}}})
     print(f"Version {version['attributes']['versionString']} sent for App Review.")
 
 

@@ -163,13 +163,15 @@ set on the website.
 
 ## 9. Later updates
 
-1. Raise `MARKETING_VERSION` (like 1.17) and `CURRENT_PROJECT_VERSION` (like 18) in
+1. Raise `MARKETING_VERSION` (like 1.18) and `CURRENT_PROJECT_VERSION` (like 20) in
    `ios/BackThen.xcodeproj/project.pbxproj`. Apple refuses a build number it has seen
-   for that version.
-2. Run the App Store workflow.
-3. In App Store Connect click **+** next to iOS App, type the new version, paste the
-   text from `listing/<lang>/release-notes.txt` into **What's New**, pick the build and
-   submit.
+   for that version. Put the new notes in `listing/<lang>/release-notes.txt`.
+2. Run the App Store workflow. It uploads the build.
+3. Run the App Store review workflow. It makes the version in App Store Connect (or
+   renames one that was never released, so Apple's messages about it stay with it),
+   waits for the build to finish processing and picks it, fills in **What's New** from
+   the release notes, and sends it for review. If an older version is still waiting for
+   review, it stops, unless you turn on **replace**, which pulls that one back first.
 
 Notes:
 - A push to GitHub never sends anything to Apple. Only the Run workflow button does.

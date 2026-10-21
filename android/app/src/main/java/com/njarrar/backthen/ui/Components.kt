@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -51,6 +52,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -147,12 +151,13 @@ fun Pill(
     }
     Row(
         modifier
-            .height(height)
+            // Grows past its usual height when large text wraps the label.
+            .heightIn(min = height)
             .clip(RoundedCornerShape(50))
             .background(bg)
             .then(if (kind == Kind.Secondary) Modifier.border(1.dp, p.line, RoundedCornerShape(50)) else Modifier)
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
-            .padding(horizontal = if (height < 48.dp) 16.dp else 20.dp),
+            .padding(horizontal = if (height < 48.dp) 16.dp else 20.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
     ) {
@@ -242,8 +247,12 @@ fun PhotoTile(
     val picked = selection?.keys?.contains(photo.key) == true
     val shape = RoundedCornerShape(radius)
     val startSelecting = selection?.takeIf { !it.on }?.start
+    // Tells a drag across the photos where this one sits.
+    val drag = if (selection == null) null else LocalDragSelect.current
+    if (drag != null) DisposableEffect(drag, photo.key) { onDispose { drag.forget(photo.key) } }
     Box(
         modifier
+            .then(if (drag != null) Modifier.onGloballyPositioned { drag.place(photo, it.boundsInRoot()) } else Modifier)
             .clip(shape)
             .background(p.fill)
             .combinedClickable(

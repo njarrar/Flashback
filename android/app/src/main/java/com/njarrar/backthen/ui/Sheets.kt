@@ -40,6 +40,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
@@ -73,7 +74,11 @@ import com.njarrar.backthen.data.SavedState
 @Composable
 fun BottomSheet(onDismiss: () -> Unit, content: @Composable () -> Unit) {
     val p = LocalPalette.current
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = p.surface, shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)) {
+    // Opens all the way, so nothing sits half hidden under the system buttons.
+    ModalBottomSheet(
+        onDismissRequest = onDismiss, containerColor = p.surface, shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+    ) {
         Column(
             Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 24.dp).navigationBarsPadding(),
             verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -276,7 +281,7 @@ fun SelectBar(count: Int, onShare: () -> Unit, onAlbum: () -> Unit, modifier: Mo
     val p = LocalPalette.current
     val none = count == 0
     Row(
-        modifier.fillMaxWidth().height(62.dp).clip(RoundedCornerShape(20.dp)).background(p.ink).padding(start = 20.dp, end = 8.dp),
+        modifier.fillMaxWidth().heightIn(min = 62.dp).clip(RoundedCornerShape(20.dp)).background(p.ink).padding(start = 20.dp, end = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         T(if (none) L.s("select_hint") else L.s("n_selected", "photos" to L.p("photos", count)), size = 15, weight = FontWeight.SemiBold, color = p.bg, modifier = Modifier.weight(1f))

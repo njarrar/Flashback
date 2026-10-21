@@ -18,10 +18,21 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Density
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -62,6 +73,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.foundation.gestures.scrollBy
+import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.ui.text.TextStyle
@@ -145,7 +162,8 @@ fun OnboardingScreen(vm: AppViewModel) {
     val p = LocalPalette.current
     val state by vm.saved.collectAsStateWithLifecycle()
     var denied by remember { mutableStateOf(false) }
-    var chosePhone by remember { mutableStateOf(false) }
+    val demo by vm.demoScene.collectAsStateWithLifecycle()
+    var chosePhone by remember(demo) { mutableStateOf(demo == "reminder") }
     val today = MonthDay.today()
     val askPhotos = rememberPhotoPermission(vm) { ok -> denied = !ok; chosePhone = ok }
     val time = timeLabel(state.reminder.hour, state.reminder.minute)
@@ -155,72 +173,110 @@ fun OnboardingScreen(vm: AppViewModel) {
     }
 
     if (chosePhone) {
-        // Step two: the reminder.
+        // Step two: the reminder. The middle scrolls when large text no longer fits; the buttons stay.
         val years = yearsForDay(vm.index(state), today)
-        Column(Modifier.fillMaxSize().background(p.bg).statusBarsPadding().padding(24.dp)) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(28.dp, Alignment.CenterVertically)) {
-                Row(
-                    Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(p.surface).padding(14.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+        Column(Modifier.fillMaxSize().background(p.bg).systemBarsPadding().padding(24.dp)) {
+            BoxWithConstraints(Modifier.weight(1f)) {
+                Column(
+                    Modifier.verticalScroll(rememberScrollState()).heightIn(min = maxHeight),
+                    verticalArrangement = Arrangement.spacedBy(28.dp, Alignment.CenterVertically),
                 ) {
-                    Logo(40.dp)
-                    Column(Modifier.weight(1f)) {
-                        Row {
-                            T(L.s("app_name"), size = 14, weight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                            T(time, size = 14, muted = true)
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(p.surface).padding(14.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Logo(40.dp)
+                        Column(Modifier.weight(1f)) {
+                            Row {
+                                T(L.s("app_name"), size = 14, weight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                                T(time, size = 14, muted = true)
+                            }
+                            T(
+                                if (years.isEmpty()) L.s("reminder_title_any", "day" to today.shortLabel())
+                                else L.s("reminder_title_years", "day" to today.shortLabel(), "years" to L.p("years", years.size)),
+                                size = 14, weight = FontWeight.SemiBold,
+                            )
+                            T(if (years.isEmpty()) L.s("reminder_body") else L.s("reminder_body_oldest", "year" to years.last()), size = 14, muted = true)
                         }
-                        T(
-                            if (years.isEmpty()) L.s("reminder_title_any", "day" to today.shortLabel())
-                            else L.s("reminder_title_years", "day" to today.shortLabel(), "years" to L.p("years", years.size)),
-                            size = 14, weight = FontWeight.SemiBold,
-                        )
-                        T(if (years.isEmpty()) L.s("reminder_body") else L.s("reminder_body_oldest", "year" to years.last()), size = 14, muted = true)
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        T(L.s("reminder_onboarding_title"), size = 32, weight = FontWeight.Bold, tight = true, modifier = Modifier.semantics { heading() })
+                        T(L.s("reminder_onboarding_body"), muted = true)
                     }
                 }
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    T(L.s("reminder_onboarding_title"), size = 32, weight = FontWeight.Bold, tight = true, modifier = Modifier.semantics { heading() })
-                    T(L.s("reminder_onboarding_body"), muted = true)
-                }
             }
-            Pill(L.s("turn_on_reminder"), askNotify, modifier = Modifier.fillMaxWidth())
+            Pill(L.s("turn_on_reminder"), askNotify, modifier = Modifier.fillMaxWidth().padding(top = 16.dp))
             Pill(L.s("not_now"), { vm.finishOnboarding(false) }, kind = Kind.Ghost, height = 48.dp, modifier = Modifier.fillMaxWidth())
         }
         return
     }
 
-    Column(Modifier.fillMaxSize().background(p.bg).statusBarsPadding().padding(24.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
+    // The header and buttons stay put. Between them the prints take whatever room the words
+    // leave, and step aside when large text needs it all; past that, the words scroll.
+    Column(Modifier.fillMaxSize().background(p.bg).systemBarsPadding().padding(24.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Logo(36.dp)
             T(L.s("app_name"), size = 22, weight = FontWeight.Black, tight = true)
         }
-        Box(Modifier.weight(1f).fillMaxWidth().heightIn(min = 260.dp)) {
-            val label = today.shortLabel()
-            Print(2016, label, R.drawable.welcome_2016_hills, 150.dp, -7f, Modifier.offset(8.dp, 36.dp))
-            Print(2021, label, R.drawable.welcome_2021_sail, 150.dp, 6f, Modifier.align(Alignment.TopEnd).offset((-4).dp, 8.dp))
-            Print(2025, label, R.drawable.welcome_2025_cake, 176.dp, -1.5f, Modifier.align(Alignment.TopCenter).offset(y = 118.dp))
-        }
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            T(L.s("welcome_title"), size = 32, weight = FontWeight.Bold, tight = true, modifier = Modifier.semantics { heading() })
-            T(L.s("welcome_body"), muted = true)
-        }
-        if (denied) {
-            Row(Modifier.clip(RoundedCornerShape(14.dp)).background(p.accTint).padding(12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Icon(Icons.Outlined.WarningAmber, null, tint = p.accInk, modifier = Modifier.size(18.dp))
-                T(L.s("welcome_denied"), size = 14, weight = FontWeight.Medium, color = p.accInk)
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+            val viewport = maxHeight
+            Layout(
+                content = {
+                    WelcomePrints(today.shortLabel())
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        T(L.s("welcome_title"), size = 32, weight = FontWeight.Bold, tight = true, modifier = Modifier.semantics { heading() })
+                        T(L.s("welcome_body"), muted = true)
+                        if (denied) {
+                            Row(Modifier.padding(top = 6.dp).clip(RoundedCornerShape(14.dp)).background(p.accTint).padding(12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Icon(Icons.Outlined.WarningAmber, null, tint = p.accInk, modifier = Modifier.size(18.dp))
+                                T(L.s("welcome_denied"), size = 14, weight = FontWeight.Medium, color = p.accInk)
+                            }
+                        }
+                    }
+                },
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+            ) { (art, words), c ->
+                val gap = 24.dp.roundToPx()
+                val text = words.measure(Constraints(maxWidth = c.maxWidth))
+                val room = viewport.roundToPx() - text.height - gap * 2
+                val artHeight = if (room < 150.dp.roundToPx()) 0 else minOf(room, (c.maxWidth * 1.3f).toInt())
+                val prints = art.measure(Constraints.fixed(c.maxWidth, artHeight))
+                val height = maxOf(viewport.roundToPx(), artHeight + text.height + gap * 2)
+                layout(c.maxWidth, height) {
+                    if (artHeight > 0) prints.place(0, gap)
+                    text.place(0, height - text.height - gap)
+                }
             }
         }
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Pill(L.s("show_my_photos"), askPhotos, modifier = Modifier.fillMaxWidth())
-            Row(
-                Modifier.fillMaxWidth().padding(top = 2.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(Icons.Outlined.Lock, null, tint = p.muted2, modifier = Modifier.size(13.dp))
-                Text(
-                    L.s("privacy_line"), color = p.muted2, textAlign = TextAlign.Center,
-                    style = TextStyle(fontFamily = Nunito, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, lineHeight = 18.sp),
-                )
+        Pill(L.s("show_my_photos"), askPhotos, modifier = Modifier.fillMaxWidth())
+        Row(
+            Modifier.fillMaxWidth().padding(top = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(Icons.Outlined.Lock, null, tint = p.muted2, modifier = Modifier.size(13.dp))
+            Text(
+                L.s("privacy_line"), color = p.muted2, textAlign = TextAlign.Center,
+                style = TextStyle(fontFamily = Nunito, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, lineHeight = 18.sp),
+            )
+        }
+    }
+}
+
+/**
+ * The three tilted prints, drawn on a 312 x 400 board and scaled to fit the room they get.
+ * Their captions are part of the drawing, so they keep their size whatever the phone's text size.
+ */
+@Composable
+private fun WelcomePrints(label: String) {
+    BoxWithConstraints(Modifier.fillMaxSize().clearAndSetSemantics {}, contentAlignment = Alignment.Center) {
+        val scale = minOf(maxWidth / 312.dp, maxHeight / 400.dp)
+        val density = LocalDensity.current
+        CompositionLocalProvider(LocalDensity provides Density(density.density, 1f)) {
+            Box(Modifier.requiredSize(312.dp, 400.dp).graphicsLayer { scaleX = scale; scaleY = scale }) {
+                Print(2016, label, R.drawable.welcome_2016_hills, 150.dp, -7f, Modifier.offset(8.dp, 36.dp))
+                Print(2021, label, R.drawable.welcome_2021_sail, 150.dp, 6f, Modifier.align(Alignment.TopEnd).offset((-4).dp, 8.dp))
+                Print(2025, label, R.drawable.welcome_2025_cake, 176.dp, -1.5f, Modifier.align(Alignment.TopCenter).offset(y = 118.dp))
             }
         }
     }
@@ -238,7 +294,6 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
     var result by remember { mutableStateOf(vm.lastDay) }
     var calendar by remember { mutableStateOf(false) }
     val demo by vm.demoScene.collectAsStateWithLifecycle()
-    LaunchedEffect(demo) { if (demo == "calendar") calendar = true }
     var settings by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
     var selecting by remember { mutableStateOf(false) }
@@ -273,6 +328,16 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
         }
     }
     val groups = result?.takeIf { it.first == day }?.second
+    LaunchedEffect(demo, groups) {
+        val first = groups?.firstOrNull() ?: return@LaunchedEffect
+        when (demo) {
+            "calendar" -> calendar = true
+            "settings" -> settings = true
+            "select" -> { selecting = true; picked = first.photos.take(3); onSelectingChange(true) }
+            "share" -> shareFor = ShareRequest(fullDate(first.year, day), first.photos)
+            "addalbum" -> albumFor = first.photos.take(3)
+        }
+    }
 
     fun stopSelecting() { selecting = false; picked = emptyList(); onSelectingChange(false) }
     fun go(md: MonthDay) {
@@ -309,6 +374,18 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
         }
     }
     val favorites = remember(state.favorites) { state.favorites.map { it.key }.toSet() }
+    // A finger dragged across the photos picks them all; the list scrolls near its edges.
+    val drag = remember { DragSelect() }
+    val order by rememberUpdatedState(groups?.flatMap { it.photos }.orEmpty())
+    LaunchedEffect(drag) {
+        snapshotFlow { drag.edge.floatValue }.collectLatest { step ->
+            while (step != 0f) {
+                list.scrollBy(step)
+                withFrameNanos {}
+                drag.recheck?.invoke()
+            }
+        }
+    }
 
     // Sideways drags move between days with photos: toward the left for the next day, mirrored
     // right to left. Up and down stays a scroll, and the year pills keep their own sideways scroll.
@@ -388,110 +465,119 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
                 onRefresh = { vm.refreshIndex(force = true) },
                 modifier = Modifier.fillMaxSize(),
             ) {
-                LazyColumn(
-                    state = list,
-                    contentPadding = PaddingValues(bottom = bottomPadding + 24.dp),
-                    modifier = Modifier.fillMaxSize()
-                        .pointerInput(selecting, neighbors, rtl) {
-                            if (selecting) return@pointerInput
-                            var dx = 0f
-                            val tracker = VelocityTracker()
-                            detectHorizontalDragGestures(
-                                onDragStart = { dx = 0f; tracker.resetTracking() },
-                                onDragCancel = { scope.launch { swipeX.animateTo(0f) } },
-                                onDragEnd = {
-                                    val v = tracker.calculateVelocity().x
-                                    val t = target(dx)
-                                    val far = abs(dx) > 80.dp.toPx() || (abs(v) > 1200f && (v < 0) == (dx < 0))
-                                    scope.launch {
-                                        if (t != null && far) {
-                                            // Slide the day out, swap it, and slide the new one in from the other side.
-                                            val out = if (dx < 0) -size.width.toFloat() else size.width.toFloat()
-                                            swipeX.animateTo(out, tween(150))
-                                            land(t)
-                                            swipeX.snapTo(-out)
-                                            swipeX.animateTo(0f, tween(220))
-                                        } else {
-                                            swipeX.animateTo(0f, spring())
+                CompositionLocalProvider(LocalDragSelect provides drag.takeIf { state.layout != YearLayout.CARDS }) {
+                    LazyColumn(
+                        state = list,
+                        contentPadding = PaddingValues(bottom = bottomPadding + 24.dp),
+                        modifier = Modifier.fillMaxSize()
+                            .then(
+                                if (state.layout == YearLayout.CARDS) Modifier
+                                else drag.modifier(order = { order }, selecting = { selecting }, picked = { picked }) {
+                                    if (it.size != picked.size) Haptics.tick(view)
+                                    picked = it
+                                },
+                            )
+                            .pointerInput(selecting, neighbors, rtl) {
+                                if (selecting) return@pointerInput
+                                var dx = 0f
+                                val tracker = VelocityTracker()
+                                detectHorizontalDragGestures(
+                                    onDragStart = { dx = 0f; tracker.resetTracking() },
+                                    onDragCancel = { scope.launch { swipeX.animateTo(0f) } },
+                                    onDragEnd = {
+                                        val v = tracker.calculateVelocity().x
+                                        val t = target(dx)
+                                        val far = abs(dx) > 80.dp.toPx() || (abs(v) > 1200f && (v < 0) == (dx < 0))
+                                        scope.launch {
+                                            if (t != null && far) {
+                                                // Slide the day out, swap it, and slide the new one in from the other side.
+                                                val out = if (dx < 0) -size.width.toFloat() else size.width.toFloat()
+                                                swipeX.animateTo(out, tween(150))
+                                                land(t)
+                                                swipeX.snapTo(-out)
+                                                swipeX.animateTo(0f, tween(220))
+                                            } else {
+                                                swipeX.animateTo(0f, spring())
+                                            }
+                                        }
+                                    },
+                                ) { change, amount ->
+                                    change.consume()
+                                    dx += amount
+                                    tracker.addPosition(change.uptimeMillis, change.position)
+                                    // Gives way slowly when there is no day that way.
+                                    scope.launch { swipeX.snapTo(if (target(dx) == null) dx / 4 else dx) }
+                                }
+                            }
+                            .graphicsLayer {
+                                translationX = swipeX.value
+                                alpha = 1f - (abs(swipeX.value) / size.width).coerceIn(0f, 1f) * 0.5f
+                            },
+                    ) {
+                        item(key = "summary") {
+                            Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp)) {
+                                T(summary, size = 15, muted = true)
+                                if (day != today) {
+                                    Row(Modifier.padding(top = 8.dp)) {
+                                        Pill(L.s("back_to_today"), { go(today) }, kind = Kind.Tint, height = 44.dp, icon = { Icon(Icons.AutoMirrored.Filled.Undo, null, tint = it, modifier = Modifier.size(14.dp)) })
+                                    }
+                                }
+                            }
+                        }
+                        placeCard?.takeIf { !selecting }?.let { card ->
+                            item(key = "place") {
+                                PlaceCardView(vm, card, onOpen = { placeOpen = card.city }, modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 20.dp))
+                            }
+                        }
+                        when {
+                            hidden -> item { HiddenDay(day) { vm.setHidden(day, false) } }
+                            groups == null -> item { Skeleton() }
+                            groups.isEmpty() -> item {
+                                val noSources = !state.sources.device
+                                EmptyDay(day, noSources, nearbyDays(index, day), onGo = ::go, onConnect = { settings = true })
+                            }
+                            state.layout == YearLayout.CARDS -> item(key = "cards-${day.key}") {
+                                YearCards(
+                                    groups, day, favorites, selection,
+                                    onOpen = { photos, i -> vm.viewer.value = com.njarrar.backthen.Viewer(photos, i) },
+                                    onShare = { year, photos -> shareFor = ShareRequest(fullDate(year, day), photos) },
+                                )
+                            }
+                            state.layout == YearLayout.STRIP -> {
+                                val years = groups.map { it.year }
+                                val at = stripPick?.let { years.indexOf(it) }?.takeIf { it >= 0 } ?: 0
+                                val g = groups[at]
+                                stickyHeader(key = "years") { YearPills(years, g.year) { stripPick = it } }
+                                item(key = g.year) {
+                                    StripYear(
+                                        g.year, g.photos, day, favorites, selection,
+                                        newer = years.getOrNull(at - 1), older = years.getOrNull(at + 1),
+                                        onOpen = { i -> vm.viewer.value = com.njarrar.backthen.Viewer(g.photos, i) },
+                                        onShare = { shareFor = ShareRequest(fullDate(g.year, day), g.photos) },
+                                        onPick = { stripPick = it },
+                                    )
+                                }
+                            }
+                            else -> groups.forEach { g ->
+                                val share = { shareFor = ShareRequest(fullDate(g.year, day), g.photos) }
+                                val pinKey = "pin-${g.year}"
+                                stickyHeader(key = pinKey) {
+                                    // Shown only while pinned to the top of the list; the big header covers this space otherwise.
+                                    val pinned by remember {
+                                        derivedStateOf {
+                                            list.layoutInfo.visibleItemsInfo.firstOrNull { it.key == pinKey }
+                                                ?.let { it.offset <= list.layoutInfo.viewportStartOffset } == true
                                         }
                                     }
-                                },
-                            ) { change, amount ->
-                                change.consume()
-                                dx += amount
-                                tracker.addPosition(change.uptimeMillis, change.position)
-                                // Gives way slowly when there is no day that way.
-                                scope.launch { swipeX.snapTo(if (target(dx) == null) dx / 4 else dx) }
-                            }
-                        }
-                        .graphicsLayer {
-                            translationX = swipeX.value
-                            alpha = 1f - (abs(swipeX.value) / size.width).coerceIn(0f, 1f) * 0.5f
-                        },
-                ) {
-                    item(key = "summary") {
-                        Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp)) {
-                            T(summary, size = 15, muted = true)
-                            if (day != today) {
-                                Row(Modifier.padding(top = 8.dp)) {
-                                    Pill(L.s("back_to_today"), { go(today) }, kind = Kind.Tint, height = 44.dp, icon = { Icon(Icons.AutoMirrored.Filled.Undo, null, tint = it, modifier = Modifier.size(14.dp)) })
+                                    YearBar(g.year, g.photos.size, day, pinned, onShare = share)
                                 }
-                            }
-                        }
-                    }
-                    placeCard?.takeIf { !selecting }?.let { card ->
-                        item(key = "place") {
-                            PlaceCardView(vm, card, onOpen = { placeOpen = card.city }, modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 20.dp))
-                        }
-                    }
-                    when {
-                        hidden -> item { HiddenDay(day) { vm.setHidden(day, false) } }
-                        groups == null -> item { Skeleton() }
-                        groups.isEmpty() -> item {
-                            val noSources = !state.sources.device
-                            EmptyDay(day, noSources, nearbyDays(index, day), onGo = ::go, onConnect = { settings = true })
-                        }
-                        state.layout == YearLayout.CARDS -> item(key = "cards-${day.key}") {
-                            YearCards(
-                                groups, day, favorites, selection,
-                                onOpen = { photos, i -> vm.viewer.value = com.njarrar.backthen.Viewer(photos, i) },
-                                onShare = { year, photos -> shareFor = ShareRequest(fullDate(year, day), photos) },
-                            )
-                        }
-                        state.layout == YearLayout.STRIP -> {
-                            val years = groups.map { it.year }
-                            val at = stripPick?.let { years.indexOf(it) }?.takeIf { it >= 0 } ?: 0
-                            val g = groups[at]
-                            stickyHeader(key = "years") { YearPills(years, g.year) { stripPick = it } }
-                            item(key = g.year) {
-                                StripYear(
-                                    g.year, g.photos, day, favorites, selection,
-                                    newer = years.getOrNull(at - 1), older = years.getOrNull(at + 1),
-                                    onOpen = { i -> vm.viewer.value = com.njarrar.backthen.Viewer(g.photos, i) },
-                                    onShare = { shareFor = ShareRequest(fullDate(g.year, day), g.photos) },
-                                    onPick = { stripPick = it },
-                                )
-                            }
-                        }
-                        else -> groups.forEach { g ->
-                            val share = { shareFor = ShareRequest(fullDate(g.year, day), g.photos) }
-                            val pinKey = "pin-${g.year}"
-                            stickyHeader(key = pinKey) {
-                                // Shown only while pinned to the top of the list; the big header covers this space otherwise.
-                                val pinned by remember {
-                                    derivedStateOf {
-                                        list.layoutInfo.visibleItemsInfo.firstOrNull { it.key == pinKey }
-                                            ?.let { it.offset <= list.layoutInfo.viewportStartOffset } == true
-                                    }
+                                item(key = "head-${g.year}") { YearHeader(g.year, g.photos.size, day, onShare = share) }
+                                item(key = "photos-${g.year}") {
+                                    YearMosaic(
+                                        g.photos, favorites, selection,
+                                        onOpen = { i -> vm.viewer.value = com.njarrar.backthen.Viewer(g.photos, i) },
+                                    )
                                 }
-                                YearBar(g.year, g.photos.size, day, pinned, onShare = share)
-                            }
-                            item(key = "head-${g.year}") { YearHeader(g.year, g.photos.size, day, onShare = share) }
-                            item(key = "photos-${g.year}") {
-                                YearMosaic(
-                                    g.photos, favorites, selection,
-                                    onOpen = { i -> vm.viewer.value = com.njarrar.backthen.Viewer(g.photos, i) },
-                                )
                             }
                         }
                     }
@@ -503,7 +589,8 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
                 picked.size,
                 onShare = { shareFor = ShareRequest(L.p("photos", picked.size), picked) },
                 onAlbum = { albumFor = picked },
-                modifier = Modifier.align(Alignment.BottomCenter).padding(12.dp).padding(bottom = bottomPadding),
+                // The tab bar hides while picking, so the bar keeps clear of the system buttons itself.
+                modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(12.dp),
             )
         }
         placeOpen?.let { city -> PlaceScreen(vm, city, state.placeIndex, bottomPadding, onBack = { placeOpen = null }) }

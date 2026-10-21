@@ -1,1 +1,1 @@
-First release on the App Store.
+Pick many photos at once: in Select, drag a finger across them. Text no longer overlaps on phones with large text or a bigger display size, and nothing hides under the navigation bar.

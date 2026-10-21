@@ -3,7 +3,8 @@ import Foundation
 import ImageIO
 
 /// Debug-only screen setups for the README screenshots.
-/// Launch with `-scene today|calendar|viewer|favorites|album`.
+/// Launch with `-scene today|calendar|viewer|favorites|album`, or for the text check also
+/// reminder, settings, select, share, addalbum, cards, strip or empty.
 ///
 /// The simulator can't be granted photo access without a tap, so the screenshot
 /// workflow drops sample JPEGs in `SamplePhotos.folder`, and the demo shows them
@@ -16,10 +17,13 @@ extension AppStore {
     }
 
     func runDemo(_ scene: String) async {
-        saved.onboarded = true
         samplePhotos = Self.loadSamples()
         saved.sources.device = !samplePhotos.isEmpty
         saved.deviceIndex = buildDayIndex(samplePhotos.map(\.time))
+        saved.layout = scene == "cards" ? .cards : scene == "strip" ? .strip : .mosaic
+        // The reminder step of the welcome, with the photos found.
+        saved.onboarded = scene != "reminder"
+        if !saved.onboarded { return }
         let photos = await photos(for: .today).flatMap(\.photos)
         guard !photos.isEmpty else { return }
         saved.favorites = stride(from: 0, to: photos.count, by: 3).map { photos[$0] }
@@ -30,6 +34,9 @@ extension AppStore {
         case "viewer": viewer = Viewer(photos: photos, start: min(2, photos.count - 1))
         case "favorites": tab = .favorites
         case "album": openAlbumID = album.id
+        // The sample photos skip tomorrow, so it shows the empty day.
+        case "empty": day = .of(Date().addingTimeInterval(86_400))
+        case "settings", "select", "share", "addalbum": demoScene = scene
         default: break
         }
     }

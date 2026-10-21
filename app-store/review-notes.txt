@@ -13,7 +13,7 @@ No login or demo account is needed.
 - Calendar: tap the date at the top. Days with photos show a small photo. Tap any day to see it. If the test device has no photos from today's date, use the calendar to pick a day that has photos.
 - Viewer: swipe between photos, pinch to zoom, tap the heart to add a favorite, or share.
 - Favorites tab: all hearted photos.
-- Albums: on Today tap Select (or long press a photo), pick photos, then tap Album. Open the album to share it or save it to Photos.
+- Albums: on Today tap Select (or long press a photo), pick photos (tap each one, or drag a finger across them), then tap Album. Open the album to share it or save it to Photos.
 - Settings (the "..." menu on Today): daily reminder time, layout, and Places. Places is off by default. When turned on, it asks for approximate location while the app is open.
 - Widget: add the Flashback widget from the home screen widget gallery.
 

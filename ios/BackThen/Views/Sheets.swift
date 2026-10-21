@@ -391,6 +391,7 @@ struct ShareSheetView: View {
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     let request: ShareRequest
+    @State private var height: CGFloat = 300
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -410,7 +411,7 @@ struct ShareSheetView: View {
                 .environment(\.layoutDirection, .leftToRight)
                 .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(request.title).font(.nunito(18, .bold)).foregroundStyle(Palette.ink).lineLimit(2)
+                    Text(request.title).font(.nunito(18, .bold)).foregroundStyle(Palette.ink).fixedSize(horizontal: false, vertical: true)
                     Text(L.p("photos", request.photos.count)).font(.nunito(14)).foregroundStyle(Palette.muted)
                 }
                 Spacer()
@@ -436,7 +437,10 @@ struct ShareSheetView: View {
             .buttonStyle(.plain)
         }
         .padding(20)
-        .presentationDetents([.height(300)])
+        // As tall as its content, which grows with the text size.
+        .fixedSize(horizontal: false, vertical: true)
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
+        .presentationDetents([.height(max(height, 300))])
         .presentationCornerRadius(32)
         .presentationBackground(Palette.surface)
         .presentationDragIndicator(.visible)

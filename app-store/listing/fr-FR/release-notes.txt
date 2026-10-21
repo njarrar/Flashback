@@ -1,1 +1,1 @@
-Première version sur l'App Store.
+Choisissez plusieurs photos d'un coup : en mode Sélectionner, faites glisser un doigt dessus. Le texte ne se chevauche plus sur les téléphones avec un grand texte ou un affichage agrandi, et rien ne se cache sous la barre du bas.

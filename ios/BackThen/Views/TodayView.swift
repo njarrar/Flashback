@@ -26,6 +26,7 @@ struct TodayView: View {
     @Environment(\.layoutDirection) private var direction
     @State private var placeOpen: City?
     @State private var placeAsk = false
+    @State private var drag = DragSelect()
 
     var body: some View {
         let day = store.day
@@ -39,9 +40,16 @@ struct TodayView: View {
         let selection = Selection(on: selecting, keys: Set(picked.map(\.key)), start: { p in
             selecting = true
             picked = [p]
+            drag.armed = true
         }) { p in
             if let i = picked.firstIndex(where: { $0.key == p.key }) { picked.remove(at: i) } else { picked.append(p) }
         }
+
+        let _ = {
+            drag.order = { groups?.flatMap(\.photos) ?? [] }
+            drag.selecting = $selecting
+            drag.picked = $picked
+        }()
 
         ScrollViewReader { scroll in
             ScrollView {
@@ -123,6 +131,8 @@ struct TodayView: View {
                 }
                 Color.clear.frame(height: 120)
               }
+              .background(DragSelectHook(drag: drag))
+              .environment(\.dragSelect, store.saved.layout == .cards ? nil : drag)
               // Offsets flip right to left; swipeX is in screen terms, like the finger.
               .offset(x: direction == .rightToLeft ? -swipeX : swipeX)
               .opacity(1 - min(abs(swipeX) / max(pageWidth, 1), 1) * 0.5)
@@ -174,7 +184,25 @@ struct TodayView: View {
         .sensoryFeedback(.selection, trigger: day)
         .onChange(of: store.tab) { _, _ in stopSelecting() }
         .onChange(of: store.demoCalendar) { _, on in if on { calendar = true } }
+        #if DEBUG
+        .task(id: result?.groups.first?.year) { demoScene() }
+        #endif
     }
+
+    #if DEBUG
+    /// Debug screenshots only: opens a sheet or mode once the photos show.
+    private func demoScene() {
+        guard let scene = store.demoScene, let first = result?.groups.first else { return }
+        store.demoScene = nil
+        switch scene {
+        case "settings": settings = true
+        case "select": selecting = true; picked = Array(first.photos.prefix(3))
+        case "share": shareFor = ShareRequest(title: fullDate(year: first.year, store.day), photos: first.photos)
+        case "addalbum": albumFor = Array(first.photos.prefix(3))
+        default: break
+        }
+    }
+    #endif
 
     /// How far the big title has gone under the top bar: 0 at rest, 1 once it is hidden.
     private var scrolled: CGFloat {
