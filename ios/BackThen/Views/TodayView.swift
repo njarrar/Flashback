@@ -26,6 +26,7 @@ struct TodayView: View {
     @Environment(\.layoutDirection) private var direction
     @State private var placeOpen: City?
     @State private var placeAsk = false
+    @State private var drag = DragSelect()
 
     var body: some View {
         let day = store.day
@@ -39,9 +40,16 @@ struct TodayView: View {
         let selection = Selection(on: selecting, keys: Set(picked.map(\.key)), start: { p in
             selecting = true
             picked = [p]
+            drag.armed = true
         }) { p in
             if let i = picked.firstIndex(where: { $0.key == p.key }) { picked.remove(at: i) } else { picked.append(p) }
         }
+
+        let _ = {
+            drag.order = { groups?.flatMap(\.photos) ?? [] }
+            drag.selecting = $selecting
+            drag.picked = $picked
+        }()
 
         ScrollViewReader { scroll in
             ScrollView {
@@ -123,6 +131,8 @@ struct TodayView: View {
                 }
                 Color.clear.frame(height: 120)
               }
+              .background(DragSelectHook(drag: drag))
+              .environment(\.dragSelect, store.saved.layout == .cards ? nil : drag)
               // Offsets flip right to left; swipeX is in screen terms, like the finger.
               .offset(x: direction == .rightToLeft ? -swipeX : swipeX)
               .opacity(1 - min(abs(swipeX) / max(pageWidth, 1), 1) * 0.5)

@@ -22,6 +22,16 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Density
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -62,6 +72,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.foundation.gestures.scrollBy
+import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.ui.text.TextStyle
@@ -309,6 +325,18 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
         }
     }
     val favorites = remember(state.favorites) { state.favorites.map { it.key }.toSet() }
+    // A finger dragged across the photos picks them all; the list scrolls near its edges.
+    val drag = remember { DragSelect() }
+    val order by rememberUpdatedState(groups?.flatMap { it.photos }.orEmpty())
+    LaunchedEffect(drag) {
+        snapshotFlow { drag.edge.floatValue }.collectLatest { step ->
+            while (step != 0f) {
+                list.scrollBy(step)
+                withFrameNanos {}
+                drag.recheck?.invoke()
+            }
+        }
+    }
 
     // Sideways drags move between days with photos: toward the left for the next day, mirrored
     // right to left. Up and down stays a scroll, and the year pills keep their own sideways scroll.
@@ -388,110 +416,119 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
                 onRefresh = { vm.refreshIndex(force = true) },
                 modifier = Modifier.fillMaxSize(),
             ) {
-                LazyColumn(
-                    state = list,
-                    contentPadding = PaddingValues(bottom = bottomPadding + 24.dp),
-                    modifier = Modifier.fillMaxSize()
-                        .pointerInput(selecting, neighbors, rtl) {
-                            if (selecting) return@pointerInput
-                            var dx = 0f
-                            val tracker = VelocityTracker()
-                            detectHorizontalDragGestures(
-                                onDragStart = { dx = 0f; tracker.resetTracking() },
-                                onDragCancel = { scope.launch { swipeX.animateTo(0f) } },
-                                onDragEnd = {
-                                    val v = tracker.calculateVelocity().x
-                                    val t = target(dx)
-                                    val far = abs(dx) > 80.dp.toPx() || (abs(v) > 1200f && (v < 0) == (dx < 0))
-                                    scope.launch {
-                                        if (t != null && far) {
-                                            // Slide the day out, swap it, and slide the new one in from the other side.
-                                            val out = if (dx < 0) -size.width.toFloat() else size.width.toFloat()
-                                            swipeX.animateTo(out, tween(150))
-                                            land(t)
-                                            swipeX.snapTo(-out)
-                                            swipeX.animateTo(0f, tween(220))
-                                        } else {
-                                            swipeX.animateTo(0f, spring())
+                CompositionLocalProvider(LocalDragSelect provides drag.takeIf { state.layout != YearLayout.CARDS }) {
+                    LazyColumn(
+                        state = list,
+                        contentPadding = PaddingValues(bottom = bottomPadding + 24.dp),
+                        modifier = Modifier.fillMaxSize()
+                            .then(
+                                if (state.layout == YearLayout.CARDS) Modifier
+                                else drag.modifier(order = { order }, selecting = { selecting }, picked = { picked }) {
+                                    if (it.size != picked.size) Haptics.tick(view)
+                                    picked = it
+                                },
+                            )
+                            .pointerInput(selecting, neighbors, rtl) {
+                                if (selecting) return@pointerInput
+                                var dx = 0f
+                                val tracker = VelocityTracker()
+                                detectHorizontalDragGestures(
+                                    onDragStart = { dx = 0f; tracker.resetTracking() },
+                                    onDragCancel = { scope.launch { swipeX.animateTo(0f) } },
+                                    onDragEnd = {
+                                        val v = tracker.calculateVelocity().x
+                                        val t = target(dx)
+                                        val far = abs(dx) > 80.dp.toPx() || (abs(v) > 1200f && (v < 0) == (dx < 0))
+                                        scope.launch {
+                                            if (t != null && far) {
+                                                // Slide the day out, swap it, and slide the new one in from the other side.
+                                                val out = if (dx < 0) -size.width.toFloat() else size.width.toFloat()
+                                                swipeX.animateTo(out, tween(150))
+                                                land(t)
+                                                swipeX.snapTo(-out)
+                                                swipeX.animateTo(0f, tween(220))
+                                            } else {
+                                                swipeX.animateTo(0f, spring())
+                                            }
+                                        }
+                                    },
+                                ) { change, amount ->
+                                    change.consume()
+                                    dx += amount
+                                    tracker.addPosition(change.uptimeMillis, change.position)
+                                    // Gives way slowly when there is no day that way.
+                                    scope.launch { swipeX.snapTo(if (target(dx) == null) dx / 4 else dx) }
+                                }
+                            }
+                            .graphicsLayer {
+                                translationX = swipeX.value
+                                alpha = 1f - (abs(swipeX.value) / size.width).coerceIn(0f, 1f) * 0.5f
+                            },
+                    ) {
+                        item(key = "summary") {
+                            Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp)) {
+                                T(summary, size = 15, muted = true)
+                                if (day != today) {
+                                    Row(Modifier.padding(top = 8.dp)) {
+                                        Pill(L.s("back_to_today"), { go(today) }, kind = Kind.Tint, height = 44.dp, icon = { Icon(Icons.AutoMirrored.Filled.Undo, null, tint = it, modifier = Modifier.size(14.dp)) })
+                                    }
+                                }
+                            }
+                        }
+                        placeCard?.takeIf { !selecting }?.let { card ->
+                            item(key = "place") {
+                                PlaceCardView(vm, card, onOpen = { placeOpen = card.city }, modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 20.dp))
+                            }
+                        }
+                        when {
+                            hidden -> item { HiddenDay(day) { vm.setHidden(day, false) } }
+                            groups == null -> item { Skeleton() }
+                            groups.isEmpty() -> item {
+                                val noSources = !state.sources.device
+                                EmptyDay(day, noSources, nearbyDays(index, day), onGo = ::go, onConnect = { settings = true })
+                            }
+                            state.layout == YearLayout.CARDS -> item(key = "cards-${day.key}") {
+                                YearCards(
+                                    groups, day, favorites, selection,
+                                    onOpen = { photos, i -> vm.viewer.value = com.njarrar.backthen.Viewer(photos, i) },
+                                    onShare = { year, photos -> shareFor = ShareRequest(fullDate(year, day), photos) },
+                                )
+                            }
+                            state.layout == YearLayout.STRIP -> {
+                                val years = groups.map { it.year }
+                                val at = stripPick?.let { years.indexOf(it) }?.takeIf { it >= 0 } ?: 0
+                                val g = groups[at]
+                                stickyHeader(key = "years") { YearPills(years, g.year) { stripPick = it } }
+                                item(key = g.year) {
+                                    StripYear(
+                                        g.year, g.photos, day, favorites, selection,
+                                        newer = years.getOrNull(at - 1), older = years.getOrNull(at + 1),
+                                        onOpen = { i -> vm.viewer.value = com.njarrar.backthen.Viewer(g.photos, i) },
+                                        onShare = { shareFor = ShareRequest(fullDate(g.year, day), g.photos) },
+                                        onPick = { stripPick = it },
+                                    )
+                                }
+                            }
+                            else -> groups.forEach { g ->
+                                val share = { shareFor = ShareRequest(fullDate(g.year, day), g.photos) }
+                                val pinKey = "pin-${g.year}"
+                                stickyHeader(key = pinKey) {
+                                    // Shown only while pinned to the top of the list; the big header covers this space otherwise.
+                                    val pinned by remember {
+                                        derivedStateOf {
+                                            list.layoutInfo.visibleItemsInfo.firstOrNull { it.key == pinKey }
+                                                ?.let { it.offset <= list.layoutInfo.viewportStartOffset } == true
                                         }
                                     }
-                                },
-                            ) { change, amount ->
-                                change.consume()
-                                dx += amount
-                                tracker.addPosition(change.uptimeMillis, change.position)
-                                // Gives way slowly when there is no day that way.
-                                scope.launch { swipeX.snapTo(if (target(dx) == null) dx / 4 else dx) }
-                            }
-                        }
-                        .graphicsLayer {
-                            translationX = swipeX.value
-                            alpha = 1f - (abs(swipeX.value) / size.width).coerceIn(0f, 1f) * 0.5f
-                        },
-                ) {
-                    item(key = "summary") {
-                        Column(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp)) {
-                            T(summary, size = 15, muted = true)
-                            if (day != today) {
-                                Row(Modifier.padding(top = 8.dp)) {
-                                    Pill(L.s("back_to_today"), { go(today) }, kind = Kind.Tint, height = 44.dp, icon = { Icon(Icons.AutoMirrored.Filled.Undo, null, tint = it, modifier = Modifier.size(14.dp)) })
+                                    YearBar(g.year, g.photos.size, day, pinned, onShare = share)
                                 }
-                            }
-                        }
-                    }
-                    placeCard?.takeIf { !selecting }?.let { card ->
-                        item(key = "place") {
-                            PlaceCardView(vm, card, onOpen = { placeOpen = card.city }, modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 20.dp))
-                        }
-                    }
-                    when {
-                        hidden -> item { HiddenDay(day) { vm.setHidden(day, false) } }
-                        groups == null -> item { Skeleton() }
-                        groups.isEmpty() -> item {
-                            val noSources = !state.sources.device
-                            EmptyDay(day, noSources, nearbyDays(index, day), onGo = ::go, onConnect = { settings = true })
-                        }
-                        state.layout == YearLayout.CARDS -> item(key = "cards-${day.key}") {
-                            YearCards(
-                                groups, day, favorites, selection,
-                                onOpen = { photos, i -> vm.viewer.value = com.njarrar.backthen.Viewer(photos, i) },
-                                onShare = { year, photos -> shareFor = ShareRequest(fullDate(year, day), photos) },
-                            )
-                        }
-                        state.layout == YearLayout.STRIP -> {
-                            val years = groups.map { it.year }
-                            val at = stripPick?.let { years.indexOf(it) }?.takeIf { it >= 0 } ?: 0
-                            val g = groups[at]
-                            stickyHeader(key = "years") { YearPills(years, g.year) { stripPick = it } }
-                            item(key = g.year) {
-                                StripYear(
-                                    g.year, g.photos, day, favorites, selection,
-                                    newer = years.getOrNull(at - 1), older = years.getOrNull(at + 1),
-                                    onOpen = { i -> vm.viewer.value = com.njarrar.backthen.Viewer(g.photos, i) },
-                                    onShare = { shareFor = ShareRequest(fullDate(g.year, day), g.photos) },
-                                    onPick = { stripPick = it },
-                                )
-                            }
-                        }
-                        else -> groups.forEach { g ->
-                            val share = { shareFor = ShareRequest(fullDate(g.year, day), g.photos) }
-                            val pinKey = "pin-${g.year}"
-                            stickyHeader(key = pinKey) {
-                                // Shown only while pinned to the top of the list; the big header covers this space otherwise.
-                                val pinned by remember {
-                                    derivedStateOf {
-                                        list.layoutInfo.visibleItemsInfo.firstOrNull { it.key == pinKey }
-                                            ?.let { it.offset <= list.layoutInfo.viewportStartOffset } == true
-                                    }
+                                item(key = "head-${g.year}") { YearHeader(g.year, g.photos.size, day, onShare = share) }
+                                item(key = "photos-${g.year}") {
+                                    YearMosaic(
+                                        g.photos, favorites, selection,
+                                        onOpen = { i -> vm.viewer.value = com.njarrar.backthen.Viewer(g.photos, i) },
+                                    )
                                 }
-                                YearBar(g.year, g.photos.size, day, pinned, onShare = share)
-                            }
-                            item(key = "head-${g.year}") { YearHeader(g.year, g.photos.size, day, onShare = share) }
-                            item(key = "photos-${g.year}") {
-                                YearMosaic(
-                                    g.photos, favorites, selection,
-                                    onOpen = { i -> vm.viewer.value = com.njarrar.backthen.Viewer(g.photos, i) },
-                                )
                             }
                         }
                     }

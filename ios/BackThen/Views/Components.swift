@@ -206,6 +206,7 @@ struct PhotoTile: View {
     let open: () -> Void
     /// Set by a long press, so the tap that ends it doesn't also open or unpick the photo.
     @State private var longPressed = false
+    @Environment(\.dragSelect) private var drag
 
     var body: some View {
         let picked = selection?.keys.contains(photo.key) ?? false
@@ -253,6 +254,11 @@ struct PhotoTile: View {
         }
         .accessibilityLabel(L.s(heart ? "favorite_photo_from" : "photo_from", ["date": L.date(photo.time, "yMMMMd")]))
         .accessibilityAddTraits(picked ? .isSelected : [])
+        // Tells a drag across the photos where this one sits.
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame in
+            if selection != nil { drag?.place(photo, frame) }
+        }
+        .onDisappear { drag?.forget(photo.key) }
     }
 }
 

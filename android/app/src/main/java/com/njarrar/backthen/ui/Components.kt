@@ -51,6 +51,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -242,8 +245,12 @@ fun PhotoTile(
     val picked = selection?.keys?.contains(photo.key) == true
     val shape = RoundedCornerShape(radius)
     val startSelecting = selection?.takeIf { !it.on }?.start
+    // Tells a drag across the photos where this one sits.
+    val drag = if (selection == null) null else LocalDragSelect.current
+    if (drag != null) DisposableEffect(drag, photo.key) { onDispose { drag.forget(photo.key) } }
     Box(
         modifier
+            .then(if (drag != null) Modifier.onGloballyPositioned { drag.place(photo, it.boundsInRoot()) } else Modifier)
             .clip(shape)
             .background(p.fill)
             .combinedClickable(
