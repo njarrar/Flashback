@@ -1,0 +1,66 @@
+name: Text check
+
+# Takes every screen with big text, on a small and a tall phone, in English and
+# Arabic, so text that overlaps, clips or hides under the system bars shows up
+# before a release. The pictures land in the run's artifacts, not in the repo.
+on:
+  workflow_dispatch:
+  push:
+    branches-ignore: [main]
+    paths: ["ios/**", "android/**", "lang/**", ".github/workflows/text-check.yml", ".github/screenshots/text-check-*"]
+
+jobs:
+  ios:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pick Xcode
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app || sudo xcode-select -s "$(ls -d /Applications/Xcode_16*.app | sort -V | tail -1)"
+      - name: Make sample photos
+        run: |
+          python3 -m venv /tmp/venv && /tmp/venv/bin/pip install -q pillow piexif
+          /tmp/venv/bin/python .github/screenshots/make_photos.py /tmp/photos
+      - name: Build
+        working-directory: ios
+        run: |
+          xcodebuild -project BackThen.xcodeproj -scheme BackThen -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/dd \
+            CODE_SIGNING_ALLOWED=NO build -quiet
+      - name: Small phone, largest standard text
+        run: bash .github/screenshots/text-check-ios.sh "iPhone SE \(3rd generation\)" extra-extra-extra-large se-xxxl
+      - name: Tall phone, accessibility text
+        run: bash .github/screenshots/text-check-ios.sh "iPhone 16 Pro Max" accessibility-large promax-ax2
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: ios-text-check, path: shots }
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Make sample photos
+        run: |
+          python3 -m venv /tmp/venv && /tmp/venv/bin/pip install -q pillow piexif
+          /tmp/venv/bin/python .github/screenshots/make_photos.py /tmp/photos
+      - name: Build
+        working-directory: android
+        run: ./gradlew assembleDebug
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+      - name: Take screenshots
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          disable-animations: true
+          script: bash .github/screenshots/text-check-android.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: android-text-check, path: shots }
