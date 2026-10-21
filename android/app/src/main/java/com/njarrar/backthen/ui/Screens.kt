@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -588,7 +589,8 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
                 picked.size,
                 onShare = { shareFor = ShareRequest(L.p("photos", picked.size), picked) },
                 onAlbum = { albumFor = picked },
-                modifier = Modifier.align(Alignment.BottomCenter).padding(12.dp).padding(bottom = bottomPadding),
+                // The tab bar hides while picking, so the bar keeps clear of the system buttons itself.
+                modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(12.dp),
             )
         }
         placeOpen?.let { city -> PlaceScreen(vm, city, state.placeIndex, bottomPadding, onBack = { placeOpen = null }) }
