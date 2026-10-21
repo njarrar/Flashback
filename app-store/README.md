@@ -172,6 +172,25 @@ set on the website.
    waits for the build to finish processing and picks it, fills in **What's New** from
    the release notes, and sends it for review. If an older version is still waiting for
    review, it stops, unless you turn on **replace**, which pulls that one back first.
+   The App Review notes come from `review-notes.txt`. If Apple sent the version back,
+   the workflow sends the same submission again, so Apple's messages stay with it.
+
+To attach a file for App Review, such as a screen recording, run the App Store review
+workflow with **attachment** on. The repo is public and a recording can show private
+photos, so the file never goes in plainly: the run puts a public key on the
+`review-attachment` branch and waits up to 20 minutes for the file, sealed with that key.
+Seal it like this, from a clone of the repo:
+
+```sh
+git fetch origin review-attachment && git checkout review-attachment
+openssl rand -hex 32 > /tmp/file.key
+openssl enc -aes-256-cbc -pbkdf2 -pass file:/tmp/file.key -in recording.mp4 -out sealed.bin
+openssl pkeyutl -encrypt -pubin -inkey key.pem -in /tmp/file.key -out sealed.key
+echo recording.mp4 > name.txt
+git add sealed.bin sealed.key name.txt && git commit -m "Sealed attachment" && git push
+```
+
+The run opens it, attaches it in place of any older one, and deletes the branch.
 
 Notes:
 - A push to GitHub never sends anything to Apple. Only the Run workflow button does.

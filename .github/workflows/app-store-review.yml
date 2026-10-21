@@ -15,12 +15,53 @@ on:
         description: If an older version is still waiting for review, pull it back and send this one instead
         type: boolean
         default: false
+      attachment:
+        description: Wait for a sealed file (such as a screen recording) to attach for App Review
+        type: boolean
+        default: false
 
 jobs:
   review:
     runs-on: ubuntu-latest
+    permissions: { contents: write }
     steps:
       - uses: actions/checkout@v4
+      # The file may show private photos and the repo is public, so it comes in sealed. This
+      # run makes a key pair, puts the public half on the review-attachment branch, and waits
+      # there for the file, sealed with that key. Only this run can open it. See
+      # app-store/README.md.
+      - name: Wait for the attachment
+        if: inputs.attachment
+        shell: bash
+        run: |
+          set -e
+          AUTH=$(git config --get http.https://github.com/.extraheader)
+          REMOTE="https://github.com/$GITHUB_REPOSITORY.git"
+          BOX="$RUNNER_TEMP/box"
+          mkdir -p "$BOX" && cd "$BOX"
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:4096 -out "$RUNNER_TEMP/private.pem" 2>/dev/null
+          git init -q -b review-attachment
+          openssl pkey -in "$RUNNER_TEMP/private.pem" -pubout -out key.pem
+          echo "$GITHUB_RUN_ID" > run.txt
+          git add key.pem run.txt
+          git -c user.name=njarrar -c user.email=njarrar@gmail.com commit -qm "Key for App Review attachment, run $GITHUB_RUN_ID"
+          git -c http.extraheader="$AUTH" push -qf "$REMOTE" review-attachment
+          echo "Waiting for sealed.bin on the review-attachment branch."
+          for i in $(seq 1 80); do
+            sleep 15
+            git -c http.extraheader="$AUTH" fetch -q "$REMOTE" review-attachment
+            if git cat-file -e FETCH_HEAD:sealed.bin 2>/dev/null; then
+              git checkout -q FETCH_HEAD -- sealed.bin sealed.key name.txt
+              NAME=$(basename "$(cat name.txt)")
+              openssl pkeyutl -decrypt -inkey "$RUNNER_TEMP/private.pem" -in sealed.key -out "$RUNNER_TEMP/file.key"
+              openssl enc -d -aes-256-cbc -pbkdf2 -pass "file:$RUNNER_TEMP/file.key" -in sealed.bin -out "$RUNNER_TEMP/$NAME"
+              echo "ATTACHMENT=$RUNNER_TEMP/$NAME" >> "$GITHUB_ENV"
+              echo "Got $NAME ($(stat -c %s "$RUNNER_TEMP/$NAME") bytes)."
+              exit 0
+            fi
+          done
+          echo "::error::No sealed file came in 20 minutes."
+          exit 1
       - name: Send for review
         shell: bash
         env:
@@ -35,3 +76,6 @@ jobs:
         run: |
           python3 -m venv /tmp/venv && /tmp/venv/bin/pip install -q "pyjwt[crypto]" requests
           /tmp/venv/bin/python .github/app-store/submit.py | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Remove the attachment branch
+        if: always() && inputs.attachment
+        run: git push -q origin --delete review-attachment || true
