@@ -18,10 +18,13 @@ Settings come from the environment:
 The App Review notes come from app-store/review-notes.txt.
     SUBMIT                                  "true" sends the version for review
     REPLACE                                 "true" pulls back a version waiting for review
+    ATTACHMENT                              a file (such as a screen recording) to attach to the App
+                                            Review details, in place of any attached before
 
 The store text, screenshots and build must already be on the version. Apple says what is
 still missing when the submission fails.
 """
+import hashlib
 import os
 import pathlib
 import re
@@ -60,9 +63,6 @@ def token():
 def call(method, path, body=None, soft=False, **params):
     r = requests.request(method, API + path, json=body, params=params,
                          headers={"Authorization": f"Bearer {token()}"}, timeout=60)
-    if r.status_code >= 400 and soft:
-        print(f"  {method} {path} answered {r.status_code}")
-        return None
     if r.status_code >= 400:
         for e in r.json().get("errors", []):
             print(f"  {e.get('title')}: {e.get('detail')}")
@@ -70,6 +70,9 @@ def call(method, path, body=None, soft=False, **params):
             for errors in (e.get("meta") or {}).get("associatedErrors", {}).values():
                 for a in errors:
                     print(f"    - {a.get('title')}: {a.get('detail')}")
+        if soft:
+            print(f"  {method} {path} answered {r.status_code}")
+            return None
         sys.exit(f"{method} {path} failed with {r.status_code}")
     return r.json() if r.content else {}
 
@@ -206,6 +209,33 @@ def whats_new(app, version):
     print("What's New set.")
 
 
+def attach(detail, path):
+    """Attaches a file to the App Review details, in place of any attached before."""
+    for old in call("GET", f"/v1/appStoreReviewDetails/{detail['id']}/appStoreReviewAttachments")["data"]:
+        call("DELETE", f"/v1/appStoreReviewAttachments/{old['id']}")
+    data = path.read_bytes()
+    a = call("POST", "/v1/appStoreReviewAttachments", {"data": {
+        "type": "appStoreReviewAttachments", "attributes": {"fileName": path.name, "fileSize": len(data)},
+        "relationships": {"appStoreReviewDetail": {"data": {"type": "appStoreReviewDetails", "id": detail["id"]}}}}})["data"]
+    for op in a["attributes"]["uploadOperations"]:
+        part = data[op["offset"]:op["offset"] + op["length"]]
+        headers = {h["name"]: h["value"] for h in op.get("requestHeaders") or []}
+        requests.request(op["method"], op["url"], data=part, headers=headers, timeout=300).raise_for_status()
+    call("PATCH", f"/v1/appStoreReviewAttachments/{a['id']}", {"data": {
+        "type": "appStoreReviewAttachments", "id": a["id"],
+        "attributes": {"uploaded": True, "sourceFileChecksum": hashlib.md5(data).hexdigest()}}})
+    for _ in range(40):
+        done = (call("GET", f"/v1/appStoreReviewAttachments/{a['id']}")["data"]["attributes"]
+                .get("assetDeliveryState") or {}).get("state")
+        if done == "COMPLETE":
+            print(f"Attached {path.name} for App Review.")
+            return
+        if done == "FAILED":
+            sys.exit(f"Apple could not take {path.name}.")
+        time.sleep(15)
+    sys.exit(f"Apple is still processing {path.name}.")
+
+
 def main():
     app = call("GET", "/v1/apps", **{"filter[bundleId]": BUNDLE_ID})["data"][0]
     print(f"App: {app['attributes']['name']}, project version {VERSION} ({BUILD})")
@@ -230,10 +260,12 @@ def main():
         call("PATCH", f"/v1/appStoreReviewDetails/{existing['id']}",
              {"data": {"type": "appStoreReviewDetails", "id": existing["id"], "attributes": details}})
     else:
-        call("POST", "/v1/appStoreReviewDetails", {"data": {
+        existing = call("POST", "/v1/appStoreReviewDetails", {"data": {
             "type": "appStoreReviewDetails", "attributes": details,
-            "relationships": {"appStoreVersion": {"data": {"type": "appStoreVersions", "id": version["id"]}}}}})
+            "relationships": {"appStoreVersion": {"data": {"type": "appStoreVersions", "id": version["id"]}}}}})["data"]
     print("App Review contact and notes set.")
+    if os.environ.get("ATTACHMENT"):
+        attach(existing, pathlib.Path(os.environ["ATTACHMENT"]))
 
     if not check(app, version):
         sys.exit("Fill in the fields above first. Nothing was sent for review.")
@@ -258,6 +290,11 @@ def main():
             "relationships": {
                 "reviewSubmission": {"data": {"type": "reviewSubmissions", "id": submission["id"]}},
                 "appStoreVersion": {"data": {"type": "appStoreVersions", "id": version["id"]}}}}})
+    # Apple won't take a sent-back submission again until its items are marked resolved.
+    for item in items:
+        if item["attributes"].get("state") not in (None, "READY_FOR_REVIEW", "ACCEPTED", "APPROVED"):
+            call("PATCH", f"/v1/reviewSubmissionItems/{item['id']}", {"data": {
+                "type": "reviewSubmissionItems", "id": item["id"], "attributes": {"resolved": True}}}, soft=True)
     sent = call("PATCH", f"/v1/reviewSubmissions/{submission['id']}", {"data": {
         "type": "reviewSubmissions", "id": submission["id"], "attributes": {"submitted": True}}}, soft=True)
     if sent is None:
