@@ -318,7 +318,7 @@ fun YearHeader(year: Int, count: Int, day: MonthDay, onShare: () -> Unit) {
             .padding(start = 20.dp, end = 8.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            T(L.num(year), size = 56, weight = FontWeight.Black, tight = true, modifier = Modifier.weight(1f).semantics { heading() })
+            T(L.num(year), size = 40, weight = FontWeight.Black, tight = true, modifier = Modifier.weight(1f).semantics { heading() })
             IconButton(onClick = onShare, modifier = Modifier.size(48.dp)) {
                 Icon(Icons.Outlined.IosShare, L.s("share_year", "year" to year), tint = p.ink, modifier = Modifier.size(22.dp))
             }

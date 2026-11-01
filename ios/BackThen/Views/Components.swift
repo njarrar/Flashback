@@ -275,7 +275,7 @@ struct YearSection: View {
     let share: () -> Void
 
     private var year: some View {
-        Text(L.num(group.year)).font(.nunito(56, .black)).tight(56).foregroundStyle(Palette.ink)
+        Text(L.num(group.year)).font(.nunito(40, .black)).tight(40).foregroundStyle(Palette.ink)
             .accessibilityAddTraits(.isHeader)
     }
 
