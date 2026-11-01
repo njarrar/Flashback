@@ -103,7 +103,7 @@ loads the samples from a folder in the app instead.)
 - **Photo viewer.** Swipe through a day's photos or jump with the filmstrip. Pinch
   or double tap to zoom, swipe down to close, tap to hide the buttons. Heart a photo,
   share it, or add it to an album.
-- **Favorites.** Every photo you've hearted, from any day, with its year on each tile.
+- **Favorites.** Every photo you've hearted, from any day, with its date on each tile.
 - **Albums.** On Today, tap Select (or long press a photo), pick photos (tap each one, or drag a
   finger across them), then tap Album. Share an album
   through any app, or save it as a real album in Photos (iPhone) or under
@@ -116,6 +116,24 @@ loads the samples from a folder in the app instead.)
 - **Looks native on each phone.** The system tab bar and sheets on iPhone, with text
   that grows with the system text size; a large top app bar and navigation bar on
   Android. Light and dark mode.
+
+## What's new in 1.18
+
+A design pass on both apps.
+
+- **More photos at the top of Today.** Select and ••• no longer have a row of their
+  own. The date sits beside them and shrinks into the bar as you scroll, so the first
+  year's photos start higher. On Android the wide gap under the date is gone too.
+- **Readable calendar days.** Each day's photo now has a light dark wash under its
+  white number, so the number reads on bright photos. The Today button in the
+  calendar is now a gray pill.
+- **One grid style.** Favorites and album pages use the same side margin, gaps and
+  rounded corners as Today. Each favorite shows its full date ("Oct 18, 2025"), since
+  favorites come from many days.
+- **Calmer photo viewer header.** "3 of 23" moved to a small pill across from the
+  close button. The line under the date now holds only when the photo was taken.
+- **Smaller year headings.** Years drop from 56 pt to 40 pt, so they no longer
+  outshout the date title.
 
 ## What's new in 1.17
 
