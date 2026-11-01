@@ -731,7 +731,7 @@ fun FavoritesScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp
         if (favs.isEmpty()) {
             item { EmptyNote(Icons.Outlined.FavoriteBorder, L.s("favorites_empty_title"), L.s("favorites_empty_body")) }
         } else {
-            squareGridItems(favs, emptySet(), showYear = true) { i -> vm.viewer.value = com.njarrar.backthen.Viewer(favs, i) }
+            squareGridItems(favs, emptySet(), showDate = true) { i -> vm.viewer.value = com.njarrar.backthen.Viewer(favs, i) }
         }
     }
 }
@@ -826,7 +826,7 @@ fun AlbumScreen(vm: AppViewModel, album: Album, bottomPadding: androidx.compose.
                     }
                 }
             }
-            squareGridItems(album.photos, favorites, showYear = false) { i -> vm.viewer.value = com.njarrar.backthen.Viewer(album.photos, i) }
+            squareGridItems(album.photos, favorites, showDate = false) { i -> vm.viewer.value = com.njarrar.backthen.Viewer(album.photos, i) }
         }
     }
     if (renaming) {

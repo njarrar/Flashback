@@ -379,29 +379,33 @@ struct PinnedYear: View {
 struct SquareGrid: View {
     @Environment(AppStore.self) private var store
     let photos: [Photo]
-    var showYear = false
+    var showDate = false
 
     var body: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 3), spacing: 2) {
+        // Same margin, gap and corners as the photos on Today.
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 3), spacing: 4) {
             ForEach(Array(photos.enumerated()), id: \.element.key) { i, photo in
-                PhotoTile(photo: photo, radius: 0, showHeart: !showYear) {
+                PhotoTile(photo: photo, radius: 12, showHeart: !showDate) {
                     store.viewer = Viewer(photos: photos, start: i)
                 }
                 .aspectRatio(1, contentMode: .fit)
                 .overlay(alignment: .bottomLeading) {
-                    if showYear { YearChip(year: yearOf(photo.time)).padding(6) }
+                    // Favorites come from many days, so the chip names the whole date.
+                    if showDate { DateChip(text: L.date(photo.time, "yMMMd")).padding(6) }
                 }
             }
         }
+        .padding(.horizontal, 16)
     }
 }
 
-/// Small year label on a photo tile.
-struct YearChip: View {
-    let year: Int
+/// Small date label on a photo tile.
+struct DateChip: View {
+    let text: String
 
     var body: some View {
-        Text(L.num(year))
+        Text(text)
+            .lineLimit(1).minimumScaleFactor(0.7)
             .font(.nunito(11, .heavy)).tracking(L.lang.arabicScript ? 0 : 0.2).foregroundStyle(Palette.chipInk)
             .padding(.vertical, 2).padding(.horizontal, 7)
             .background {
