@@ -84,6 +84,10 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -110,6 +114,7 @@ fun T(
     tight: Boolean = false,
     maxLines: Int = Int.MAX_VALUE,
     modifier: Modifier = Modifier,
+    align: TextAlign? = null,
 ) {
     val p = LocalPalette.current
     // Arabic letters reach higher and lower than Latin ones, so lines get more room.
@@ -125,6 +130,7 @@ fun T(
         letterSpacing = if (tight) tightSpacing(size).sp else 0.sp,
         maxLines = maxLines,
         overflow = TextOverflow.Ellipsis,
+        textAlign = align,
     )
 }
 
@@ -438,9 +444,11 @@ fun LazyListScope.squareGridItems(
 @Composable
 fun DateChip(text: String, modifier: Modifier = Modifier) {
     Box(modifier.clip(RoundedCornerShape(50)).background(Chip).padding(horizontal = 7.dp, vertical = 2.dp).clearAndSetSemantics {}) {
-        Text(
-            text, color = ChipInk, maxLines = 1, overflow = TextOverflow.Ellipsis, fontFamily = Nunito, fontWeight = FontWeight.ExtraBold,
-            fontSize = 11.sp, lineHeight = 14.sp, letterSpacing = if (L.lang.arabicScript) 0.sp else 0.2.sp,
+        // Shrinks to fit the tile with big text, instead of cutting the year off.
+        BasicText(
+            text, maxLines = 1,
+            style = TextStyle(color = ChipInk, fontFamily = Nunito, fontWeight = FontWeight.ExtraBold, lineHeight = 14.sp, letterSpacing = if (L.lang.arabicScript) 0.sp else 0.2.sp),
+            autoSize = TextAutoSize.StepBased(minFontSize = 7.sp, maxFontSize = 11.sp, stepSize = 0.5.sp),
         )
     }
 }

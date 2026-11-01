@@ -61,6 +61,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -189,23 +190,21 @@ fun ViewerScreen(
         if (chromeAlpha > 0.01f) {
             Column(Modifier.fillMaxSize().systemBarsPadding().graphicsLayer { alpha = chromeAlpha * (1f - pull) }) {
                 Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    // Equal sides keep the date centered: close on one, "3 of 5" on the other.
-                    Box(Modifier.width(84.dp), contentAlignment = Alignment.CenterStart) {
-                        IconButton(onClick = onClose, enabled = chrome, modifier = Modifier.size(44.dp).clip(CircleShape).background(ViewerInk.copy(alpha = 0.14f))) {
-                            Icon(Icons.Filled.Close, L.s("close"), tint = ViewerInk)
-                        }
+                    // Close on one side, "3 of 5" on the other, the date between them.
+                    IconButton(onClick = onClose, enabled = chrome, modifier = Modifier.size(44.dp).clip(CircleShape).background(ViewerInk.copy(alpha = 0.14f))) {
+                        Icon(Icons.Filled.Close, L.s("close"), tint = ViewerInk)
                     }
-                    Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(Modifier.weight(1f).padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         T(formatDate(date, "yMMMMd"), size = 16, weight = FontWeight.Bold, color = ViewerInk, maxLines = 1)
-                        T(L.s("ago_weekday", "ago" to agoLabel(date.year), "weekday" to weekdayTime(photo.time, use24)), size = 13, color = ViewerInk.copy(alpha = 0.62f), maxLines = 1)
+                        T(L.s("ago_weekday", "ago" to agoLabel(date.year), "weekday" to weekdayTime(photo.time, use24)), size = 13, color = ViewerInk.copy(alpha = 0.62f), maxLines = 2, align = TextAlign.Center)
                     }
-                    Box(Modifier.width(84.dp), contentAlignment = Alignment.CenterEnd) {
-                        // Where you are in the set: "3 of 5".
-                        if (photos.size > 1) {
-                            Box(Modifier.heightIn(min = 28.dp).clip(CircleShape).background(ViewerInk.copy(alpha = 0.14f)).padding(horizontal = 10.dp), contentAlignment = Alignment.Center) {
-                                T(L.s("n_of_total", "n" to pager.currentPage + 1, "total" to photos.size), size = 13, weight = FontWeight.Bold, color = ViewerInk, maxLines = 1)
-                            }
+                    // Where you are in the set: "3 of 5". Never cut short.
+                    if (photos.size > 1) {
+                        Box(Modifier.heightIn(min = 28.dp).widthIn(min = 44.dp).clip(CircleShape).background(ViewerInk.copy(alpha = 0.14f)).padding(horizontal = 10.dp), contentAlignment = Alignment.Center) {
+                            T(L.s("n_of_total", "n" to pager.currentPage + 1, "total" to photos.size), size = 13, weight = FontWeight.Bold, color = ViewerInk, maxLines = 1)
                         }
+                    } else {
+                        Spacer(Modifier.size(44.dp))
                     }
                 }
                 Spacer(Modifier.weight(1f))

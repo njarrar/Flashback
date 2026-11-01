@@ -111,30 +111,29 @@ struct PhotoViewer: View {
 
     private func header(_ photo: Photo, count: Int) -> some View {
         let sub = L.s("ago_weekday", ["ago": agoLabel(yearOf(photo.time)), "weekday": L.weekdayTime(photo.time)])
-        // The date stays centered on the screen; close sits on one side and "3 of 5" on the other.
-        return ZStack {
+        // Close on one side, "3 of 5" on the other, the date between them.
+        return HStack(spacing: 8) {
+            Button { store.viewer = nil } label: {
+                Image(systemName: "xmark").font(.system(size: 17, weight: .bold)).foregroundStyle(ink)
+                    .frame(width: 44, height: 44).background(ink.opacity(0.14), in: Circle())
+            }
+            .accessibilityLabel(L.s("close"))
             VStack(spacing: 1) {
                 Text(L.date(photo.time, "yMMMMd")).font(.nunito(16, .bold)).foregroundStyle(ink)
-                Text(sub).font(.nunito(13)).foregroundStyle(ink.opacity(0.62))
+                    .lineLimit(1).minimumScaleFactor(0.8)
+                Text(sub).font(.nunito(13)).foregroundStyle(ink.opacity(0.62)).lineLimit(2)
             }
-            .lineLimit(1).minimumScaleFactor(0.8)
-            .padding(.horizontal, 84)
-            HStack(spacing: 8) {
-                Button { store.viewer = nil } label: {
-                    Image(systemName: "xmark").font(.system(size: 17, weight: .bold)).foregroundStyle(ink)
-                        .frame(width: 44, height: 44).background(ink.opacity(0.14), in: Circle())
-                }
-                .accessibilityLabel(L.s("close"))
-                Spacer(minLength: 0)
-                // Where you are in the set: "3 of 5".
-                if count > 1 {
-                    Text(L.s("n_of_total", ["n": index + 1, "total": count]))
-                        .font(.nunito(13, .bold)).monospacedDigit().foregroundStyle(ink)
-                        .lineLimit(1).minimumScaleFactor(0.8)
-                        .padding(.horizontal, 10).frame(minWidth: 44, minHeight: 28)
-                        .background(ink.opacity(0.14), in: Capsule())
-                        .frame(maxWidth: 76, alignment: .trailing)
-                }
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
+            // Where you are in the set: "3 of 5". Never cut short.
+            if count > 1 {
+                Text(L.s("n_of_total", ["n": index + 1, "total": count]))
+                    .font(.nunito(13, .bold)).monospacedDigit().foregroundStyle(ink)
+                    .fixedSize()
+                    .padding(.horizontal, 10).frame(minWidth: 44, minHeight: 28)
+                    .background(ink.opacity(0.14), in: Capsule())
+            } else {
+                Color.clear.frame(width: 44, height: 44)
             }
         }
         .padding(.horizontal, 12).padding(.vertical, 8)
