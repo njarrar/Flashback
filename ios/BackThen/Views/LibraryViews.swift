@@ -46,7 +46,7 @@ struct FavoritesView: View {
             if favs.isEmpty {
                 EmptyNote(icon: "heart", title: L.s("favorites_empty_title"), text: L.s("favorites_empty_body"))
             } else {
-                SquareGrid(photos: favs, showYear: true)
+                SquareGrid(photos: favs, showDate: true)
             }
             Color.clear.frame(height: 120)
         }

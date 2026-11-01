@@ -29,7 +29,9 @@ struct CalendarSheet: View {
                 if month != today.month || store.day != today {
                     Button { pick(today) } label: {
                         Text(L.s("today")).font(.nunito(15, .semibold)).foregroundStyle(Palette.ink)
-                            .padding(.horizontal, 8).frame(minHeight: 44)
+                            .padding(.horizontal, 14).frame(minHeight: 36)
+                            .background(Palette.fill, in: Capsule())
+                            .frame(minHeight: 44).contentShape(Rectangle())
                     }
                 }
                 arrow("chevron.backward", L.s("previous_month")) { turn(-1) }
@@ -121,7 +123,7 @@ struct CalendarSheet: View {
     }
 }
 
-/// One day in the calendar: a tiny copy of one of its photos with the number on top, or a plain
+/// One day in the calendar: a tiny copy of one of its photos, dimmed, with the number on top, or a plain
 /// number. Past days with no photos use the muted gray; days still to come stay faint.
 private struct CalendarDay: View {
     @Environment(AppStore.self) private var store
@@ -136,13 +138,13 @@ private struct CalendarDay: View {
         let shape = RoundedRectangle(cornerRadius: 11, style: .continuous)
         Text(L.num(md.day)).font(.nunito(16, photos ? .heavy : .semibold)).monospacedDigit()
             .foregroundStyle(photos && cover != nil ? .white : future ? Palette.faint.opacity(0.5) : photos ? Palette.ink : Palette.muted)
-            .shadow(color: .black.opacity(photos && cover != nil ? 0.6 : 0), radius: 2)
             .frame(width: 40, height: 40)
             .background {
                 if photos {
                     ZStack {
                         Palette.fill
-                        if let cover { PhotoImage(photo: cover) }
+                        // A dark wash under the number, so it reads on bright photos too.
+                        if let cover { PhotoImage(photo: cover); Palette.dayWash }
                     }
                     .clipShape(shape)
                 }

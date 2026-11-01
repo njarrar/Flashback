@@ -1,1 +1,1 @@
-Elige muchas fotos a la vez: en Seleccionar, desliza un dedo sobre ellas. El texto ya no se superpone en teléfonos con letra grande o pantalla ampliada, y nada queda bajo la barra inferior.
+Un repaso de diseño: más fotos arriba en Hoy, días del calendario más fáciles de leer, Favoritos y álbumes con la misma cuadrícula que Hoy y la fecha de cada foto, y una cabecera más tranquila en el visor.

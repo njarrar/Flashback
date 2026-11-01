@@ -84,6 +84,10 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -110,6 +114,7 @@ fun T(
     tight: Boolean = false,
     maxLines: Int = Int.MAX_VALUE,
     modifier: Modifier = Modifier,
+    align: TextAlign? = null,
 ) {
     val p = LocalPalette.current
     // Arabic letters reach higher and lower than Latin ones, so lines get more room.
@@ -125,6 +130,7 @@ fun T(
         letterSpacing = if (tight) tightSpacing(size).sp else 0.sp,
         maxLines = maxLines,
         overflow = TextOverflow.Ellipsis,
+        textAlign = align,
     )
 }
 
@@ -318,7 +324,7 @@ fun YearHeader(year: Int, count: Int, day: MonthDay, onShare: () -> Unit) {
             .padding(start = 20.dp, end = 8.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            T(L.num(year), size = 56, weight = FontWeight.Black, tight = true, modifier = Modifier.weight(1f).semantics { heading() })
+            T(L.num(year), size = 40, weight = FontWeight.Black, tight = true, modifier = Modifier.weight(1f).semantics { heading() })
             IconButton(onClick = onShare, modifier = Modifier.size(48.dp)) {
                 Icon(Icons.Outlined.IosShare, L.s("share_year", "year" to year), tint = p.ink, modifier = Modifier.size(22.dp))
             }
@@ -409,20 +415,22 @@ fun YearMosaic(photos: List<Photo>, favorites: Set<String>, selection: Selection
 fun LazyListScope.squareGridItems(
     photos: List<Photo>,
     favorites: Set<String>,
-    showYear: Boolean,
+    showDate: Boolean,
     onOpen: (Int) -> Unit,
 ) {
-    val gap = 2.dp
+    // Same margin, gap and corners as the photos on Today.
+    val gap = 4.dp
     val rows = photos.chunked(3)
     itemsIndexed(rows, key = { _, row -> row.first().key }) { r, rowPhotos ->
         Row(
-            modifier = Modifier.fillMaxWidth().padding(bottom = if (r < rows.lastIndex) gap else 0.dp),
+            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = if (r < rows.lastIndex) gap else 0.dp),
             horizontalArrangement = Arrangement.spacedBy(gap),
         ) {
             rowPhotos.forEachIndexed { c, photo ->
                 Box(Modifier.weight(1f).aspectRatio(1f)) {
-                    PhotoTile(photo, 0.dp, !showYear && photo.key in favorites, null, onOpen = { onOpen(r * 3 + c) }, modifier = Modifier.fillMaxSize())
-                    if (showYear) YearChip(localDate(photo.time).year, Modifier.align(Alignment.BottomStart).padding(6.dp))
+                    PhotoTile(photo, 12.dp, !showDate && photo.key in favorites, null, onOpen = { onOpen(r * 3 + c) }, modifier = Modifier.fillMaxSize())
+                    // Favorites come from many days, so the chip names the whole date.
+                    if (showDate) DateChip(formatDate(localDate(photo.time), "yMMMd"), Modifier.align(Alignment.BottomStart).padding(6.dp))
                 }
             }
             repeat(3 - rowPhotos.size) {
@@ -432,13 +440,15 @@ fun LazyListScope.squareGridItems(
     }
 }
 
-/** Small year label on a photo tile. */
+/** Small date label on a photo tile. */
 @Composable
-fun YearChip(year: Int, modifier: Modifier = Modifier) {
+fun DateChip(text: String, modifier: Modifier = Modifier) {
     Box(modifier.clip(RoundedCornerShape(50)).background(Chip).padding(horizontal = 7.dp, vertical = 2.dp).clearAndSetSemantics {}) {
-        Text(
-            L.num(year), color = ChipInk, fontFamily = Nunito, fontWeight = FontWeight.ExtraBold,
-            fontSize = 11.sp, lineHeight = 14.sp, letterSpacing = if (L.lang.arabicScript) 0.sp else 0.2.sp,
+        // Shrinks to fit the tile with big text, instead of cutting the year off.
+        BasicText(
+            text, maxLines = 1,
+            style = TextStyle(color = ChipInk, fontFamily = Nunito, fontWeight = FontWeight.ExtraBold, lineHeight = 14.sp, letterSpacing = if (L.lang.arabicScript) 0.sp else 0.2.sp),
+            autoSize = TextAutoSize.StepBased(minFontSize = 7.sp, maxFontSize = 11.sp, stepSize = 0.5.sp),
         )
     }
 }

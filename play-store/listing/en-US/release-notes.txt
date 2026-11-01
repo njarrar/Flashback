@@ -1,1 +1,1 @@
-Pick many photos at once: in Select, drag a finger across them. Text no longer overlaps on phones with large text or a bigger display size, and nothing hides under the navigation buttons.
+A design pass: more photos fit at the top of Today, calendar days are easier to read, Favorites and albums match the Today grid and show each photo's date, and the photo viewer header is calmer.

@@ -11,6 +11,8 @@ struct TodayView: View {
     @State private var albumFor: [Photo]?
     /// Bottom edge of the top bar and of the big date title, in screen points.
     @State private var barBottom: CGFloat = 0
+    @State private var barHeight: CGFloat = 56
+    @State private var capsuleWidth: CGFloat = 130
     @State private var titleBottom: CGFloat = .infinity
     /// Years whose header is pinned under the top bar right now.
     @State private var pinnedYears: Set<Int> = []
@@ -58,9 +60,13 @@ struct TodayView: View {
                     Button { calendar = true } label: {
                         HStack(spacing: 8) {
                             Text(day.label).font(.nunito(34, .bold)).tight(34).foregroundStyle(Palette.ink)
+                                .lineLimit(1).minimumScaleFactor(0.6)
                             Image(systemName: "chevron.down").font(.system(size: 16, weight: .bold)).foregroundStyle(Palette.accent)
                         }
                     }
+                    // The title sits on the top bar's row, beside Select and •••, so it keeps clear of them.
+                    .padding(.trailing, capsuleWidth + 8)
+                    .opacity(1 - scrolled)
                     .accessibilityAddTraits(.isHeader)
                     .accessibilityHint(L.s("pick_another_day"))
                     .accessibilityActions {
@@ -75,7 +81,8 @@ struct TodayView: View {
                     }
                 }
                 .padding(.horizontal, 20)
-                .padding(.top, 4)
+                // Pull the title up into the top bar's row, which is clear at rest.
+                .padding(.top, 8 - barHeight)
                 .padding(.bottom, 12)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .id("top")
@@ -206,7 +213,8 @@ struct TodayView: View {
 
     /// How far the big title has gone under the top bar: 0 at rest, 1 once it is hidden.
     private var scrolled: CGFloat {
-        min(max((barBottom + 20 - titleBottom) / 20, 0), 1)
+        // At rest the title shares the bar's row, so its bottom sits a little above the bar's.
+        min(max((barBottom - 8 - titleBottom) / 24, 0), 1)
     }
 
     /// The bar at the top of Today. Clear at rest; once the date title scrolls under it,
@@ -239,18 +247,20 @@ struct TodayView: View {
             .foregroundStyle(Palette.ink)
             .background(Palette.glass, in: Capsule())
             .overlay(Capsule().stroke(Palette.line, lineWidth: 1))
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { capsuleWidth = $0 }
         }
         .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: size)
         .padding(.leading, 20).padding(.trailing, 16)
         .padding(.vertical, 8)
         .background {
-            Rectangle().fill(.bar).opacity(p).ignoresSafeArea(edges: .top)
+            Rectangle().fill(.bar).opacity(p).allowsHitTesting(false).ignoresSafeArea(edges: .top)
         }
         .overlay(alignment: .bottom) {
             // One hairline only: a pinned year header draws its own.
             Palette.line.frame(height: 1 / 3).opacity(pinnedYears.isEmpty ? p : 0)
         }
         .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).maxY } action: { barBottom = $0 }
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { barHeight = $0 }
     }
 
     /// The ••• menu: hide or show this date, the layout, then the full settings sheet.

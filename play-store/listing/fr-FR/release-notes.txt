@@ -1,1 +1,1 @@
-Choisissez plusieurs photos d'un coup : en mode Sélectionner, faites glisser un doigt dessus. Le texte ne se chevauche plus sur les téléphones avec un grand texte ou un affichage agrandi, et rien ne se cache sous les boutons de navigation.
+Une passe de design : plus de photos en haut d'Aujourd'hui, des jours du calendrier plus lisibles, des Favoris et albums alignés sur la grille d'Aujourd'hui avec la date de chaque photo, et un en-tête plus calme dans la visionneuse.
