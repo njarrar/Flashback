@@ -33,7 +33,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
@@ -78,9 +77,13 @@ fun CalendarSheet(start: MonthDay, index: DayIndex, cover: suspend (MonthDay) ->
             T(monthName(month), size = 24, weight = FontWeight.ExtraBold, tight = true, modifier = Modifier.weight(1f).semantics { heading() })
             if (month != today.month || start != today) {
                 Box(
-                    Modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(50)).clickable(role = Role.Button) { onPick(today) }.padding(horizontal = 8.dp),
+                    Modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(50)).clickable(role = Role.Button) { onPick(today) },
                     contentAlignment = Alignment.Center,
-                ) { T(L.s("today"), size = 15, weight = FontWeight.SemiBold) }
+                ) {
+                    Box(Modifier.clip(RoundedCornerShape(50)).background(LocalPalette.current.fill).padding(horizontal = 14.dp, vertical = 8.dp)) {
+                        T(L.s("today"), size = 15, weight = FontWeight.SemiBold)
+                    }
+                }
             }
             Arrow(left = true) { scope.launch { pager.animateScrollToPage((month + 11) % 12) } }
             Arrow(left = false) { scope.launch { pager.animateScrollToPage((month + 1) % 12) } }
@@ -101,7 +104,7 @@ fun CalendarSheet(start: MonthDay, index: DayIndex, cover: suspend (MonthDay) ->
     }
 }
 
-/** One day: a tiny copy of one of its photos with the number on top, or a plain number. */
+/** One day: a tiny copy of one of its photos, dimmed, with the number on top, or a plain number. */
 @Composable
 private fun Day(
     md: MonthDay, index: DayIndex, cover: suspend (MonthDay) -> Photo?, selected: Boolean, isToday: Boolean, future: Boolean,
@@ -135,7 +138,11 @@ private fun Day(
                 .then(if (isToday && !selected) Modifier.border(1.5.dp, p.ink, shape) else Modifier),
             contentAlignment = Alignment.Center,
         ) {
-            photo?.let { AsyncImage(it.uri, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize()) }
+            photo?.let {
+                AsyncImage(it.uri, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                // A dark wash under the number, so it reads on bright photos too.
+                Box(Modifier.fillMaxSize().background(DayWash))
+            }
             val onPhoto = photo != null
             Text(
                 L.num(md.day),
@@ -148,7 +155,6 @@ private fun Day(
                 },
                 style = TextStyle(
                     fontFamily = Nunito, fontWeight = if (photos) FontWeight.ExtraBold else FontWeight.SemiBold, fontSize = 16.sp, fontFeatureSettings = "tnum",
-                    shadow = if (onPhoto) Shadow(Color.Black.copy(alpha = 0.6f), blurRadius = 4f) else null,
                 ),
             )
         }
