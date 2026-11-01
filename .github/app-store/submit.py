@@ -197,16 +197,22 @@ def attach_build(app, version):
 
 
 def whats_new(app, version):
-    """Sets "What's New" from the listing files. The first release has none."""
-    if not any(state(v) in RELEASED for v in versions(app)):
-        return
+    """Sets "What's New" from the listing files (the first release has none), and the
+    promotional text where it is empty: a new version record doesn't copy it over."""
+    first = not any(state(v) in RELEASED for v in versions(app))
     for loc in call("GET", f"/v1/appStoreVersions/{version['id']}/appStoreVersionLocalizations")["data"]:
-        notes = LISTING / loc["attributes"]["locale"] / "release-notes.txt"
-        if notes.exists():
+        folder = LISTING / loc["attributes"]["locale"]
+        attributes = {}
+        notes = folder / "release-notes.txt"
+        if not first and notes.exists():
+            attributes["whatsNew"] = notes.read_text(encoding="utf-8").strip()
+        promo = folder / "promotional-text.txt"
+        if not loc["attributes"].get("promotionalText") and promo.exists():
+            attributes["promotionalText"] = promo.read_text(encoding="utf-8").strip()
+        if attributes:
             call("PATCH", f"/v1/appStoreVersionLocalizations/{loc['id']}", {"data": {
-                "type": "appStoreVersionLocalizations", "id": loc["id"],
-                "attributes": {"whatsNew": notes.read_text(encoding="utf-8").strip()}}})
-    print("What's New set.")
+                "type": "appStoreVersionLocalizations", "id": loc["id"], "attributes": attributes}})
+    print("What's New and promotional text set.")
 
 
 def attach(detail, path):
