@@ -83,6 +83,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -302,7 +303,8 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
     var shareFor by remember { mutableStateOf<ShareRequest?>(null) }
     var stripPick by remember(day) { mutableStateOf<Int?>(null) }
     val list = rememberLazyListState()
-    val topBar = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
+    // The date title shares one row with Select and the menu, and shrinks as the list scrolls under it.
+    val topBar = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
     val scope = rememberCoroutineScope()
     val index = vm.index(state)
     val askPhotos = rememberPhotoPermission(vm) { ok -> if (!ok) vm.say(L.s("toast_allow_access")) }
@@ -402,13 +404,10 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
     Box(Modifier.fillMaxSize().background(p.bg)) {
         Column(Modifier.fillMaxSize().nestedScroll(topBar.nestedScrollConnection)) {
             // The date is the title: large at rest, title size once the list scrolls.
-            MaterialTheme(
-                typography = MaterialTheme.typography.copy(
-                    headlineMedium = TextStyle(fontFamily = Nunito, fontWeight = FontWeight.Bold, fontSize = 32.sp, lineHeight = 40.sp, letterSpacing = tightSpacing(32).sp),
-                    titleLarge = TextStyle(fontFamily = Nunito, fontWeight = FontWeight.Bold, fontSize = 20.sp, lineHeight = 26.sp),
-                ),
-            ) {
-                LargeTopAppBar(
+            run {
+                val shrink = topBar.state.overlappedFraction.coerceIn(0f, 1f)
+                val titleSize = 32f - 10f * shrink
+                TopAppBar(
                     title = {
                         Row(
                             Modifier.clip(RoundedCornerShape(8.dp)).clickable(role = Role.Button) { calendar = true }.semantics {
@@ -420,7 +419,11 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
                             },
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text(day.label(), color = p.ink)
+                            Text(
+                                day.label(), color = p.ink, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false),
+                                style = TextStyle(fontFamily = Nunito, fontWeight = FontWeight.Bold, fontSize = titleSize.sp, lineHeight = (titleSize * 1.25f).sp, letterSpacing = tightSpacing(titleSize).sp),
+                            )
                             Icon(Icons.Filled.ArrowDropDown, L.s("pick_another_day"), tint = Accent)
                         }
                     },
