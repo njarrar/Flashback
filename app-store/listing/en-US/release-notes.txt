@@ -1,1 +1,1 @@
-A design pass: more photos fit at the top of Today, calendar days are easier to read, Favorites and albums match the Today grid and show each photo's date, and the photo viewer header is calmer.
+New App Store pictures and small fixes behind the scenes.

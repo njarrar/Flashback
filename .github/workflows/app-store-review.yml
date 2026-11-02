@@ -15,6 +15,10 @@ on:
         description: If an older version is still waiting for review, pull it back and send this one instead
         type: boolean
         default: false
+      screenshots:
+        description: Put the screenshots in app-store/screenshots on the version
+        type: boolean
+        default: true
       attachment:
         description: Wait for a sealed file (such as a screen recording) to attach for App Review
         type: boolean
@@ -73,6 +77,7 @@ jobs:
           REVIEW_EMAIL: njarrar@gmail.com
           SUBMIT: ${{ inputs.submit }}
           REPLACE: ${{ inputs.replace }}
+          SCREENSHOTS: ${{ inputs.screenshots }}
         run: |
           python3 -m venv /tmp/venv && /tmp/venv/bin/pip install -q "pyjwt[crypto]" requests
           /tmp/venv/bin/python .github/app-store/submit.py | tee -a "$GITHUB_STEP_SUMMARY"

@@ -20,8 +20,10 @@ The App Review notes come from app-store/review-notes.txt.
     REPLACE                                 "true" pulls back a version waiting for review
     ATTACHMENT                              a file (such as a screen recording) to attach to the App
                                             Review details, in place of any attached before
+    SCREENSHOTS                             "true" puts app-store/screenshots/<lang>/ on the version,
+                                            in place of the iPhone screenshots there
 
-The store text, screenshots and build must already be on the version. Apple says what is
+The store text and build must already be on the version. Apple says what is
 still missing when the submission fails.
 """
 import hashlib
@@ -42,6 +44,9 @@ PROJECT = (ROOT / "ios" / "BackThen.xcodeproj" / "project.pbxproj").read_text(en
 VERSION = re.search(r"MARKETING_VERSION = ([0-9.]+);", PROJECT).group(1)
 BUILD = re.search(r"CURRENT_PROJECT_VERSION = ([0-9]+);", PROJECT).group(1)
 LISTING = ROOT / "app-store" / "listing"
+SHOTS = ROOT / "app-store" / "screenshots"
+# 6.9" and 6.7" iPhones share this type. Apple scales it down for smaller iPhones.
+SHOT_TYPE = "APP_IPHONE_67"
 # Versions Apple has released, or approved for release.
 RELEASED = {"READY_FOR_SALE", "READY_FOR_DISTRIBUTION", "PROCESSING_FOR_DISTRIBUTION", "PENDING_DEVELOPER_RELEASE",
             "PENDING_APPLE_RELEASE", "ACCEPTED", "REPLACED_WITH_NEW_VERSION", "REMOVED_FROM_SALE",
@@ -215,31 +220,77 @@ def whats_new(app, version):
     print("What's New and promotional text set.")
 
 
-def attach(detail, path):
-    """Attaches a file to the App Review details, in place of any attached before."""
-    for old in call("GET", f"/v1/appStoreReviewDetails/{detail['id']}/appStoreReviewAttachments")["data"]:
-        call("DELETE", f"/v1/appStoreReviewAttachments/{old['id']}")
+def upload(path, kind, relationship):
+    """Reserves, sends and commits one file with Apple's upload operations."""
     data = path.read_bytes()
-    a = call("POST", "/v1/appStoreReviewAttachments", {"data": {
-        "type": "appStoreReviewAttachments", "attributes": {"fileName": path.name, "fileSize": len(data)},
-        "relationships": {"appStoreReviewDetail": {"data": {"type": "appStoreReviewDetails", "id": detail["id"]}}}}})["data"]
+    a = call("POST", f"/v1/{kind}", {"data": {
+        "type": kind, "attributes": {"fileName": path.name, "fileSize": len(data)},
+        "relationships": relationship}})["data"]
     for op in a["attributes"]["uploadOperations"]:
         part = data[op["offset"]:op["offset"] + op["length"]]
         headers = {h["name"]: h["value"] for h in op.get("requestHeaders") or []}
         requests.request(op["method"], op["url"], data=part, headers=headers, timeout=300).raise_for_status()
-    call("PATCH", f"/v1/appStoreReviewAttachments/{a['id']}", {"data": {
-        "type": "appStoreReviewAttachments", "id": a["id"],
+    call("PATCH", f"/v1/{kind}/{a['id']}", {"data": {
+        "type": kind, "id": a["id"],
         "attributes": {"uploaded": True, "sourceFileChecksum": hashlib.md5(data).hexdigest()}}})
+    return a
+
+
+def wait(kind, ids, name):
     for _ in range(40):
-        done = (call("GET", f"/v1/appStoreReviewAttachments/{a['id']}")["data"]["attributes"]
-                .get("assetDeliveryState") or {}).get("state")
-        if done == "COMPLETE":
-            print(f"Attached {path.name} for App Review.")
+        states = [(call("GET", f"/v1/{kind}/{i}")["data"]["attributes"].get("assetDeliveryState") or {}).get("state")
+                  for i in ids]
+        if "FAILED" in states:
+            sys.exit(f"Apple could not take {name}.")
+        if all(st == "COMPLETE" for st in states):
             return
-        if done == "FAILED":
-            sys.exit(f"Apple could not take {path.name}.")
         time.sleep(15)
-    sys.exit(f"Apple is still processing {path.name}.")
+    sys.exit(f"Apple is still processing {name}.")
+
+
+def screenshots(version):
+    """Puts each language's screenshots on the version, in file name order, in place of
+    the iPhone screenshots there. A language whose shots are already the same is left alone."""
+    for loc in call("GET", f"/v1/appStoreVersions/{version['id']}/appStoreVersionLocalizations")["data"]:
+        locale = loc["attributes"]["locale"]
+        files = sorted((SHOTS / locale.split("-")[0]).glob("*.png"))
+        if not files:
+            print(f"No screenshots for {locale} in the repo, so its screenshots stay.")
+            continue
+        sets = call("GET", f"/v1/appStoreVersionLocalizations/{loc['id']}/appScreenshotSets")["data"]
+        mine = next((s for s in sets if s["attributes"]["screenshotDisplayType"] == SHOT_TYPE), None)
+        if mine:
+            now = [x["attributes"].get("sourceFileChecksum")
+                   for x in call("GET", f"/v1/appScreenshotSets/{mine['id']}/appScreenshots")["data"]]
+            if now == [hashlib.md5(f.read_bytes()).hexdigest() for f in files]:
+                print(f"Screenshots for {locale} are already up to date.")
+                continue
+        # Older shots in other iPhone sizes would show on those iPhones in place of the new ones.
+        for s in sets:
+            if s["attributes"]["screenshotDisplayType"].startswith("APP_IPHONE") and s is not mine:
+                call("DELETE", f"/v1/appScreenshotSets/{s['id']}")
+        if mine:
+            for x in call("GET", f"/v1/appScreenshotSets/{mine['id']}/appScreenshots")["data"]:
+                call("DELETE", f"/v1/appScreenshots/{x['id']}")
+        else:
+            mine = call("POST", "/v1/appScreenshotSets", {"data": {
+                "type": "appScreenshotSets", "attributes": {"screenshotDisplayType": SHOT_TYPE},
+                "relationships": {"appStoreVersionLocalization": {
+                    "data": {"type": "appStoreVersionLocalizations", "id": loc["id"]}}}}})["data"]
+        ids = [upload(f, "appScreenshots", {"appScreenshotSet": {
+            "data": {"type": "appScreenshotSets", "id": mine["id"]}}})["id"] for f in files]
+        wait("appScreenshots", ids, f"the {locale} screenshots")
+        print(f"Put {len(ids)} screenshots on {locale}.")
+
+
+def attach(detail, path):
+    """Attaches a file to the App Review details, in place of any attached before."""
+    for old in call("GET", f"/v1/appStoreReviewDetails/{detail['id']}/appStoreReviewAttachments")["data"]:
+        call("DELETE", f"/v1/appStoreReviewAttachments/{old['id']}")
+    a = upload(path, "appStoreReviewAttachments", {"appStoreReviewDetail": {
+        "data": {"type": "appStoreReviewDetails", "id": detail["id"]}}})
+    wait("appStoreReviewAttachments", [a["id"]], path.name)
+    print(f"Attached {path.name} for App Review.")
 
 
 def main():
@@ -251,6 +302,8 @@ def main():
         sys.exit(f"Version {VERSION} is {state(version)}, so there is nothing to send.")
     attach_build(app, version)
     whats_new(app, version)
+    if os.environ.get("SCREENSHOTS") == "true":
+        screenshots(version)
 
     name = os.environ.get("REVIEW_NAME", "").split(" ", 1)
     details = {

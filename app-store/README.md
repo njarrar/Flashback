@@ -8,7 +8,7 @@ Steps 1 to 6 happen once.
 |---|---|
 | Bundle ID | `com.njarrar.backthen` (widget: `com.njarrar.backthen.widget`) |
 | App Group | `group.com.njarrar.backthen` |
-| Version | 1.16 (build 18) |
+| Version | 1.19 (build 21) |
 | Store text, four languages | [`listing/`](listing) |
 | iPhone screenshots, four languages | [`screenshots/`](screenshots), made by the workflow |
 | Privacy policy | [`../play-store/privacy-policy.md`](../play-store/privacy-policy.md) (covers both apps) |
@@ -97,7 +97,11 @@ commit them.
 **Actions > App Store > Run workflow** on `main`. Two choices:
 
 - **Send the build to App Store Connect**: on by default.
-- **Take new App Store screenshots**: on by default. They land in `screenshots/`.
+- **Take new App Store screenshots**: on by default. They land in `screenshots/`,
+  each in a phone frame under a headline. The headlines are in
+  `listing/<language>/captions.txt`: one block per shot, headline then the line under
+  it, blocks split by a blank line, in the order Today, calendar, viewer, favorites,
+  album, welcome. [`frame.py`](../.github/screenshots/frame.py) does the framing.
 
 The run's summary says what it built and whether it went to Apple. After 10 to 30
 minutes the build shows in App Store Connect under **TestFlight**. Add yourself under
@@ -172,7 +176,9 @@ set on the website.
    waits for the build to finish processing and picks it, fills in **What's New** from
    the release notes, and sends it for review. If an older version is still waiting for
    review, it stops, unless you turn on **replace**, which pulls that one back first.
-   The App Review notes come from `review-notes.txt`. If Apple sent the version back,
+   The App Review notes come from `review-notes.txt`. With **screenshots** on (the
+   default), it also puts the shots from `screenshots/` on the version, in place of the
+   iPhone shots there, and skips a language whose shots haven't changed. If Apple sent the version back,
    the workflow sends the same submission again, so Apple's messages stay with it.
 
 To attach a file for App Review, such as a screen recording, run the App Store review

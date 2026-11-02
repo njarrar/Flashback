@@ -168,7 +168,9 @@ struct TodayView: View {
             }
         }
         .sheet(isPresented: $calendar) {
-            CalendarSheet(start: store.day) { md in go(md) }
+            // The screenshot demo opens on last month until the 15th, so the calendar shot
+            // has a month of photo days rather than days still to come (see make_photos.py).
+            CalendarSheet(start: store.demoCalendar && store.day.day < 15 ? store.day.shifted(by: -store.day.day) : store.day) { md in go(md) }
         }
         .sheet(isPresented: $settings) { SettingsSheet() }
         .sheet(isPresented: $placeAsk) { PlaceAskSheet() }

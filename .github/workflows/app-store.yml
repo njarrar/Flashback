@@ -2,7 +2,8 @@ name: App Store
 
 # Makes everything the App Store upload needs:
 #   a signed build, sent to App Store Connect (TestFlight) when the signing secrets are set
-#   app-store/screenshots/<lang>/   6.9" iPhone screenshots in English, French, Spanish and Arabic
+#   app-store/screenshots/<lang>/   6.9" iPhone screenshots in English, French, Spanish and Arabic,
+#                                   in a phone frame with a headline (.github/screenshots/frame.py)
 # Run it from the Actions tab (App Store, Run workflow). See app-store/README.md.
 # A push that changes this file only checks that the app still builds for a real iPhone
 # and takes fresh screenshots. Nothing goes to Apple.
@@ -162,7 +163,8 @@ jobs:
             mkdir -p "shots/$lang"
             xcrun simctl terminate "$DEVICE" $APP || true
             xcrun simctl launch "$DEVICE" $APP -AppleLanguages "($lang)" -AppleLocale "$(locale $lang)"
-            sleep 8
+            # A short wait caught the screen before it drew, and the store showed a blank shot.
+            sleep 15
             xcrun simctl io "$DEVICE" screenshot "shots/$lang/1-welcome.png"
           done
           for lang in en fr es ar; do
@@ -199,11 +201,19 @@ jobs:
         with: { ref: "${{ github.head_ref || github.ref_name }}" }
       - uses: actions/download-artifact@v4
         with: { name: app-store-screenshots, path: /tmp/shots }
+      - name: Frame
+        run: |
+          # Arabic needs Pillow's raqm layout, which loads FriBiDi from the system.
+          dpkg -s libfribidi0 >/dev/null 2>&1 || { sudo apt-get update -q && sudo apt-get install -y -q libfribidi0; }
+          python3 -m venv /tmp/venv && /tmp/venv/bin/pip install -q pillow
+          /tmp/venv/bin/python .github/screenshots/frame.py /tmp/shots /tmp/framed
+      - uses: actions/upload-artifact@v4
+        with: { name: app-store-screenshots-framed, path: /tmp/framed }
       - name: Commit
         run: |
           rm -rf app-store/screenshots
           mkdir -p app-store
-          cp -r /tmp/shots app-store/screenshots
+          cp -r /tmp/framed app-store/screenshots
           ls -R app-store/screenshots
           git config user.name "njarrar"
           git config user.email "njarrar@gmail.com"

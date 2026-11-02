@@ -117,6 +117,23 @@ loads the samples from a folder in the app instead.)
   that grows with the system text size; a large top app bar and navigation bar on
   Android. Light and dark mode.
 
+## What's new in 1.19
+
+New App Store pictures. Nothing changes inside the app.
+
+- **Framed screenshots with headlines.** Each App Store screenshot now sits in a phone
+  frame on the app icon's blue, under a short headline that names one feature: this day
+  in past years, the calendar, the photo viewer, favorites, albums, and privacy. The
+  shots with real photos come first and the welcome screen comes last. Headlines are in
+  English, French, Spanish and Arabic, in `app-store/listing/<language>/captions.txt`.
+- **No more blank first shot.** The welcome screen had not drawn yet when the old first
+  shot was taken. The workflow now waits longer.
+- **A fuller calendar shot.** Early in a month most days are still to come, so the
+  calendar looked grey. The sample photos now fill a whole month, and the screenshot
+  opens the calendar on it.
+- **Screenshots go up from GitHub.** The App Store review workflow now puts the
+  screenshots from `app-store/screenshots` on the new version before sending it.
+
 ## What's new in 1.18
 
 A design pass on both apps.
