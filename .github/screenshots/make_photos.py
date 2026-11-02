@@ -57,4 +57,13 @@ for delta, pid in nearby:
     day = today.replace(year=today.year - 3) + datetime.timedelta(days=delta)
     save(fetch(pid, portrait=False), datetime.datetime.combine(day, datetime.time(12)), f"IMG_{n:04d}.jpg")
     n += 1
+# The App Store calendar shot needs a month full of photo days. Early in a month most days
+# are still to come (and faded), so the demo calendar opens on last month until the 15th.
+first = today.replace(day=1)
+shown = today if today.day >= 15 else first - datetime.timedelta(days=1)
+ids = [pid for _, group in plan for pid in group]
+for i, d in enumerate(d for d in (2, 4, 5, 8, 9, 12, 14, 17, 20, 21, 24, 27) if shown != today or d < today.day):
+    day = datetime.date(shown.year - 2, shown.month, d)
+    save(fetch(ids[i % len(ids)], portrait=False), datetime.datetime.combine(day, datetime.time(15)), f"IMG_{n:04d}.jpg")
+    n += 1
 print(f"made {n} photos in {out}")
