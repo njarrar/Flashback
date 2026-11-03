@@ -34,5 +34,16 @@ for lang in en ar; do
     sleep 9
     xcrun simctl io "$DEVICE" screenshot "$OUT/$lang-$scene.png"
   done
+  # Makes a real reel on the simulator and keeps four of its frames. Fails the run if no video comes out.
+  if [ $lang = en ]; then
+    xcrun simctl terminate "$DEVICE" $APP || true
+    DOCS="$(xcrun simctl get_app_container "$DEVICE" $APP data)/Documents"
+    rm -f "$DOCS"/reel-check*
+    xcrun simctl launch "$DEVICE" $APP $ARGS -scene reelexport
+    for i in $(seq 1 60); do [ -f "$DOCS/reel-check.txt" ] && break; sleep 3; done
+    cat "$DOCS/reel-check.txt"
+    cp "$DOCS"/reel-check-*.png "$OUT/" || true
+    grep -q "Reel check: ok" "$DOCS/reel-check.txt"
+  fi
 done
 xcrun simctl shutdown "$DEVICE"

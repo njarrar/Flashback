@@ -163,7 +163,7 @@ struct TodayView: View {
             if selecting {
                 SelectBar(count: picked.count, share: {
                     shareFor = ShareRequest(title: L.p("photos", picked.count), photos: picked)
-                }, album: { albumFor = picked })
+                }, album: { albumFor = picked }, reel: { startReel(picked) })
                 .padding(.bottom, 4)
             }
         }
@@ -208,6 +208,8 @@ struct TodayView: View {
         case "select": selecting = true; picked = Array(first.photos.prefix(3))
         case "share": shareFor = ShareRequest(title: fullDate(year: first.year, store.day), photos: first.photos)
         case "addalbum": albumFor = Array(first.photos.prefix(3))
+        case "reel", "reelmore":
+            store.reel = ReelRequest(photos: result?.groups.flatMap(\.photos) ?? [], tab: scene == "reel" ? .stamp : .more)
         default: break
         }
     }
@@ -274,6 +276,9 @@ struct TodayView: View {
             } label: {
                 Label(hidden ? L.s("show_day_again", ["day": day.label]) : L.s("hide_date"), systemImage: hidden ? "eye" : "eye.slash")
             }
+            if let photos = result?.day == day ? result?.groups.flatMap(\.photos) : nil, photos.count >= 2, !hidden {
+                Button { startReel(photos) } label: { Label(L.s("make_reel"), systemImage: "play.rectangle") }
+            }
             Picker(L.s("layout"), selection: Binding(get: { store.saved.layout }, set: { store.saved.layout = $0 })) {
                 Text(L.s("layout_all_years")).tag(YearLayout.mosaic)
                 Text(L.s("layout_one_year")).tag(YearLayout.strip)
@@ -331,6 +336,14 @@ struct TodayView: View {
     private func land(on t: (day: MonthDay, skipped: Int)) {
         go(t.day)
         if t.skipped > 0 { store.say(L.p("skipped_days", t.skipped)) }
+    }
+
+    /// Opens the reel editor with these photos, two to `ReelPlan.maxPhotos`.
+    private func startReel(_ photos: [Photo]) {
+        guard photos.count >= 2 else { return store.say(L.s("reel_need_two")) }
+        if photos.count > ReelPlan.maxPhotos { store.say(L.p("reel_too_many", ReelPlan.maxPhotos)) }
+        store.reel = ReelRequest(photos: photos)
+        stopSelecting()
     }
 
     private func toggleSelect() {

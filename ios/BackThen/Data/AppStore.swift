@@ -97,6 +97,8 @@ final class AppStore {
     @ObservationIgnored private var lastToday = MonthDay.today
     var indexing = false
     var viewer: Viewer?
+    /// The reel editor, when open.
+    var reel: ReelRequest?
     var tab: AppTab = .today
     /// Album page shown in the Albums tab, if any.
     var openAlbumID: String? {

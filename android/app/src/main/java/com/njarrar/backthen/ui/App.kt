@@ -52,6 +52,7 @@ fun BackThenApp(vm: AppViewModel) {
     val context = LocalContext.current
     val state by vm.saved.collectAsStateWithLifecycle()
     val viewer by vm.viewer.collectAsStateWithLifecycle()
+    val reel by vm.reel.collectAsStateWithLifecycle()
     val toast by vm.toast.collectAsStateWithLifecycle()
     var tab by rememberSaveable { mutableStateOf(Tab.Today) }
     var openAlbum by rememberSaveable { mutableStateOf<String?>(null) }
@@ -160,6 +161,8 @@ fun BackThenApp(vm: AppViewModel) {
                 )
             }
         }
+
+        reel?.let { r -> ReelScreen(r.photos, r.tab, say = vm::say, onClose = { vm.reel.value = null }) }
 
         Toast(toast, Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 96.dp))
     }

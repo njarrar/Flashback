@@ -8,6 +8,7 @@ WHAT YOU CAN DO
 • Full screen viewer: swipe through a day, pinch to zoom, heart a photo or share it.
 • Favorites: every photo you heart, in one place.
 • Albums: select photos and make an album. Share it through any app, or save it as a real album in your gallery.
+• Reels: pick photos and make a short video with each photo's date and year on it, and a smooth move between them. Share it to Instagram, TikTok or anywhere. It's made on your phone.
 • Daily reminder: one gentle note a day, at a time you choose, and only on days that have photos.
 • Hide a date: keep a hard day out of the app. No reminder, no shade on the calendar.
 • Home screen widget: a photo from this day in a past year, a new one every hour.

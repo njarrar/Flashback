@@ -8,14 +8,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.ImageDecoder
 import android.graphics.Matrix
-import android.media.ExifInterface
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
-import android.util.Size
 import android.widget.RemoteViews
 import com.njarrar.backthen.MainActivity
 import com.njarrar.backthen.R
@@ -30,6 +25,7 @@ import com.njarrar.backthen.core.startLanguage
 import com.njarrar.backthen.core.yearsForDay
 import com.njarrar.backthen.data.DeviceLibrary
 import com.njarrar.backthen.data.EXTRA_DAY
+import com.njarrar.backthen.data.decodePhoto
 import com.njarrar.backthen.data.EXTRA_MONTH
 import com.njarrar.backthen.data.StateFile
 import com.njarrar.backthen.data.visibleIndex
@@ -171,33 +167,4 @@ private fun load(context: Context, photo: Photo, widgetW: Int, widgetH: Int): Bi
 }.getOrNull()
 
 /** Reads the photo at about twice [MAX_SIDE], turned the right way up. */
-private fun decode(context: Context, photo: Photo): Bitmap? {
-    val target = MAX_SIDE * 2
-    val uri = Uri.parse(photo.uri)
-    if (Build.VERSION.SDK_INT >= 29) {
-        return context.contentResolver.loadThumbnail(uri, Size(target, target), null)
-    }
-    if (Build.VERSION.SDK_INT >= 28) {
-        val source = ImageDecoder.createSource(context.contentResolver, uri)
-        return ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
-            val s = max(info.size.width, info.size.height).toFloat() / target
-            if (s > 1) decoder.setTargetSize((info.size.width / s).roundToInt(), (info.size.height / s).roundToInt())
-            decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
-        }
-    }
-    // Android 8 and 9: sample down while decoding, then turn by the photo's EXIF tag.
-    fun open() = context.contentResolver.openInputStream(uri)
-    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    open()?.use { BitmapFactory.decodeStream(it, null, bounds) }
-    var sample = 1
-    while (max(bounds.outWidth, bounds.outHeight) / (sample * 2) >= target) sample *= 2
-    val bitmap = open()?.use { BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sample }) } ?: return null
-    val degrees = when (open()?.use { ExifInterface(it).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL) }) {
-        ExifInterface.ORIENTATION_ROTATE_90 -> 90
-        ExifInterface.ORIENTATION_ROTATE_180 -> 180
-        ExifInterface.ORIENTATION_ROTATE_270 -> 270
-        else -> 0
-    }
-    if (degrees == 0) return bitmap
-    return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, Matrix().apply { postRotate(degrees.toFloat()) }, true)
-}
+private fun decode(context: Context, photo: Photo): Bitmap? = decodePhoto(context, Uri.parse(photo.uri), MAX_SIDE * 2)

@@ -40,9 +40,21 @@ run() { # folder font_scale density
     done
   done
 }
+# Makes a real reel on the emulator and keeps four of its frames. Fails the run if no video comes out.
+reel_check() {
+  OUT="shots/reel-check"; mkdir -p "$OUT"
+  adb shell am force-stop $PKG
+  adb logcat -c
+  timeout 30 adb shell am start -W -n $PKG/.MainActivity --es scene reelexport --es lang en || true
+  for i in $(seq 1 60); do adb logcat -d -s Flashback:I | grep -q "Reel check" && break; sleep 3; done
+  adb logcat -d -s Flashback:I | grep "Reel check" | tee "$OUT/result.txt"
+  for n in 0 1 2 3; do adb pull "/sdcard/Android/data/$PKG/files/reel-check-$n.png" "$OUT/frame-$n.png" || true; done
+  grep -q "Reel check: ok" "$OUT/result.txt"
+}
 # Pixel 7 is 1080 x 2400 at 420 dpi. 480 dpi makes it 360 dp wide, like a
 # Samsung phone with a bigger display size.
 run big-display-1.3 1.3 480
+reel_check
 run huge-font-2.0 2.0 420
 adb shell wm density reset
 adb shell settings put system font_scale 1.0

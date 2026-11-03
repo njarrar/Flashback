@@ -37,6 +37,9 @@ import kotlinx.coroutines.launch
 
 data class Viewer(val photos: List<Photo>, val start: Int)
 
+/** The reel editor, open with these photos. */
+data class ReelOpen(val photos: List<Photo>, val tab: com.njarrar.backthen.ui.ReelTab = com.njarrar.backthen.ui.ReelTab.STAMP)
+
 /** App state: what is saved on disk, plus what only lives while the app runs. */
 class AppViewModel(app: Application) : AndroidViewModel(app) {
     val library = DeviceLibrary(app)
@@ -56,6 +59,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private var here: Int? = null
     private var placesJob: Job? = null
     val viewer = MutableStateFlow<Viewer?>(null)
+    val reel = MutableStateFlow<ReelOpen?>(null)
     val toast = MutableStateFlow<String?>(null)
     /** Fires when a reminder opens a day, so the app switches to Today. */
     val openToday = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
@@ -209,6 +213,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
     private var coversFor: Any? = null
     private val covers = HashMap<String, Photo>()
+
+    /** Opens the reel editor with these photos, two to [ReelPlan.MAX_PHOTOS]. Returns false when there are too few. */
+    fun startReel(photos: List<Photo>): Boolean {
+        if (photos.size < 2) { say(L.s("reel_need_two")); return false }
+        if (photos.size > com.njarrar.backthen.core.ReelPlan.MAX_PHOTOS) say(L.p("reel_too_many", com.njarrar.backthen.core.ReelPlan.MAX_PHOTOS))
+        reel.value = ReelOpen(photos)
+        return true
+    }
 
     fun say(message: String) {
         toastJob?.cancel()

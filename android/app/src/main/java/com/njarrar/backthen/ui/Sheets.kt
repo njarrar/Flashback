@@ -57,6 +57,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
+import androidx.compose.material.icons.outlined.Movie
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -277,7 +281,7 @@ private fun SourceRow(icon: ImageVector, title: String, status: String, on: Bool
 
 /** Dark bar shown while picking photos, with Share and Album. */
 @Composable
-fun SelectBar(count: Int, onShare: () -> Unit, onAlbum: () -> Unit, modifier: Modifier = Modifier) {
+fun SelectBar(count: Int, onShare: () -> Unit, onAlbum: () -> Unit, modifier: Modifier = Modifier, onReel: (() -> Unit)? = null) {
     val p = LocalPalette.current
     val none = count == 0
     Row(
@@ -285,8 +289,28 @@ fun SelectBar(count: Int, onShare: () -> Unit, onAlbum: () -> Unit, modifier: Mo
         verticalAlignment = Alignment.CenterVertically,
     ) {
         T(if (none) L.s("select_hint") else L.s("n_selected", "photos" to L.p("photos", count)), size = 15, weight = FontWeight.SemiBold, color = p.bg, modifier = Modifier.weight(1f))
-        Box(Modifier.clip(RoundedCornerShape(50)).clickable(enabled = !none, role = Role.Button, onClick = onShare).padding(horizontal = 14.dp, vertical = 12.dp)) {
-            T(L.s("share"), size = 15, weight = FontWeight.SemiBold, color = p.bg.copy(alpha = if (none) 0.4f else 1f))
+        Box(
+            Modifier.size(44.dp).clip(RoundedCornerShape(50)).clickable(enabled = !none, role = Role.Button, onClick = onShare)
+                .semantics { contentDescription = L.s("share") },
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Outlined.IosShare, null, tint = p.bg.copy(alpha = if (none) 0.4f else 1f), modifier = Modifier.size(20.dp))
+        }
+        if (onReel != null) {
+            val off = count < 2
+            Row(
+                Modifier.heightIn(min = 44.dp).clip(RoundedCornerShape(50)).clickable(enabled = !off, role = Role.Button, onClick = onReel)
+                    .semantics { contentDescription = L.s("make_reel") }
+                    .padding(horizontal = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Icon(Icons.Outlined.Movie, null, tint = p.bg.copy(alpha = if (off) 0.4f else 1f), modifier = Modifier.size(18.dp))
+                // With big text the word gives way to the icon, so the count keeps its room.
+                if (LocalDensity.current.fontScale < 1.3f) {
+                    T(L.s("reel"), size = 15, weight = FontWeight.SemiBold, color = p.bg.copy(alpha = if (off) 0.4f else 1f), maxLines = 1)
+                }
+            }
         }
         Pill(
             L.s("album"), onAlbum, kind = Kind.Accent, height = 44.dp, enabled = !none,

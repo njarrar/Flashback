@@ -225,7 +225,7 @@
 
     <!-- iPhone photo access prompts -->
     <string name="ios_photos_permission">يعرض Flashback الصور التي التقطتها في مثل هذا اليوم من السنوات الماضية.</string>
-    <string name="ios_photos_add_permission">يحفظ Flashback ألبوماتك في الصور عندما تطلب ذلك.</string>
+    <string name="ios_photos_add_permission">يحفظ Flashback ألبوماتك ومقاطع الريل في الصور عندما تطلب ذلك.</string>
 
     <!-- أداة الشاشة الرئيسية -->
     <string name="widget_name">في مثل هذا اليوم</string>
@@ -236,4 +236,54 @@
     <!-- Sample albums for the README screenshots -->
     <string name="demo_album_fall">عطلات الخريف</string>
     <string name="demo_album_garden">حديقة جدتي</string>
+
+    <!-- مقاطع الريلز: فيديو قصير من الصور المختارة، على كل صورة تاريخها -->
+    <string name="reel">ريل</string>
+    <string name="make_reel">اصنع ريل</string>
+    <string name="reel_title">ريل جديد</string>
+    <string name="reel_preview">معاينة الريل</string>
+    <string name="reel_play">تشغيل</string>
+    <string name="reel_pause">إيقاف مؤقت</string>
+    <string name="reel_tab_stamp">التاريخ</string>
+    <string name="reel_tab_transition">الانتقال</string>
+    <string name="reel_look_year">سنة كبيرة</string>
+    <string name="reel_look_film">تاريخ الفيلم</string>
+    <string name="reel_look_clean">بسيط</string>
+    <string name="reel_move_fade">تلاشٍ</string>
+    <string name="reel_move_slide">انزلاق</string>
+    <string name="reel_move_zoom">تكبير</string>
+    <string name="reel_move_flash">وميض</string>
+    <string name="reel_move_fade_note">تذوب الصورة في التي تليها.</string>
+    <string name="reel_move_slide_note">تدخل الصور من الجانب.</string>
+    <string name="reel_move_zoom_note">تكبر الصورة السابقة وتختفي بينما تستقر التالية.</string>
+    <string name="reel_move_flash_note">وميض أبيض سريع بين الصور، مثل فلاش الكاميرا.</string>
+    <string name="reel_order">الترتيب</string>
+    <string name="reel_newest_first">الأحدث أولًا</string>
+    <string name="reel_oldest_first">الأقدم أولًا</string>
+    <string name="reel_speed">السرعة</string>
+    <string name="reel_speed_fast">سريع</string>
+    <string name="reel_speed_normal">عادي</string>
+    <string name="reel_speed_slow">بطيء</string>
+    <string name="reel_size">المقاس</string>
+    <string name="reel_photo">الصورة</string>
+    <string name="reel_whole">كاملة</string>
+    <string name="reel_fill">ملء</string>
+    <string name="reel_end_card">بطاقة الختام</string>
+    <string name="reel_on">تشغيل</string>
+    <string name="reel_off">إيقاف</string>
+    <string name="reel_years_range">{years} · من {from} إلى {to}</string>
+    <string name="reel_making">جارٍ صنع الريل</string>
+    <string name="reel_making_note">يُصنع على هاتفك. صورك لا تغادره أبدًا.</string>
+    <string name="reel_failed">تعذّر صنع الريل. حاول مرة أخرى.</string>
+    <string name="reel_need_two">اختر صورتين أو أكثر لصنع ريل</string>
+    <plurals name="reel_too_many">
+        <item quantity="zero">يتسع الريل لـ {n} صورة</item>
+        <item quantity="one">يتسع الريل لصورة واحدة</item>
+        <item quantity="two">يتسع الريل لصورتين</item>
+        <item quantity="few">يتسع الريل لـ {n} صور، لذا يأخذ أول {n}</item>
+        <item quantity="many">يتسع الريل لـ {n} صورة، لذا يأخذ أول {n}</item>
+        <item quantity="other">يتسع الريل لـ {n} صورة، لذا يأخذ أول {n}</item>
+    </plurals>
+    <string name="reel_save">حفظ</string>
+    <string name="toast_reel_saved">تم الحفظ في Movies/Flashback</string>
 </language>

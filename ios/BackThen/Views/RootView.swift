@@ -26,6 +26,7 @@ struct RootView: View {
                         .tag(AppTab.albums)
                 }
                 .tint(Palette.accent)
+                .fullScreenCover(item: $store.reel) { ReelView(request: $0) }
                 // The tab bar fills symbols on its own; keep the Favorites heart an outline until it is picked.
                 .environment(\.symbolVariants, .none)
             } else {
@@ -33,7 +34,7 @@ struct RootView: View {
             }
         }
         .overlay(alignment: .bottom) {
-            if let toast = store.toast, store.viewer == nil {
+            if let toast = store.toast, store.viewer == nil, store.reel == nil {
                 ToastView(message: toast).padding(.bottom, 104)
             }
         }
