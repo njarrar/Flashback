@@ -46,16 +46,16 @@ class ReelCard(photo: Photo, now: LocalDate = LocalDate.now()) {
 }
 
 /** The app font, as plain Android typefaces for drawing on a canvas. */
-class ReelFonts(context: Context) {
+class ReelFonts(private val ctx: Context) {
     private val arabic = L.lang.arabicScript
     private fun font(nunito: Int, tajawal: Int, fallback: Int) =
-        runCatching { ResourcesCompat.getFont(context, if (arabic) tajawal else nunito) }.getOrNull()
+        runCatching { ResourcesCompat.getFont(ctx, if (arabic) tajawal else nunito) }.getOrNull()
             ?: Typeface.create(Typeface.DEFAULT, fallback)
     val black = font(R.font.nunito_black, R.font.tajawal_black, Typeface.BOLD)
     val heavy = font(R.font.nunito_extrabold, R.font.tajawal_extrabold, Typeface.BOLD)
     val bold = font(R.font.nunito_bold, R.font.tajawal_bold, Typeface.BOLD)
     val semibold = font(R.font.nunito_semibold, R.font.tajawal_bold, Typeface.NORMAL)
-    val icon: Bitmap? = runCatching { BitmapFactory.decodeResource(context.resources, R.drawable.reel_icon) }.getOrNull()
+    val icon: Bitmap? = runCatching { BitmapFactory.decodeResource(ctx.resources, R.drawable.reel_icon) }.getOrNull()
 }
 
 /**

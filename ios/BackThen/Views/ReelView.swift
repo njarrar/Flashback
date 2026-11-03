@@ -351,7 +351,7 @@ struct ReelView: View {
 
     private func rebuild() {
         guard !small.isEmpty else { return }
-        let old = renderer.map { time(at: Date()) }
+        let old: Double? = renderer == nil ? nil : time(at: Date())
         renderer = makeRenderer(options)
         if let old, pausedAt == nil { origin = Date().addingTimeInterval(-old) }
         // A still of the first photo in each look, for the Date stamp cards.
