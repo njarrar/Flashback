@@ -75,7 +75,7 @@ class ReelRenderer(
 ) {
     val plan = ReelPlan(photos.size, options, reduceMotion)
     val cards = photos.take(ReelPlan.MAX_PHOTOS).map { ReelCard(it, now) }
-    val blurred: List<Bitmap?> = blurred ?: small.map { it?.let(::blur) }
+    val blurred: List<Bitmap?> = blurred ?: small.map { b -> b?.let { blur(it) } }
     private val introTitle: String
     private val introSubtitle: String
     private val appName = L.s("app_name")
@@ -98,7 +98,7 @@ class ReelRenderer(
         val hi = years.maxOrNull()
         introSubtitle = if (lo != null && hi != null && lo != hi) {
             L.s("reel_years_range", "years" to L.p("years", years.toSet().size), "from" to L.num(lo), "to" to L.num(hi))
-        } else lo?.let(L::num) ?: ""
+        } else lo?.let { L.num(it) } ?: ""
     }
 
     fun draw(c: Canvas, w: Float, h: Float, time: Double) {
