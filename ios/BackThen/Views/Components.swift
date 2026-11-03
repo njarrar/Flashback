@@ -424,21 +424,32 @@ struct SelectBar: View {
     let count: Int
     let share: () -> Void
     let album: () -> Void
+    /// Makes a reel of the picked photos. Needs two or more.
+    var reel: (() -> Void)? = nil
     @Environment(\.dynamicTypeSize) private var textSize
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 2) {
             Text(count == 0 ? L.s("select_hint") : L.s("n_selected", ["photos": L.p("photos", count)]))
                 .font(.nunito(15, .semibold)).foregroundStyle(Palette.bg)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
             Button(action: share) {
-                // With large text the word gives way to the icon, so the count keeps its room.
-                Label(L.s("share"), systemImage: "square.and.arrow.up").font(.nunito(15, .semibold)).foregroundStyle(Palette.bg)
-                    .labelStyle(textSize >= .xxLarge ? AnyLabelStyle(.iconOnly) : AnyLabelStyle(.titleAndIcon))
-                    .padding(.horizontal, 14).frame(minWidth: 44, minHeight: 44)
+                Image(systemName: "square.and.arrow.up").font(.system(size: 18, weight: .semibold)).foregroundStyle(Palette.bg)
+                    .frame(width: 44, height: 44).contentShape(Rectangle())
             }
+            .accessibilityLabel(L.s("share"))
             .disabled(count == 0).opacity(count == 0 ? 0.4 : 1)
+            if let reel {
+                Button(action: reel) {
+                    // With large text the word gives way to the icon, so the count keeps its room.
+                    Label(L.s("reel"), systemImage: "play.rectangle").font(.nunito(15, .semibold)).foregroundStyle(Palette.bg)
+                        .labelStyle(textSize >= .xxLarge ? AnyLabelStyle(.iconOnly) : AnyLabelStyle(.titleAndIcon))
+                        .padding(.horizontal, 10).frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
+                }
+                .accessibilityLabel(L.s("make_reel"))
+                .disabled(count < 2).opacity(count < 2 ? 0.4 : 1)
+            }
             Pill(label: L.s("album"), systemImage: "plus", kind: .accent, height: 44, action: album).disabled(count == 0).fixedSize()
         }
         .padding(.leading, 20).padding(.trailing, 8).padding(.vertical, 4)

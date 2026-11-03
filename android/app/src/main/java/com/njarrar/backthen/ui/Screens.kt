@@ -51,6 +51,7 @@ import androidx.compose.material.icons.outlined.HideImage
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.IosShare
 import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Movie
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Visibility
@@ -440,6 +441,14 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
                                     leadingIcon = { Icon(if (hidden) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff, null, tint = p.ink) },
                                     onClick = { menu = false; vm.setHidden(day, !hidden) },
                                 )
+                                val dayPhotos = groups?.flatMap { it.photos }.orEmpty()
+                                if (dayPhotos.size >= 2 && !hidden) {
+                                    DropdownMenuItem(
+                                        text = { T(L.s("make_reel")) },
+                                        leadingIcon = { Icon(Icons.Outlined.Movie, null, tint = p.ink) },
+                                        onClick = { menu = false; vm.startReel(dayPhotos) },
+                                    )
+                                }
                                 HorizontalDivider(color = p.line)
                                 listOf(YearLayout.MOSAIC to "layout_all_years", YearLayout.STRIP to "layout_one_year", YearLayout.CARDS to "layout_cards").forEach { (layout, key) ->
                                     val on = state.layout == layout
@@ -592,6 +601,7 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
                 picked.size,
                 onShare = { shareFor = ShareRequest(L.p("photos", picked.size), picked) },
                 onAlbum = { albumFor = picked },
+                onReel = { if (vm.startReel(picked)) stopSelecting() },
                 // The tab bar hides while picking, so the bar keeps clear of the system buttons itself.
                 modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(12.dp),
             )

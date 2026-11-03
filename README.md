@@ -108,6 +108,10 @@ loads the samples from a folder in the app instead.)
   finger across them), then tap Album. Share an album
   through any app, or save it as a real album in Photos (iPhone) or under
   Pictures/Flashback (Android). Rename or delete it from the album's menu.
+- **Reels.** Pick photos on Today and tap Reel (or pick Make a reel in the ••• menu) to
+  get a short video for Instagram, TikTok or anywhere. Each photo shows its date and
+  year, with a fade, slide, zoom or flash between photos. It ends on the Flashback
+  icon. The video is made on the phone.
 - **Home screen widget.** A photo from this day in a past year, with its year and
   how long ago, in small and medium sizes. It picks another photo every hour and
   opens Today when tapped.
@@ -116,6 +120,34 @@ loads the samples from a folder in the app instead.)
 - **Looks native on each phone.** The system tab bar and sheets on iPhone, with text
   that grows with the system text size; a large top app bar and navigation bar on
   Android. Light and dark mode.
+
+## What's new in 1.20
+
+- **Make a reel.** On Today, tap Select, pick two or more photos and tap Reel. Or pick
+  Make a reel in the ••• menu to use every photo from that day. The reel editor plays
+  a preview and has three tabs:
+  - **Date stamp:** Big year (the year in large type with the date and "years ago"
+    under it), Film date (an orange date in the corner like old film cameras, with a
+    warm tint and grain) or Clean (a small dark tag with the date).
+  - **Transition:** Fade, Slide, Zoom or Flash. With Reduce Motion on, Flash turns into
+    Fade.
+  - **More:** order (newest first by default, or oldest first), speed (2, 2.8 or 3.8
+    seconds a photo), size (9:16, 4:5 or 1:1), whole photo or fill the frame, and the
+    end card on or off.
+
+  The reel opens with a title card ("3 years · 2015 to 2025") and ends on the Flashback
+  icon. There is no music. Dates stay in the top part of the frame so the buttons
+  social apps put at the bottom don't cover them. Share sends the video to any app;
+  on iPhone, Save Video in the share sheet puts it in Photos, and on Android, Save puts
+  it in Movies/Flashback. A reel holds up to 30 photos.
+- **Made on the phone.** The app draws each frame itself and writes an H.264 MP4
+  (AVAssetWriter on iPhone, MediaCodec on Android). Nothing goes to a server, and the
+  app still needs no internet access.
+- **Tested for real.** New unit tests on both apps check the timing, order, stamps
+  and saved options, and the iPhone tests write real videos and read frames back. The
+  Text check workflow now opens the reel editor in English and Arabic with big text,
+  and makes a real reel on the iPhone simulator and Android emulator, keeping four
+  frames to look at.
 
 ## What's new in 1.19
 

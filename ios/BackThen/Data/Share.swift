@@ -44,6 +44,15 @@ enum Share {
         top.present(sheet, animated: true)
     }
 
+    /// Opens the system share sheet with one file, such as a reel. Its Save Video puts it in Photos.
+    static func file(_ url: URL, title: String) {
+        guard let top = topController() else { return }
+        let sheet = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        sheet.setValue(title, forKey: "subject")
+        sheet.popoverPresentationController?.sourceView = top.view
+        top.present(sheet, animated: true)
+    }
+
     private static func topController() -> UIViewController? {
         var vc = UIApplication.shared.connectedScenes.compactMap { ($0 as? UIWindowScene)?.keyWindow }.first?.rootViewController
         while let next = vc?.presentedViewController { vc = next }

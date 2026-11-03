@@ -1,1 +1,1 @@
-A design pass: more photos fit at the top of Today, calendar days are easier to read, Favorites and albums match the Today grid and show each photo's date, and the photo viewer header is calmer.
+New: reels. Select photos on Today and tap Reel, or pick Make a reel in the ••• menu. Each photo shows its date and year, with a fade, slide, zoom or flash between them. Share the video to Instagram, TikTok or anywhere. It's made on your phone, and your photos never leave it.

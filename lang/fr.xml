@@ -198,7 +198,7 @@
 
     <!-- iPhone photo access prompts -->
     <string name="ios_photos_permission">Flashback affiche les photos prises ce jour-là les années passées.</string>
-    <string name="ios_photos_add_permission">Flashback enregistre vos albums dans Photos quand vous le demandez.</string>
+    <string name="ios_photos_add_permission">Flashback enregistre vos albums et vos reels dans Photos quand vous le demandez.</string>
 
     <!-- Widget de l'écran d'accueil -->
     <string name="widget_name">Ce jour-là</string>
@@ -209,4 +209,50 @@
     <!-- Sample albums for the README screenshots -->
     <string name="demo_album_fall">Week-ends d'automne</string>
     <string name="demo_album_garden">Le jardin de mamie</string>
+
+    <!-- Reels : une courte vidéo des photos choisies, chacune avec sa date -->
+    <string name="reel">Reel</string>
+    <string name="make_reel">Créer un reel</string>
+    <string name="reel_title">Nouveau reel</string>
+    <string name="reel_preview">Aperçu du reel</string>
+    <string name="reel_play">Lire</string>
+    <string name="reel_pause">Pause</string>
+    <string name="reel_tab_stamp">Date</string>
+    <string name="reel_tab_transition">Transition</string>
+    <string name="reel_look_year">Grande année</string>
+    <string name="reel_look_film">Date argentique</string>
+    <string name="reel_look_clean">Sobre</string>
+    <string name="reel_move_fade">Fondu</string>
+    <string name="reel_move_slide">Glisser</string>
+    <string name="reel_move_zoom">Zoom</string>
+    <string name="reel_move_flash">Flash</string>
+    <string name="reel_move_fade_note">Une photo se fond dans la suivante.</string>
+    <string name="reel_move_slide_note">Les photos arrivent par le côté.</string>
+    <string name="reel_move_zoom_note">L'ancienne photo grandit et s'efface pendant que la suivante s'installe.</string>
+    <string name="reel_move_flash_note">Un bref flash blanc entre les photos.</string>
+    <string name="reel_order">Ordre</string>
+    <string name="reel_newest_first">Récentes d'abord</string>
+    <string name="reel_oldest_first">Anciennes d'abord</string>
+    <string name="reel_speed">Vitesse</string>
+    <string name="reel_speed_fast">Rapide</string>
+    <string name="reel_speed_normal">Normale</string>
+    <string name="reel_speed_slow">Lente</string>
+    <string name="reel_size">Format</string>
+    <string name="reel_photo">Photo</string>
+    <string name="reel_whole">Entière</string>
+    <string name="reel_fill">Remplir</string>
+    <string name="reel_end_card">Carte de fin</string>
+    <string name="reel_on">Oui</string>
+    <string name="reel_off">Non</string>
+    <string name="reel_years_range">{years} · de {from} à {to}</string>
+    <string name="reel_making">Création du reel</string>
+    <string name="reel_making_note">Fait sur votre téléphone. Vos photos ne le quittent jamais.</string>
+    <string name="reel_failed">Impossible de créer le reel. Réessayez.</string>
+    <string name="reel_need_two">Choisissez au moins 2 photos pour un reel</string>
+    <plurals name="reel_too_many">
+        <item quantity="one">Un reel contient au plus {n} photo</item>
+        <item quantity="other">Un reel contient au plus {n} photos, il prend donc les {n} premières</item>
+    </plurals>
+    <string name="reel_save">Enregistrer</string>
+    <string name="toast_reel_saved">Enregistré dans Movies/Flashback</string>
 </language>
