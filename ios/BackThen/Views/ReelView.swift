@@ -267,7 +267,8 @@ struct ReelView: View {
         .background(Color.white.opacity(0.09), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         let label = Text(L.s(key)).font(.nunito(14, .bold)).foregroundStyle(ink.opacity(0.8))
         return ViewThatFits(in: .horizontal) {
-            HStack { label; Spacer(minLength: 8); seg.fixedSize() }
+            // Both keep their full width here, so a long name in a big text size picks the stacked layout.
+            HStack { label.fixedSize(); Spacer(minLength: 8); seg.fixedSize() }
             VStack(alignment: .leading, spacing: 6) { label; seg }
         }
         .accessibilityElement(children: .contain)
