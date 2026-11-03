@@ -299,7 +299,7 @@ fun ReelScreen(photos: List<Photo>, startTab: ReelTab, say: (String) -> Unit, on
                             .clickable(role = Role.Tab) { tab = t }
                             .semantics { selected = on },
                         contentAlignment = Alignment.Center,
-                    ) { T(L.s(key), size = 14, weight = FontWeight.Bold, color = if (on) ReelInk else ReelInk.copy(alpha = 0.6f), maxLines = 1) }
+                    ) { T(L.s(key), size = 14, weight = FontWeight.Bold, color = if (on) ReelInk else ReelInk.copy(alpha = 0.6f), align = TextAlign.Center, maxLines = 2, modifier = Modifier.padding(horizontal = 4.dp)) }
                 }
             }
 
