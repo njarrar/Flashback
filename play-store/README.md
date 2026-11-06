@@ -171,6 +171,10 @@ do this once. Play needs the first bundle uploaded by hand, which you have done.
    The run's summary says what went to Play. Before each run, raise `versionCode` in
    `android/app/build.gradle.kts`: Play refuses a version code it has seen before.
 
+   To move a tested build from closed test to production, run it again without raising
+   `versionCode` and set **Play track** to `production`. Play already has that bundle, so
+   the workflow sends the same one to production (full rollout) instead of uploading.
+
 Notes:
 - If Play hasn't reviewed the app yet, it only takes draft releases. The workflow
   sees that and sends a draft; finish it under **Closed testing** in the Console.

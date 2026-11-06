@@ -7,13 +7,16 @@ Settings come from the environment:
     TRACK                      Play track for the bundle, "alpha" is the first closed test
     SEND_BUNDLE, SEND_LISTING  "true" or "false"
 
-The bundle goes to TRACK with listing/<locale>/release-notes.txt as its notes. The listing
+The bundle goes to TRACK with listing/<locale>/release-notes.txt as its notes. If Play
+already has a bundle with this versionCode (say it went to closed test before), that
+bundle moves to TRACK instead, so a tested build can go to production as is. The listing
 sends title, short and full description per locale, plus the icon, feature graphic and
 phone screenshots. Everything goes in one edit, so Play gets all of it or none of it.
 """
 import json
 import os
 import pathlib
+import re
 import sys
 
 from google.oauth2 import service_account
@@ -35,9 +38,15 @@ def send(api, aab, store, track, send_bundle, send_listing, status):
     locales = sorted(p.name for p in (store / "listing").iterdir() if p.is_dir())
 
     if send_bundle:
-        media = MediaFileUpload(str(aab), mimetype="application/octet-stream", resumable=True)
-        code = edits.bundles().upload(**ids, media_body=media).execute()["versionCode"]
-        print(f"Uploaded bundle, version code {code}")
+        code = version_code()
+        have = {b["versionCode"] for b in edits.bundles().list(**ids).execute().get("bundles", [])}
+        if code in have:
+            # Play keeps every bundle it has seen, so moving one to a new track needs no upload.
+            print(f"Play already has version code {code}, so using that bundle")
+        else:
+            media = MediaFileUpload(str(aab), mimetype="application/octet-stream", resumable=True)
+            code = edits.bundles().upload(**ids, media_body=media).execute()["versionCode"]
+            print(f"Uploaded bundle, version code {code}")
         notes = [{"language": l, "text": read(store / "listing" / l / "release-notes.txt")}
                  for l in locales if (store / "listing" / l / "release-notes.txt").exists()]
         release = {"versionCodes": [str(code)], "status": status, "releaseNotes": notes}
@@ -96,6 +105,11 @@ def main():
             raise
         print("Play only takes a draft release for this app, so sending it as a draft.")
         send(*args, "draft")
+
+
+def version_code():
+    gradle = pathlib.Path(__file__).parents[2] / "android/app/build.gradle.kts"
+    return int(re.search(r"versionCode\s*=\s*(\d+)", gradle.read_text()).group(1))
 
 
 def tracks(api):
