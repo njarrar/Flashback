@@ -244,6 +244,9 @@ struct PhotoTile: View {
                     }
                 }
                 .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+                // A filled photo spills past its box. The spill is clipped from view but still
+                // takes taps, so a tall photo would steal taps from the tiles around it.
+                .contentShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
         }
         .buttonStyle(PressStyle())
         .simultaneousGesture(LongPressGesture(minimumDuration: 0.4).onEnded { _ in

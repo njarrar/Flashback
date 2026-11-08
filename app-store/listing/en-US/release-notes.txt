@@ -1,1 +1,1 @@
-New: reels. Select photos on Today and tap Reel, or pick Make a reel in the ••• menu. Each photo shows its date and year, with a fade, slide, zoom or flash between them. Share the video to Instagram, TikTok or anywhere. It's made on your phone, and your photos never leave it.
+Fixed: tapping a photo on Today could open a different photo, often the one below it or the last one of the year, or do nothing at all. Now every photo opens when you tap it.
