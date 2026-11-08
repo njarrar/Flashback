@@ -1,1 +1,1 @@
-Nouveau : les reels. Sélectionnez des photos sur Aujourd'hui et touchez Reel, ou choisissez Créer un reel dans le menu •••. Chaque photo affiche sa date et son année, avec un fondu, un glissement, un zoom ou un flash entre elles. Partagez la vidéo sur Instagram, TikTok ou ailleurs. Elle est créée sur votre téléphone, et vos photos ne le quittent jamais.
+Corrigé : toucher une photo sur Aujourd'hui pouvait ouvrir une autre photo, souvent celle du dessous ou la dernière de l'année, ou ne rien faire. Désormais, chaque photo s'ouvre quand vous la touchez.

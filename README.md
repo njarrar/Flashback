@@ -121,6 +121,17 @@ loads the samples from a folder in the app instead.)
   that grows with the system text size; a large top app bar and navigation bar on
   Android. Light and dark mode.
 
+## What's new in 1.21
+
+- **Tapping a photo opens that photo.** On iPhone, a tap on Today could open a
+  different photo, often the one below or the last photo of the year, and sometimes
+  did nothing at all. Tiles fill their box with the photo, and the parts that spill
+  past the box were hidden but still took taps. A tall screenshot in the wide last
+  tile reached about 300 pt up and took the taps for the rows above it. Each tile now
+  takes taps only inside its own box. The same fix covers Favorites, albums and
+  Places. Android never had this problem; its version number moves up so both apps
+  stay at 1.21.
+
 ## What's new in 1.20
 
 - **Make a reel.** On Today, tap Select, pick two or more photos and tap Reel. Or pick
