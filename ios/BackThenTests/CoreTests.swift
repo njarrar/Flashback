@@ -180,7 +180,7 @@ final class CoreTests: XCTestCase {
         let made = try XCTUnwrap(Share.shareFile(tiff as Data, type: "public.tiff", name: dir.appending(path: "b")))
         XCTAssertEqual(made.pathExtension, "jpg")
         let back = try XCTUnwrap(UIImage(contentsOfFile: made.path))
-        XCTAssertEqual(back.size.width * back.scale, 40)
+        XCTAssertEqual(back.size.width * back.scale, picture.size.width * picture.scale)
     }
 
     func testPhotosLoadOnlyNearTheScreen() {
