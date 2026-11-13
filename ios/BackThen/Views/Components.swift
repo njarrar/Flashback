@@ -5,6 +5,10 @@ struct PhotoImage: View {
     let photo: Photo
     var contentMode: ContentMode = .fill
     @State private var image: UIImage?
+    /// Within a screen of the visible part of its scroll view. Only then does it load its
+    /// photo, so a day with hundreds of photos doesn't load them all at once, and a photo
+    /// scrolled far away lets its picture go.
+    @State private var near = false
     @Environment(\.displayScale) private var scale
 
     var body: some View {
@@ -25,32 +29,56 @@ struct PhotoImage: View {
                         .clipped()
                 }
             }
-            .task(id: "\(photo.key)-\(Int(px.width))x\(Int(px.height))") {
+            .task(id: "\(photo.key)-\(Int(px.width))x\(Int(px.height))-\(near)") {
+                guard near else {
+                    image = nil
+                    return
+                }
                 // The first layout pass can be zero by zero; wait for the real size.
                 guard contentMode == .fit || (geo.size.width > 0 && geo.size.height > 0) else { return }
                 if let hit = ImageCache.get(cacheKey(px)) {
                     image = hit
                     return
                 }
-                if let loaded = await loadImage(photo, size: px), !Task.isCancelled { image = loaded }
+                // Grid tiles show a quick copy while the sharp one loads.
+                let show: @MainActor (UIImage) -> Void = { quick in if image == nil { image = quick } }
+                var preview: (@Sendable (UIImage) -> Void)?
+                if contentMode == .fill {
+                    preview = { quick in
+                        Task<Void, Never> { @MainActor in show(quick) }
+                    }
+                }
+                if let loaded = await loadImage(photo, size: px, fit: contentMode == .fit, preview: preview), !Task.isCancelled { image = loaded }
             }
         }
+        .onGeometryChange(for: Bool.self) { proxy in
+            // Not in a scroll view: always shown.
+            guard let shown = proxy.bounds(of: .scrollView) else { return true }
+            return isNear(CGRect(origin: .zero, size: proxy.size), shown)
+        } action: { near = $0 }
         .accessibilityLabel(L.s("photo_from", ["date": L.date(photo.time, "yMMMMd")]))
     }
 
     /// The same key `loadImage` stores under: PhotoKit id for phone photos, app key for samples.
     private func cacheKey(_ px: CGSize) -> NSString {
-        ImageCache.key(photo.source == .device ? photo.ref : photo.key, px)
+        ImageCache.key(photo.source == .device ? photo.ref : photo.key, px, fit: contentMode == .fit)
     }
 }
 
-/// Loads a photo from PhotoKit or app storage at about the given pixel size.
-func loadImage(_ photo: Photo, size px: CGSize) async -> UIImage? {
+/// True when `tile` is within one screen of `shown`, the visible part of its scroll view,
+/// before or after it, in either direction.
+func isNear(_ tile: CGRect, _ shown: CGRect) -> Bool {
+    shown.insetBy(dx: -max(shown.width, 1), dy: -max(shown.height, 1)).intersects(tile)
+}
+
+/// Loads a photo from PhotoKit or app storage at about the given pixel size. `fit` keeps the
+/// whole photo inside that size; otherwise it covers it.
+func loadImage(_ photo: Photo, size px: CGSize, fit: Bool = false, preview: (@Sendable (UIImage) -> Void)? = nil) async -> UIImage? {
     switch photo.source {
     case .device:
-        return await PhotoLibrary.image(id: photo.ref, size: px)
+        return await PhotoLibrary.image(id: photo.ref, size: px, fit: fit, preview: preview)
     case .sample:
-        let key = ImageCache.key(photo.key, px)
+        let key = ImageCache.key(photo.key, px, fit: fit)
         if let hit = ImageCache.get(key) { return hit }
         let url = SamplePhotos.fileURL(photo.ref)
         let loaded = await Task.detached(priority: .userInitiated) {
@@ -71,6 +99,8 @@ struct Pill: View {
     /// Stretch to the full width given. Defaults to ghost pills and tall pills.
     var wide: Bool?
     var iconAfter = false
+    /// Shows a spinner in place of the icon and turns the button off, while its work runs.
+    var busy = false
     var action: () -> Void
 
     @Environment(\.isEnabled) private var enabled
@@ -85,7 +115,8 @@ struct Pill: View {
         }
         Button(action: action) {
             HStack(spacing: 8) {
-                if let systemImage, !iconAfter { Image(systemName: systemImage).font(.system(size: height < 48 ? 14 : 18, weight: .semibold)) }
+                if busy { ProgressView().tint(fg) }
+                else if let systemImage, !iconAfter { Image(systemName: systemImage).font(.system(size: height < 48 ? 14 : 18, weight: .semibold)) }
                 Text(label).font(.nunito(height < 48 ? 15 : 16, .semibold))
                     .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
                 if let systemImage, iconAfter { Image(systemName: systemImage).font(.system(size: height < 48 ? 14 : 18, weight: .semibold)) }
@@ -100,6 +131,7 @@ struct Pill: View {
             .opacity(enabled ? 1 : 0.4)
         }
         .buttonStyle(PressStyle())
+        .allowsHitTesting(!busy)
     }
 }
 
@@ -344,11 +376,12 @@ struct PinnedYear: View {
     let barBottom: CGFloat
     @Binding var pinned: Set<Int>
     let share: () -> Void
-    @State private var top: CGFloat = .infinity
+    /// Pinned right now. Only this, not the header's place, is kept, so scrolling doesn't
+    /// redraw the header on every frame.
+    @State private var on = false
     @Environment(\.displayScale) private var scale
 
     var body: some View {
-        let on = top <= barBottom + 0.5
         HStack(spacing: 8) {
             Text(L.num(group.year)).font(.nunito(26, .black)).tight(26).foregroundStyle(Palette.ink)
             Text(L.s("ago_weekday_photos", ["ago": agoLabel(group.year), "weekday": weekday(year: group.year, day), "photos": L.p("photos", group.photos.count)]))
@@ -370,7 +403,7 @@ struct PinnedYear: View {
         .allowsHitTesting(on)
         .accessibilityHidden(!on)
         .animation(.easeInOut(duration: 0.15), value: on)
-        .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).minY } action: { top = $0 }
+        .onGeometryChange(for: Bool.self) { $0.frame(in: .global).minY <= barBottom + 0.5 } action: { on = $0 }
         .onChange(of: on) { _, now in
             if now { pinned.insert(group.year) } else { pinned.remove(group.year) }
         }

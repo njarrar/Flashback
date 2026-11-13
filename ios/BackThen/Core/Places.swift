@@ -38,6 +38,14 @@ final class CityList: @unchecked Sendable {
         self.grid = grid
     }
 
+    /// The app has its city list. Only looks for the file, so views can ask it while drawing.
+    static var available: Bool { Bundle.main.url(forResource: "cities", withExtension: "tsv") != nil }
+
+    /// The city list, read once, off the main thread: it has about 12,000 lines.
+    static func load() async -> CityList? {
+        await Task.detached(priority: .utility) { CityList.shared }.value
+    }
+
     static let shared: CityList? = {
         guard let url = Bundle.main.url(forResource: "cities", withExtension: "tsv"),
               let text = try? String(contentsOf: url, encoding: .utf8) else { return nil }
@@ -66,6 +74,23 @@ final class CityList: @unchecked Sendable {
         }
         return best?.id
     }
+}
+
+/// A photo's time and where it was taken.
+struct PhotoSpot: Sendable {
+    let time: Date
+    let lat: Double
+    let lon: Double
+}
+
+/// The index with these photos counted too: for new photos, without reading the whole library.
+func addingToPlaceIndex(_ start: PlaceIndex, _ spots: [PhotoSpot], cities: CityList, calendar: Calendar = .app) -> PlaceIndex {
+    var out = start
+    for s in spots {
+        guard let city = cities.city(lat: s.lat, lon: s.lon) else { continue }
+        out[city, default: [:]][dayKey(s.time, calendar: calendar), default: 0] += 1
+    }
+    return out
 }
 
 /// Close enough for distances under a few hundred kilometers.

@@ -54,6 +54,59 @@ enum PhotoLibrary {
         }.value
     }
 
+    /// New photos since the last check, read from Photos' own record of changes.
+    struct NewPhotos: Sendable {
+        let times: [Date]
+        let spots: [PhotoSpot]
+        /// Where the record stands now, to start from next time.
+        let token: Data
+    }
+
+    /// Where Photos' record of changes stands now, saved after a full scan.
+    static func changeToken() async -> Data? {
+        await Task.detached(priority: .utility) {
+            try? NSKeyedArchiver.archivedData(withRootObject: PHPhotoLibrary.shared().currentChangeToken, requiringSecureCoding: true)
+        }.value
+    }
+
+    /// The photos added since `since`, so a launch after taking a few photos counts just those.
+    /// Nil when anything was deleted or changed, or the record can't be read: then the caller
+    /// scans the whole library as before.
+    static func newPhotos(since: Data) async -> NewPhotos? {
+        await Task.detached(priority: .utility) { () -> NewPhotos? in
+            let library = PHPhotoLibrary.shared()
+            guard let token = try? NSKeyedUnarchiver.unarchivedObject(ofClass: PHPersistentChangeToken.self, from: since),
+                  let changes = try? library.fetchPersistentChanges(since: token) else { return nil }
+            let now = library.currentChangeToken
+            var inserted = Set<String>()
+            var touched = Set<String>()
+            var readable = true
+            for change in changes {
+                guard let details = try? change.changeDetails(for: PHObjectType.asset) else {
+                    readable = false
+                    break
+                }
+                inserted.formUnion(details.insertedLocalIdentifiers)
+                touched.formUnion(details.updatedLocalIdentifiers)
+                touched.formUnion(details.deletedLocalIdentifiers)
+            }
+            // A change to a photo just added is fine: it is read as it is now.
+            guard readable, touched.subtracting(inserted).isEmpty,
+                  let data = try? NSKeyedArchiver.archivedData(withRootObject: now, requiringSecureCoding: true) else { return nil }
+            var times: [Date] = []
+            var spots: [PhotoSpot] = []
+            if !inserted.isEmpty {
+                let kinds: PHAssetSourceType = [.typeUserLibrary, .typeCloudShared, .typeiTunesSynced]
+                PHAsset.fetchAssets(withLocalIdentifiers: Array(inserted), options: nil).enumerateObjects { a, _, _ in
+                    guard a.mediaType == .image, kinds.contains(a.sourceType), let time = a.creationDate else { return }
+                    times.append(time)
+                    if let at = a.location?.coordinate { spots.append(PhotoSpot(time: time, lat: at.latitude, lon: at.longitude)) }
+                }
+            }
+            return NewPhotos(times: times, spots: spots, token: data)
+        }.value
+    }
+
     /// Photos taken on one calendar day across multiple years in a single PhotoKit query, grouped by year.
     static func photos(years: [Int], on md: MonthDay) async -> [Int: [Photo]] {
         let ranges = years.compactMap { y -> (Int, Date, Date)? in
@@ -107,21 +160,30 @@ enum PhotoLibrary {
     static let imageManager = PHCachingImageManager()
 
     /// Loads a device photo at roughly the given pixel size. High-quality mode calls back once.
-    static func image(id: String, size: CGSize) async -> UIImage? {
+    /// `fit` keeps the whole photo inside the size (the viewer, reels); otherwise it fills it
+    /// (tiles), which for a panorama means a picture many times wider than the size.
+    /// With `preview`, a quick low-quality copy goes there first while the sharp one loads, so
+    /// a tile shows a picture at once instead of gray.
+    static func image(id: String, size: CGSize, fit: Bool = false, preview: (@Sendable (UIImage) -> Void)? = nil) async -> UIImage? {
         let bucketed = ImageCache.bucket(size)
-        let key = ImageCache.key(id, bucketed)
+        let key = ImageCache.key(id, bucketed, fit: fit)
         if let hit = ImageCache.get(key) { return hit }
         guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [id], options: nil).firstObject else { return nil }
         let o = PHImageRequestOptions()
         o.isNetworkAccessAllowed = true
-        o.deliveryMode = .highQualityFormat
+        o.deliveryMode = preview == nil ? .highQualityFormat : .opportunistic
         o.resizeMode = .fast
         // Scrolling a tile away cancels its task; pass that on to PhotoKit so it stops the work.
         let box = RequestBox()
         let image: UIImage? = await withTaskCancellationHandler {
             await withCheckedContinuation { cont in
                 box.start(cont) {
-                    imageManager.requestImage(for: asset, targetSize: bucketed, contentMode: .aspectFill, options: o) { image, _ in
+                    imageManager.requestImage(for: asset, targetSize: bucketed, contentMode: fit ? .aspectFit : .aspectFill, options: o) { image, info in
+                        // The quick copy comes first; the request ends with the sharp one.
+                        if (info?[PHImageResultIsDegradedKey] as? Bool) == true {
+                            if let image { preview?(image) }
+                            return
+                        }
                         box.finish(image)
                     }
                 }
@@ -133,15 +195,15 @@ enum PhotoLibrary {
         return image
     }
 
-    /// Full image data for sharing.
-    static func data(id: String) async -> Data? {
+    /// Full image data for sharing, with its type ("public.jpeg", "public.heic", ...).
+    static func data(id: String) async -> (Data, String?)? {
         guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [id], options: nil).firstObject else { return nil }
         let o = PHImageRequestOptions()
         o.isNetworkAccessAllowed = true
         o.version = .current
         return await withCheckedContinuation { cont in
-            PHImageManager.default().requestImageDataAndOrientation(for: asset, options: o) { data, _, _, _ in
-                cont.resume(returning: data)
+            PHImageManager.default().requestImageDataAndOrientation(for: asset, options: o) { data, type, _, _ in
+                cont.resume(returning: data.map { ($0, type) })
             }
         }
     }
@@ -207,9 +269,9 @@ enum ImageCache {
         )
     }
 
-    static func key(_ id: String, _ size: CGSize) -> NSString {
+    static func key(_ id: String, _ size: CGSize, fit: Bool = false) -> NSString {
         let b = bucket(size)
-        return "\(id)-\(Int(b.width))x\(Int(b.height))" as NSString
+        return "\(id)-\(Int(b.width))x\(Int(b.height))\(fit ? "-fit" : "")" as NSString
     }
 
     static func get(_ key: NSString) -> UIImage? { cache.object(forKey: key) }

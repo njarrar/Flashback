@@ -331,7 +331,7 @@ struct ReelView: View {
         await withTaskGroup(of: (String, UIImage?, UIImage?).self) { group in
             for p in photos {
                 group.addTask {
-                    let img = await loadImage(p, size: CGSize(width: 640, height: 640))
+                    let img = await loadImage(p, size: CGSize(width: 800, height: 800), fit: true)
                     return (p.key, img, img.flatMap(ReelRenderer.blur))
                 }
             }
@@ -385,7 +385,7 @@ struct ReelView: View {
                     name: ReelExport.fileName(),
                     load: { i in
                         guard i < photos.count else { return nil }
-                        return await loadImage(photos[i], size: CGSize(width: ReelExport.photoSide, height: ReelExport.photoSide))
+                        return await loadImage(photos[i], size: CGSize(width: ReelExport.photoSide, height: ReelExport.photoSide), fit: true)
                     },
                     progress: { p in Task { @MainActor in if making != nil { making = p } } }
                 )

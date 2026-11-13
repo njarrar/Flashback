@@ -295,7 +295,7 @@ struct SettingsSheet: View {
                 }
                 Text(L.s("reminder_settings_note")).font(.nunito(13)).foregroundStyle(Palette.muted)
                 Divider()
-                if CityList.shared != nil {
+                if CityList.available {
                     HStack(spacing: 12) {
                         Image(systemName: "mappin.and.ellipse").foregroundStyle(Palette.ink)
                         Text(L.s("places_title")).font(.nunito(16, .semibold)).foregroundStyle(Palette.ink)
@@ -394,6 +394,7 @@ struct ShareSheetView: View {
     @Environment(\.dismiss) private var dismiss
     let request: ShareRequest
     @State private var height: CGFloat = 300
+    @State private var sharing = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -423,8 +424,13 @@ struct ShareSheetView: View {
                 }
                 .accessibilityLabel(L.s("close"))
             }
-            Pill(label: L.s("share"), systemImage: "square.and.arrow.up") {
-                Task { await Share.photos(request.photos, title: request.title) { dismiss() } }
+            // Big photos take a moment to get ready; the spinner shows it's working.
+            Pill(label: L.s("share"), systemImage: "square.and.arrow.up", busy: sharing) {
+                sharing = true
+                Task {
+                    await Share.photos(request.photos, title: request.title) { dismiss() }
+                    sharing = false
+                }
             }
             Divider()
             Button {

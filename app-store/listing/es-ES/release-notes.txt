@@ -1,1 +1,1 @@
-Corregido: al tocar una foto en Hoy podía abrirse otra foto, a menudo la de abajo o la última del año, o no pasar nada. Ahora cada foto se abre al tocarla.
+Más estable y fluida. Corregido: Hoy podía congelarse si dejabas de desplazarte con la fecha a medias bajo la barra superior. Los días con muchas fotos se desplazan mejor y usan menos memoria, las fotos aparecen antes, compartir fotos grandes es más rápido y muestra un indicador mientras se preparan, y el widget ya no se queda en blanco esperando a iCloud.

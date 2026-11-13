@@ -70,12 +70,12 @@ extension AppStore {
         do {
             let ordered = reelOrder(Array(photos.prefix(4)), newestFirst: true)
             var small: [UIImage?] = []
-            for p in ordered { small.append(await loadImage(p, size: CGSize(width: 640, height: 640))) }
+            for p in ordered { small.append(await loadImage(p, size: CGSize(width: 800, height: 800), fit: true)) }
             var o = ReelOptions()
             o.look = .film
             let r = ReelRenderer(photos: ordered, options: o, small: small, reduceMotion: false)
             let url = try await ReelExport.make(renderer: r, name: "reel-check", load: { i in
-                await loadImage(ordered[i], size: CGSize(width: ReelExport.photoSide, height: ReelExport.photoSide))
+                await loadImage(ordered[i], size: CGSize(width: ReelExport.photoSide, height: ReelExport.photoSide), fit: true)
             }, progress: { _ in })
             let asset = AVURLAsset(url: url)
             let seconds = try await asset.load(.duration).seconds

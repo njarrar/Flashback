@@ -47,7 +47,13 @@ class PlaceLibrary(private val context: Context) {
         ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
     }
 
-    val cities: CityList? by lazy { runCatching { context.assets.open("cities.tsv").use(CityList::read) }.getOrNull() }
+    /** The app has its city list. A quick look at the file names, so screens can ask it while drawing. */
+    val hasCities: Boolean by lazy { runCatching { context.assets.list("")?.contains("cities.tsv") == true }.getOrDefault(false) }
+
+    private val cityList: CityList? by lazy { runCatching { context.assets.open("cities.tsv").use(CityList::read) }.getOrNull() }
+
+    /** The city list, read once, off the main thread: it has about 12,000 lines. */
+    suspend fun cities(): CityList? = withContext(Dispatchers.Default) { cityList }
 
     /** Photo days per city for the whole library. Only photos not seen before get read. */
     suspend fun index(cities: CityList): PlaceIndex = withContext(Dispatchers.IO) {

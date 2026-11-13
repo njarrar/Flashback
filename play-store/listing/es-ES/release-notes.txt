@@ -1,1 +1,1 @@
-Una pequeña actualización de mantenimiento que mantiene al día las versiones de Android y iPhone. Nada cambia en el funcionamiento de la app.
+Más fluida: la lista de ciudades de Lugares a los que vuelves se carga en segundo plano, así que la app ya no se detiene un momento para leerla. También mantiene al día las versiones de Android y iPhone.

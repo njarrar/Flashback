@@ -1,4 +1,6 @@
 import XCTest
+import ImageIO
+import UIKit
 @testable import Back_Then
 
 final class CoreTests: XCTestCase {
@@ -145,5 +147,59 @@ final class CoreTests: XCTestCase {
         let s = try JSONDecoder().decode(SavedState.self, from: Data(old.utf8))
         XCTAssertEqual(s.favorites.map(\.key), ["d:1"])
         XCTAssertEqual(s.albums.first?.photos.map(\.key), ["d:2"])
+    }
+
+    func testTopBarProgressMovesInSteps() {
+        // At rest the title's bottom sits above the bar's: nothing has scrolled.
+        XCTAssertEqual(TodayView.progress(bar: 100, title: 100), 0)
+        // Fully under the bar.
+        XCTAssertEqual(TodayView.progress(bar: 100, title: 20), 1)
+        // Half way. A small move inside one step gives the same value, so no redraw.
+        XCTAssertEqual(TodayView.progress(bar: 100, title: 80), 0.5)
+        XCTAssertEqual(TodayView.progress(bar: 100, title: 79.9), 0.5)
+        XCTAssertEqual(TodayView.progress(bar: 100, title: 80.2), 0.5)
+    }
+
+    func testShareKeepsJPEGAndTurnsOtherTypesIntoJPEG() throws {
+        let dir = FileManager.default.temporaryDirectory.appending(path: "share-test-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let picture = UIGraphicsImageRenderer(size: CGSize(width: 40, height: 30)).image { ctx in
+            UIColor.red.setFill(); ctx.fill(CGRect(x: 0, y: 0, width: 40, height: 30))
+        }
+        let jpeg = try XCTUnwrap(picture.jpegData(compressionQuality: 0.9))
+        let kept = try XCTUnwrap(Share.shareFile(jpeg, type: "public.jpeg", name: dir.appending(path: "a")))
+        XCTAssertEqual(kept.pathExtension, "jpg")
+        XCTAssertEqual(try Data(contentsOf: kept), jpeg)
+
+        // A TIFF stands in for a RAW file: it goes out as a JPEG.
+        let tiff = NSMutableData()
+        let dest = try XCTUnwrap(CGImageDestinationCreateWithData(tiff, "public.tiff" as CFString, 1, nil))
+        CGImageDestinationAddImage(dest, try XCTUnwrap(picture.cgImage), nil)
+        XCTAssertTrue(CGImageDestinationFinalize(dest))
+        let made = try XCTUnwrap(Share.shareFile(tiff as Data, type: "public.tiff", name: dir.appending(path: "b")))
+        XCTAssertEqual(made.pathExtension, "jpg")
+        let back = try XCTUnwrap(UIImage(contentsOfFile: made.path))
+        XCTAssertEqual(back.size.width * back.scale, picture.size.width * picture.scale)
+    }
+
+    func testPhotosLoadOnlyNearTheScreen() {
+        let screen = CGRect(x: 0, y: 1000, width: 400, height: 800)
+        XCTAssertTrue(isNear(CGRect(x: 0, y: 1200, width: 100, height: 100), screen))
+        // Within one screen below or above.
+        XCTAssertTrue(isNear(CGRect(x: 0, y: 2500, width: 100, height: 100), screen))
+        XCTAssertTrue(isNear(CGRect(x: 0, y: 300, width: 100, height: 100), screen))
+        // Farther away.
+        XCTAssertFalse(isNear(CGRect(x: 0, y: 2700, width: 100, height: 100), screen))
+        XCTAssertFalse(isNear(CGRect(x: 0, y: 0, width: 100, height: 100), screen))
+    }
+
+    func testNewPhotosAddToTheDayIndex() {
+        let a = cal.date(from: DateComponents(year: 2019, month: 10, day: 2, hour: 9))!
+        let b = cal.date(from: DateComponents(year: 2021, month: 10, day: 2, hour: 9))!
+        let start = buildDayIndex([a], calendar: cal)
+        let grown = addingToDayIndex(start, [a, b], calendar: cal)
+        XCTAssertEqual(grown, buildDayIndex([a, a, b], calendar: cal))
+        XCTAssertEqual(addingToDayIndex(start, [], calendar: cal), start)
     }
 }

@@ -13,8 +13,8 @@ android {
         applicationId = "com.njarrar.backthen"
         minSdk = 26
         targetSdk = 36
-        versionCode = 22
-        versionName = "1.21.0"
+        versionCode = 23
+        versionName = "1.22.0"
     }
 
     // The language files in lang/ at the top of the repo ship as app assets (en.xml, ar.xml, ...).
