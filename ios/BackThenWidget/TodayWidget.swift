@@ -77,14 +77,18 @@ struct TodayProvider: TimelineProvider {
         if info?.hidden.contains(day.key) == true { return make(.empty) }
         let assets = photos(on: day, now: now)
         guard !assets.isEmpty else { return make(.empty) }
-        // A new photo each hour, in a set order through the day. Skip any that won't load (such as one only in iCloud).
+        // A new photo each hour, in a set order through the day. Photos already on the phone
+        // come first; only if none of the next few are does it wait on one from iCloud, so the
+        // widget doesn't run out of time and stay blank.
         let hour = Calendar.app.component(.hour, from: now)
         let start = (Int(now.timeIntervalSince1970 / 86400) * 24 + hour) % assets.count
-        for k in 0..<min(3, assets.count) {
-            let asset = assets[(start + k) % assets.count]
-            guard let time = asset.creationDate, let image = image(asset, size: size) else { continue }
-            let year = yearOf(time)
-            return make(.photo(image, year: year, date: fullDate(year: year, day)))
+        let next = (0..<min(5, assets.count)).map { assets[(start + $0) % assets.count] }
+        for network in [false, true] {
+            for asset in network ? Array(next.prefix(1)) : next {
+                guard let time = asset.creationDate, let image = image(asset, size: size, network: network) else { continue }
+                let year = yearOf(time)
+                return make(.photo(image, year: year, date: fullDate(year: year, day)))
+            }
         }
         return make(.empty)
     }
@@ -115,12 +119,12 @@ struct TodayProvider: TimelineProvider {
     }
 
     /// The photo filled to the widget's size, at twice its points. Widgets can't hold large pictures.
-    private static func image(_ asset: PHAsset, size: CGSize) -> UIImage? {
+    private static func image(_ asset: PHAsset, size: CGSize, network: Bool) -> UIImage? {
         let o = PHImageRequestOptions()
         o.isSynchronous = true
         o.deliveryMode = .highQualityFormat
         o.resizeMode = .fast
-        o.isNetworkAccessAllowed = true
+        o.isNetworkAccessAllowed = network
         let side = max(size.width, size.height, 160)
         let scale = min(2, 800 / side)
         let target = CGSize(width: max(size.width, 160) * scale, height: max(size.height, 160) * scale)
