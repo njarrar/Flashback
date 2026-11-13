@@ -5,8 +5,9 @@ import UIKit
 enum ReelExport {
     enum Failure: Error { case writer, frame }
 
-    /// Long side of the photos loaded for the video. Enough for a 1080 wide frame with the slow zoom.
-    static let photoSide: CGFloat = 1600
+    /// Long side of the photos loaded for the video, the whole photo inside it. Enough to
+    /// fill a 1080 by 1920 frame with the slow zoom.
+    static let photoSide: CGFloat = 2400
 
     /// Makes the video and returns its file. `progress` gets 0 to 1. Cancelling the task stops it
     /// and removes the half-made file. `load` gets a full-size photo by its place in the reel.

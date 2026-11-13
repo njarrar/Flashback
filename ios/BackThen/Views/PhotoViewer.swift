@@ -235,7 +235,10 @@ private struct ZoomPage: View {
 
     var body: some View {
         ZoomView(image: image, active: active, onZoom: onZoom, onTap: onTap, onDrag: onDrag, onDragEnd: onDragEnd)
-            .task(id: photo.key) { image = await loadImage(photo, size: CGSize(width: 2048, height: 2048)) }
+            // The whole photo inside 2048 px. Asking to fill 2048 px gave a panorama about
+            // 8,000 px wide. A page swiped far away lets its photo go, and loads it again on return.
+            .task(id: photo.key) { image = await loadImage(photo, size: CGSize(width: 2048, height: 2048), fit: true) }
+            .onDisappear { image = nil }
             .accessibilityElement()
             .accessibilityLabel(L.s("photo_from", ["date": L.date(photo.time, "yMMMMd")]))
             .accessibilityAddTraits(.isImage)

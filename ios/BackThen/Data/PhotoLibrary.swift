@@ -107,9 +107,11 @@ enum PhotoLibrary {
     static let imageManager = PHCachingImageManager()
 
     /// Loads a device photo at roughly the given pixel size. High-quality mode calls back once.
-    static func image(id: String, size: CGSize) async -> UIImage? {
+    /// `fit` keeps the whole photo inside the size (the viewer, reels); otherwise it fills it
+    /// (tiles), which for a panorama means a picture many times wider than the size.
+    static func image(id: String, size: CGSize, fit: Bool = false) async -> UIImage? {
         let bucketed = ImageCache.bucket(size)
-        let key = ImageCache.key(id, bucketed)
+        let key = ImageCache.key(id, bucketed, fit: fit)
         if let hit = ImageCache.get(key) { return hit }
         guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [id], options: nil).firstObject else { return nil }
         let o = PHImageRequestOptions()
@@ -121,7 +123,7 @@ enum PhotoLibrary {
         let image: UIImage? = await withTaskCancellationHandler {
             await withCheckedContinuation { cont in
                 box.start(cont) {
-                    imageManager.requestImage(for: asset, targetSize: bucketed, contentMode: .aspectFill, options: o) { image, _ in
+                    imageManager.requestImage(for: asset, targetSize: bucketed, contentMode: fit ? .aspectFit : .aspectFill, options: o) { image, _ in
                         box.finish(image)
                     }
                 }
@@ -207,9 +209,9 @@ enum ImageCache {
         )
     }
 
-    static func key(_ id: String, _ size: CGSize) -> NSString {
+    static func key(_ id: String, _ size: CGSize, fit: Bool = false) -> NSString {
         let b = bucket(size)
-        return "\(id)-\(Int(b.width))x\(Int(b.height))" as NSString
+        return "\(id)-\(Int(b.width))x\(Int(b.height))\(fit ? "-fit" : "")" as NSString
     }
 
     static func get(_ key: NSString) -> UIImage? { cache.object(forKey: key) }

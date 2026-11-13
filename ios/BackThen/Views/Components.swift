@@ -32,7 +32,7 @@ struct PhotoImage: View {
                     image = hit
                     return
                 }
-                if let loaded = await loadImage(photo, size: px), !Task.isCancelled { image = loaded }
+                if let loaded = await loadImage(photo, size: px, fit: contentMode == .fit), !Task.isCancelled { image = loaded }
             }
         }
         .accessibilityLabel(L.s("photo_from", ["date": L.date(photo.time, "yMMMMd")]))
@@ -40,17 +40,18 @@ struct PhotoImage: View {
 
     /// The same key `loadImage` stores under: PhotoKit id for phone photos, app key for samples.
     private func cacheKey(_ px: CGSize) -> NSString {
-        ImageCache.key(photo.source == .device ? photo.ref : photo.key, px)
+        ImageCache.key(photo.source == .device ? photo.ref : photo.key, px, fit: contentMode == .fit)
     }
 }
 
-/// Loads a photo from PhotoKit or app storage at about the given pixel size.
-func loadImage(_ photo: Photo, size px: CGSize) async -> UIImage? {
+/// Loads a photo from PhotoKit or app storage at about the given pixel size. `fit` keeps the
+/// whole photo inside that size; otherwise it covers it.
+func loadImage(_ photo: Photo, size px: CGSize, fit: Bool = false) async -> UIImage? {
     switch photo.source {
     case .device:
-        return await PhotoLibrary.image(id: photo.ref, size: px)
+        return await PhotoLibrary.image(id: photo.ref, size: px, fit: fit)
     case .sample:
-        let key = ImageCache.key(photo.key, px)
+        let key = ImageCache.key(photo.key, px, fit: fit)
         if let hit = ImageCache.get(key) { return hit }
         let url = SamplePhotos.fileURL(photo.ref)
         let loaded = await Task.detached(priority: .userInitiated) {
