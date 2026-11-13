@@ -5,6 +5,10 @@ struct PhotoImage: View {
     let photo: Photo
     var contentMode: ContentMode = .fill
     @State private var image: UIImage?
+    /// Within a screen of the visible part of its scroll view. Only then does it load its
+    /// photo, so a day with hundreds of photos doesn't load them all at once, and a photo
+    /// scrolled far away lets its picture go.
+    @State private var near = false
     @Environment(\.displayScale) private var scale
 
     var body: some View {
@@ -25,7 +29,11 @@ struct PhotoImage: View {
                         .clipped()
                 }
             }
-            .task(id: "\(photo.key)-\(Int(px.width))x\(Int(px.height))") {
+            .task(id: "\(photo.key)-\(Int(px.width))x\(Int(px.height))-\(near)") {
+                guard near else {
+                    image = nil
+                    return
+                }
                 // The first layout pass can be zero by zero; wait for the real size.
                 guard contentMode == .fit || (geo.size.width > 0 && geo.size.height > 0) else { return }
                 if let hit = ImageCache.get(cacheKey(px)) {
@@ -35,6 +43,11 @@ struct PhotoImage: View {
                 if let loaded = await loadImage(photo, size: px, fit: contentMode == .fit), !Task.isCancelled { image = loaded }
             }
         }
+        .onGeometryChange(for: Bool.self) { proxy in
+            // Not in a scroll view: always shown.
+            guard let shown = proxy.bounds(of: .scrollView) else { return true }
+            return isNear(CGRect(origin: .zero, size: proxy.size), shown)
+        } action: { near = $0 }
         .accessibilityLabel(L.s("photo_from", ["date": L.date(photo.time, "yMMMMd")]))
     }
 
@@ -42,6 +55,12 @@ struct PhotoImage: View {
     private func cacheKey(_ px: CGSize) -> NSString {
         ImageCache.key(photo.source == .device ? photo.ref : photo.key, px, fit: contentMode == .fit)
     }
+}
+
+/// True when `tile` is within one screen of `shown`, the visible part of its scroll view,
+/// before or after it, in either direction.
+func isNear(_ tile: CGRect, _ shown: CGRect) -> Bool {
+    shown.insetBy(dx: -max(shown.width, 1), dy: -max(shown.height, 1)).intersects(tile)
 }
 
 /// Loads a photo from PhotoKit or app storage at about the given pixel size. `fit` keeps the

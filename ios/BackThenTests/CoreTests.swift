@@ -182,4 +182,15 @@ final class CoreTests: XCTestCase {
         let back = try XCTUnwrap(UIImage(contentsOfFile: made.path))
         XCTAssertEqual(back.size.width * back.scale, 40)
     }
+
+    func testPhotosLoadOnlyNearTheScreen() {
+        let screen = CGRect(x: 0, y: 1000, width: 400, height: 800)
+        XCTAssertTrue(isNear(CGRect(x: 0, y: 1200, width: 100, height: 100), screen))
+        // Within one screen below or above.
+        XCTAssertTrue(isNear(CGRect(x: 0, y: 2500, width: 100, height: 100), screen))
+        XCTAssertTrue(isNear(CGRect(x: 0, y: 300, width: 100, height: 100), screen))
+        // Farther away.
+        XCTAssertFalse(isNear(CGRect(x: 0, y: 2700, width: 100, height: 100), screen))
+        XCTAssertFalse(isNear(CGRect(x: 0, y: 0, width: 100, height: 100), screen))
+    }
 }
