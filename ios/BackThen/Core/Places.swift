@@ -38,6 +38,14 @@ final class CityList: @unchecked Sendable {
         self.grid = grid
     }
 
+    /// The app has its city list. Only looks for the file, so views can ask it while drawing.
+    static var available: Bool { Bundle.main.url(forResource: "cities", withExtension: "tsv") != nil }
+
+    /// The city list, read once, off the main thread: it has about 12,000 lines.
+    static func load() async -> CityList? {
+        await Task.detached(priority: .utility) { CityList.shared }.value
+    }
+
     static let shared: CityList? = {
         guard let url = Bundle.main.url(forResource: "cities", withExtension: "tsv"),
               let text = try? String(contentsOf: url, encoding: .utf8) else { return nil }

@@ -247,7 +247,7 @@ final class AppStore {
 
     /// Finds the city of every photo with a location, then checks where the phone is.
     func refreshPlaces() async {
-        guard saved.places.on, PhotoLibrary.hasAccess, let cities = CityList.shared else { return }
+        guard saved.places.on, PhotoLibrary.hasAccess, let cities = await CityList.load() else { return }
         let built = await PlaceLibrary.index(cities)
         if built != saved.placeIndex { saved.placeIndex = built }
         await checkPlace()
@@ -255,7 +255,7 @@ final class AppStore {
 
     /// Looks up the city the phone is in, and whether Today shows a card for it.
     func checkPlace() async {
-        guard saved.places.on, let cities = CityList.shared, let spot = await Locator.shared.current() else {
+        guard saved.places.on, let cities = await CityList.load(), let spot = await Locator.shared.current() else {
             placeCard = nil
             return
         }

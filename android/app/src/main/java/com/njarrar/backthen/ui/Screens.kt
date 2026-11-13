@@ -318,7 +318,7 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
     val askPlaces = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { vm.setPlaces(true) }
     // Ask about places once, a moment after the first photos show, never during screenshots.
     LaunchedEffect(index.isEmpty(), state.places.asked, demo) {
-        if (index.isEmpty() || state.places.asked || demo != null || vm.places.cities == null) return@LaunchedEffect
+        if (index.isEmpty() || state.places.asked || demo != null || !vm.places.hasCities) return@LaunchedEffect
         delay(1500)
         placeAsk = true
     }
@@ -625,7 +625,7 @@ fun TodayScreen(vm: AppViewModel, bottomPadding: androidx.compose.ui.unit.Dp, sc
             onLayout = vm::setLayout,
             onHidden = { md, on -> vm.setHidden(md, on); if (md == day) settings = false },
             onDismiss = { settings = false },
-            onPlaces = if (vm.places.cities == null) null else { on -> if (on) askPlaces.launch(vm.places.permissions) else vm.setPlaces(false) },
+            onPlaces = if (!vm.places.hasCities) null else { on -> if (on) askPlaces.launch(vm.places.permissions) else vm.setPlaces(false) },
         )
     }
     albumFor?.let { photos ->

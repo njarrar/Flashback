@@ -43,7 +43,7 @@ struct PlaceCardView: View {
         .background(Palette.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Palette.line, lineWidth: 1))
         .task(id: card.city.id) {
-            guard let cities = CityList.shared, let trip = card.trips.first else { return }
+            guard let trip = card.trips.first, let cities = await CityList.load() else { return }
             photos = Array(await PlaceLibrary.photos(city: card.city.id, trip: trip, cities: cities).prefix(4))
         }
     }
@@ -150,7 +150,7 @@ struct TripSection: View {
         .padding(.horizontal, 16)
         .padding(.bottom, 28)
         .task {
-            guard photos == nil, let cities = CityList.shared else { return }
+            guard photos == nil, let cities = await CityList.load() else { return }
             photos = await PlaceLibrary.photos(city: city, trip: trip, cities: cities)
         }
     }

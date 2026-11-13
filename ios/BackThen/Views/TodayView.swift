@@ -182,7 +182,7 @@ struct TodayView: View {
             #if DEBUG
             if AppStore.launchScene != nil { return }
             #endif
-            guard !store.saved.places.asked, store.samplePhotos.isEmpty, !store.index.isEmpty, CityList.shared != nil else { return }
+            guard !store.saved.places.asked, store.samplePhotos.isEmpty, !store.index.isEmpty, CityList.available else { return }
             try? await Task.sleep(for: .seconds(1.5))
             if !Task.isCancelled, !store.saved.places.asked, store.samplePhotos.isEmpty, !calendar, !settings { placeAsk = true }
         }

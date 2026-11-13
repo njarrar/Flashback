@@ -295,7 +295,7 @@ struct SettingsSheet: View {
                 }
                 Text(L.s("reminder_settings_note")).font(.nunito(13)).foregroundStyle(Palette.muted)
                 Divider()
-                if CityList.shared != nil {
+                if CityList.available {
                     HStack(spacing: 12) {
                         Image(systemName: "mappin.and.ellipse").foregroundStyle(Palette.ink)
                         Text(L.s("places_title")).font(.nunito(16, .semibold)).foregroundStyle(Palette.ink)

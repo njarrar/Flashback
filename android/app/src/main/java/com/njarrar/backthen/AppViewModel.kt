@@ -152,9 +152,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Finds the city of every photo with a location, then checks where the phone is. */
     fun refreshPlaces() {
-        val cities = places.cities ?: return
+        if (!places.hasCities) return
         if (!_saved.value.places.on || !library.hasAccess() || !places.hasAccess() || placesJob?.isActive == true) return
         placesJob = viewModelScope.launch {
+            val cities = places.cities() ?: return@launch
             val built = runCatching { places.index(cities) }.getOrNull()
             if (built != null && built != _saved.value.placeIndex) update { it.copy(placeIndex = built) }
             findPlace()
@@ -167,7 +168,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Looks up the city the phone is in, and whether Today shows a card for it. */
     private suspend fun findPlace() {
-        val cities = places.cities
+        val cities = places.cities()
         val spot = if (_saved.value.places.on && cities != null) runCatching { places.currentSpot() }.getOrNull() else null
         if (cities == null || spot == null) { placeCard.value = null; return }
         val city = cities.city(spot.first, spot.second)
