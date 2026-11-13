@@ -42,7 +42,12 @@ struct PhotoImage: View {
                 }
                 // Grid tiles show a quick copy while the sharp one loads.
                 let show: @MainActor (UIImage) -> Void = { quick in if image == nil { image = quick } }
-                let preview: (@Sendable (UIImage) -> Void)? = contentMode == .fill ? { quick in Task { @MainActor in show(quick) } } : nil
+                var preview: (@Sendable (UIImage) -> Void)?
+                if contentMode == .fill {
+                    preview = { quick in
+                        Task<Void, Never> { @MainActor in show(quick) }
+                    }
+                }
                 if let loaded = await loadImage(photo, size: px, fit: contentMode == .fit, preview: preview), !Task.isCancelled { image = loaded }
             }
         }
