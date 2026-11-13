@@ -225,7 +225,10 @@ struct TodayView: View {
     /// it blurs what passes beneath and shows a small date title of its own.
     private func topBar(_ day: MonthDay) -> some View {
         let p = scrolled
-        let size: CGFloat = p > 0.5 ? 36 : 40
+        // One size at rest and when scrolled. The bar's height places the date title, so a
+        // bar that shrank as the title went under it moved the title back out, grew again,
+        // and kept flipping until the app froze.
+        let size: CGFloat = 40
         return HStack(spacing: 8) {
             Button { calendar = true } label: {
                 HStack(spacing: 6) {
@@ -253,7 +256,6 @@ struct TodayView: View {
             .overlay(Capsule().stroke(Palette.line, lineWidth: 1))
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { capsuleWidth = $0 }
         }
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: size)
         .padding(.leading, 20).padding(.trailing, 16)
         .padding(.vertical, 8)
         .background {
