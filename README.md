@@ -85,7 +85,10 @@ The photos in these screenshots are samples from [Lorem Picsum](https://picsum.p
 stamped with past dates. The [Screenshots workflow](.github/workflows/screenshots.yml)
 takes them from the real apps on an iPhone simulator and an Android emulator. (A
 simulator can't be given photo access without a tap, so on iPhone a debug build
-loads the samples from a folder in the app instead.)
+loads the samples from a folder in the app instead.) When Lorem Picsum is down, the
+build checks draw plain stand-in pictures and carry on, the Play Store workflow keeps
+the current store screenshots, and the App Store and Screenshots workflows stop
+rather than take shots without real photos.
 
 ## What it does
 

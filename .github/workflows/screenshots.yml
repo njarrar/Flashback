@@ -17,7 +17,7 @@ jobs:
       - name: Make sample photos
         run: |
           python3 -m venv /tmp/venv && /tmp/venv/bin/pip install -q pillow piexif
-          /tmp/venv/bin/python .github/screenshots/make_photos.py /tmp/photos
+          /tmp/venv/bin/python .github/screenshots/make_photos.py /tmp/photos --real
       - name: Build
         working-directory: ios
         run: |
@@ -73,7 +73,7 @@ jobs:
       - name: Make sample photos
         run: |
           python3 -m venv /tmp/venv && /tmp/venv/bin/pip install -q pillow piexif
-          /tmp/venv/bin/python .github/screenshots/make_photos.py /tmp/photos
+          /tmp/venv/bin/python .github/screenshots/make_photos.py /tmp/photos --real
       - name: Build
         working-directory: android
         run: ./gradlew assembleDebug
