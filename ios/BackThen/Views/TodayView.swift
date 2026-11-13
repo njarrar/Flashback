@@ -13,7 +13,9 @@ struct TodayView: View {
     @State private var barBottom: CGFloat = 0
     @State private var barHeight: CGFloat = 56
     @State private var capsuleWidth: CGFloat = 130
-    @State private var titleBottom: CGFloat = .infinity
+    /// How far the big title has gone under the top bar: 0 at rest, 1 once it is hidden.
+    /// Kept in steps of 0.05, so scrolling past it doesn't redraw the screen on every frame.
+    @State private var scrolled: CGFloat = 0
     /// Years whose header is pinned under the top bar right now.
     @State private var pinnedYears: Set<Int> = []
     @State private var shareFor: ShareRequest?
@@ -73,7 +75,7 @@ struct TodayView: View {
                         if let t = neighbors.back { Button(L.s("previous_day_photos")) { land(on: t) } }
                         if let t = neighbors.forward { Button(L.s("next_day_photos")) { land(on: t) } }
                     }
-                    .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).maxY } action: { titleBottom = $0 }
+                    .onGeometryChange(for: CGFloat.self) { Self.progress(bar: barBottom, title: $0.frame(in: .global).maxY) } action: { scrolled = $0 }
                     Text(summary).font(.nunito(15)).foregroundStyle(Palette.muted)
                     if day != today {
                         Pill(label: L.s("back_to_today"), systemImage: "arrow.uturn.backward", kind: .tint, height: 44) { go(today) }
@@ -215,10 +217,11 @@ struct TodayView: View {
     }
     #endif
 
-    /// How far the big title has gone under the top bar: 0 at rest, 1 once it is hidden.
-    private var scrolled: CGFloat {
+    /// How far the big title has gone under the top bar, in steps of 0.05.
+    static func progress(bar: CGFloat, title: CGFloat) -> CGFloat {
         // At rest the title shares the bar's row, so its bottom sits a little above the bar's.
-        min(max((barBottom - 8 - titleBottom) / 24, 0), 1)
+        let p = min(max((bar - 8 - title) / 24, 0), 1)
+        return (p * 20).rounded() / 20
     }
 
     /// The bar at the top of Today. Clear at rest; once the date title scrolls under it,

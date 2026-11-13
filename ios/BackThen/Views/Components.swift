@@ -344,11 +344,12 @@ struct PinnedYear: View {
     let barBottom: CGFloat
     @Binding var pinned: Set<Int>
     let share: () -> Void
-    @State private var top: CGFloat = .infinity
+    /// Pinned right now. Only this, not the header's place, is kept, so scrolling doesn't
+    /// redraw the header on every frame.
+    @State private var on = false
     @Environment(\.displayScale) private var scale
 
     var body: some View {
-        let on = top <= barBottom + 0.5
         HStack(spacing: 8) {
             Text(L.num(group.year)).font(.nunito(26, .black)).tight(26).foregroundStyle(Palette.ink)
             Text(L.s("ago_weekday_photos", ["ago": agoLabel(group.year), "weekday": weekday(year: group.year, day), "photos": L.p("photos", group.photos.count)]))
@@ -370,7 +371,7 @@ struct PinnedYear: View {
         .allowsHitTesting(on)
         .accessibilityHidden(!on)
         .animation(.easeInOut(duration: 0.15), value: on)
-        .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).minY } action: { top = $0 }
+        .onGeometryChange(for: Bool.self) { $0.frame(in: .global).minY <= barBottom + 0.5 } action: { on = $0 }
         .onChange(of: on) { _, now in
             if now { pinned.insert(group.year) } else { pinned.remove(group.year) }
         }

@@ -146,4 +146,15 @@ final class CoreTests: XCTestCase {
         XCTAssertEqual(s.favorites.map(\.key), ["d:1"])
         XCTAssertEqual(s.albums.first?.photos.map(\.key), ["d:2"])
     }
+
+    func testTopBarProgressMovesInSteps() {
+        // At rest the title's bottom sits above the bar's: nothing has scrolled.
+        XCTAssertEqual(TodayView.progress(bar: 100, title: 100), 0)
+        // Fully under the bar.
+        XCTAssertEqual(TodayView.progress(bar: 100, title: 20), 1)
+        // Half way. A small move inside one step gives the same value, so no redraw.
+        XCTAssertEqual(TodayView.progress(bar: 100, title: 80), 0.5)
+        XCTAssertEqual(TodayView.progress(bar: 100, title: 79.9), 0.5)
+        XCTAssertEqual(TodayView.progress(bar: 100, title: 80.2), 0.5)
+    }
 }
