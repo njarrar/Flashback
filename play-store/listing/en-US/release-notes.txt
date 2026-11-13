@@ -1,1 +1,1 @@
-A small upkeep update that keeps the Android and iPhone versions in step. Nothing changes in how the app works.
+Smoother: the city list behind Places you go back to now loads in the background, so the app no longer stops for a moment while it reads it. Also keeps the Android and iPhone versions in step.

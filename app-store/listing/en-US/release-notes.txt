@@ -1,1 +1,1 @@
-Fixed: tapping a photo on Today could open a different photo, often the one below it or the last one of the year, or do nothing at all. Now every photo opens when you tap it.
+Steadier and smoother. Fixed a freeze on Today that could happen when you stopped scrolling with the date half under the top bar. Days with lots of photos scroll more smoothly and use less memory, photos show up sooner, sharing big photos is faster and shows a spinner while they get ready, and the widget no longer goes blank waiting on iCloud.

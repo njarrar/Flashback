@@ -121,6 +121,38 @@ loads the samples from a folder in the app instead.)
   that grows with the system text size; a large top app bar and navigation bar on
   Android. Light and dark mode.
 
+## What's new in 1.22
+
+Steadier and smoother, mostly on iPhone. It started from a crash log: the app froze on
+an iPhone 17 Pro and iOS closed it.
+
+- **No more freeze on Today (iPhone).** The Select and ••• buttons at the top shrank
+  a little once the date title slid under the bar. The bar's height also places the
+  title, so shrinking moved the title back out and the bar grew again. If scrolling
+  stopped at that point, the two kept flipping until the app froze. The bar now keeps
+  one size.
+- **Smoother scrolling (iPhone).** Today rebuilt every photo on screen on each scroll
+  frame. Now it only redraws when the top bar's look changes.
+- **Photos load as they come near the screen (iPhone).** A day with hundreds of
+  photos used to start loading all of them at once. Now each photo loads within a
+  screen of view and lets its picture go when it is far away. Tiles show a quick
+  copy at once, then the sharp one.
+- **Less memory in the viewer and reels (iPhone).** The viewer asked for each photo
+  big enough to fill 2048 px, so a panorama came back about 8,000 px wide. It now
+  loads the whole photo inside 2048 px, and reels do the same.
+- **Faster sharing (iPhone).** JPEG, HEIC and PNG photos go out as they are, keeping
+  their date and place. Other types, such as ProRAW, become a JPEG up to 4096 px. The
+  Share buttons show a spinner while photos get ready and ignore a second tap.
+- **New photos counted on their own (iPhone).** After you take a few photos, the next
+  launch counts just those, using Photos' record of changes, instead of scanning the
+  whole library and every photo's location again. Deleted or edited photos still
+  start a full scan.
+- **City list read in the background (both apps).** The list of about 12,000 cities
+  behind Places you go back to was read while a screen was drawing, which stopped the
+  app for a moment.
+- **Widget doesn't go blank (iPhone).** It shows a photo that's already on the phone
+  before waiting on one from iCloud.
+
 ## What's new in 1.21
 
 - **Tapping a photo opens that photo.** On iPhone, a tap on Today could open a

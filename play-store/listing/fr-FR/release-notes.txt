@@ -1,1 +1,1 @@
-Une petite mise à jour d'entretien qui garde les versions Android et iPhone au même niveau. Rien ne change dans le fonctionnement de l'app.
+Plus fluide : la liste des villes de Lieux où vous revenez se charge en arrière-plan, l'app ne s'arrête donc plus un instant pour la lire. Garde aussi les versions Android et iPhone au même niveau.
