@@ -76,6 +76,23 @@ final class CityList: @unchecked Sendable {
     }
 }
 
+/// A photo's time and where it was taken.
+struct PhotoSpot: Sendable {
+    let time: Date
+    let lat: Double
+    let lon: Double
+}
+
+/// The index with these photos counted too: for new photos, without reading the whole library.
+func addingToPlaceIndex(_ start: PlaceIndex, _ spots: [PhotoSpot], cities: CityList, calendar: Calendar = .app) -> PlaceIndex {
+    var out = start
+    for s in spots {
+        guard let city = cities.city(lat: s.lat, lon: s.lon) else { continue }
+        out[city, default: [:]][dayKey(s.time, calendar: calendar), default: 0] += 1
+    }
+    return out
+}
+
 /// Close enough for distances under a few hundred kilometers.
 func distanceKm(_ lat1: Double, _ lon1: Double, _ lat2: Double, _ lon2: Double) -> Double {
     let x = (lon2 - lon1) * cos((lat1 + lat2) / 2 * .pi / 180) * 111.32

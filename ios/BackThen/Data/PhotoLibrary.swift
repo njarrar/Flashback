@@ -54,6 +54,60 @@ enum PhotoLibrary {
         }.value
     }
 
+    /// New photos since the last check, read from Photos' own record of changes.
+    struct NewPhotos: Sendable {
+        let times: [Date]
+        let spots: [PhotoSpot]
+        /// Where the record stands now, to start from next time.
+        let token: Data
+    }
+
+    /// Where Photos' record of changes stands now, saved after a full scan.
+    static func changeToken() async -> Data? {
+        await Task.detached(priority: .utility) {
+            try? NSKeyedArchiver.archivedData(withRootObject: PHPhotoLibrary.shared().currentChangeToken, requiringSecureCoding: true)
+        }.value
+    }
+
+    /// The photos added since `since`, so a launch after taking a few photos counts just those.
+    /// Nil when anything was deleted or changed, or the record can't be read: then the caller
+    /// scans the whole library as before.
+    static func newPhotos(since: Data) async -> NewPhotos? {
+        await Task.detached(priority: .utility) { () -> NewPhotos? in
+            let library = PHPhotoLibrary.shared()
+            guard let token = try? NSKeyedUnarchiver.unarchivedObject(ofClass: PHPersistentChangeToken.self, from: since),
+                  let changes = try? library.fetchPersistentChanges(since: token) else { return nil }
+            let now = library.currentChangeToken
+            var inserted = Set<String>()
+            var touched = Set<String>()
+            var readable = true
+            changes.enumerateChanges { change, stop in
+                guard let details = try? change.changeDetails(for: .asset) else {
+                    readable = false
+                    stop.pointee = true
+                    return
+                }
+                inserted.formUnion(details.insertedLocalIdentifiers)
+                touched.formUnion(details.updatedLocalIdentifiers)
+                touched.formUnion(details.deletedLocalIdentifiers)
+            }
+            // A change to a photo just added is fine: it is read as it is now.
+            guard readable, touched.subtracting(inserted).isEmpty,
+                  let data = try? NSKeyedArchiver.archivedData(withRootObject: now, requiringSecureCoding: true) else { return nil }
+            var times: [Date] = []
+            var spots: [PhotoSpot] = []
+            if !inserted.isEmpty {
+                let kinds: PHAssetSourceType = [.typeUserLibrary, .typeCloudShared, .typeiTunesSynced]
+                PHAsset.fetchAssets(withLocalIdentifiers: Array(inserted), options: nil).enumerateObjects { a, _, _ in
+                    guard a.mediaType == .image, kinds.contains(a.sourceType), let time = a.creationDate else { return }
+                    times.append(time)
+                    if let at = a.location?.coordinate { spots.append(PhotoSpot(time: time, lat: at.latitude, lon: at.longitude)) }
+                }
+            }
+            return NewPhotos(times: times, spots: spots, token: data)
+        }.value
+    }
+
     /// Photos taken on one calendar day across multiple years in a single PhotoKit query, grouped by year.
     static func photos(years: [Int], on md: MonthDay) async -> [Int: [Photo]] {
         let ranges = years.compactMap { y -> (Int, Date, Date)? in

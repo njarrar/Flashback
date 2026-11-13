@@ -2,7 +2,12 @@ import Foundation
 
 /// Counts photos per calendar day and year from their capture times.
 func buildDayIndex(_ times: [Date], calendar: Calendar = .app) -> DayIndex {
-    var index: DayIndex = [:]
+    addingToDayIndex([:], times, calendar: calendar)
+}
+
+/// The index with photos taken at `times` counted too: for new photos, without a full scan.
+func addingToDayIndex(_ start: DayIndex, _ times: [Date], calendar: Calendar = .app) -> DayIndex {
+    var index = start
     for t in times {
         let c = calendar.dateComponents([.year, .month, .day], from: t)
         let key = "\(c.month! - 1)-\(c.day!)"

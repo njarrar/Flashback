@@ -47,4 +47,16 @@ final class PlacesTests: XCTestCase {
         XCTAssertEqual(card?.trips.count, 2)
         XCTAssertEqual(card?.photos, 7)
     }
+
+    func testNewPhotosAddToThePlaceIndex() {
+        let day = cal.date(from: DateComponents(year: 2023, month: 6, day: 1, hour: 12))!
+        let start: PlaceIndex = [2: ["2023-06-01": 1]]
+        let grown = addingToPlaceIndex(start, [
+            PhotoSpot(time: day, lat: 48.86, lon: 2.35),
+            PhotoSpot(time: day, lat: 51.50, lon: -0.12),
+            // Far from every city: not counted.
+            PhotoSpot(time: day, lat: 45.0, lon: -30.0),
+        ], cities: cities, calendar: cal)
+        XCTAssertEqual(grown, [2: ["2023-06-01": 2], 0: ["2023-06-01": 1]])
+    }
 }

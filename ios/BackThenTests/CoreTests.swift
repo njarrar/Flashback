@@ -193,4 +193,13 @@ final class CoreTests: XCTestCase {
         XCTAssertFalse(isNear(CGRect(x: 0, y: 2700, width: 100, height: 100), screen))
         XCTAssertFalse(isNear(CGRect(x: 0, y: 0, width: 100, height: 100), screen))
     }
+
+    func testNewPhotosAddToTheDayIndex() {
+        let a = cal.date(from: DateComponents(year: 2019, month: 10, day: 2, hour: 9))!
+        let b = cal.date(from: DateComponents(year: 2021, month: 10, day: 2, hour: 9))!
+        let start = buildDayIndex([a], calendar: cal)
+        let grown = addingToDayIndex(start, [a, b], calendar: cal)
+        XCTAssertEqual(grown, buildDayIndex([a, a, b], calendar: cal))
+        XCTAssertEqual(addingToDayIndex(start, [], calendar: cal), start)
+    }
 }

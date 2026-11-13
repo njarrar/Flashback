@@ -36,6 +36,8 @@ struct SavedState: Codable {
     var deviceIndex: DayIndex = [:]
     /// The library as it was when `deviceIndex` was built.
     var librarySignature: PhotoLibrary.LibrarySignature?
+    /// Where Photos' record of changes stood when `deviceIndex` was last brought up to date.
+    var changeToken: Data?
     /// Days the user hid, as `MonthDay.key`. They don't come up on their own or in reminders.
     var hiddenDates: Set<String> = []
     var layout = YearLayout.mosaic
@@ -58,6 +60,7 @@ struct SavedState: Codable {
         albums = (try? c.decodeIfPresent(Lossy<Album>.self, forKey: .albums))?.items ?? d.albums
         deviceIndex = (try? c.decodeIfPresent(DayIndex.self, forKey: .deviceIndex)) ?? d.deviceIndex
         librarySignature = try? c.decodeIfPresent(PhotoLibrary.LibrarySignature.self, forKey: .librarySignature)
+        changeToken = try? c.decodeIfPresent(Data.self, forKey: .changeToken)
         hiddenDates = (try? c.decodeIfPresent(Set<String>.self, forKey: .hiddenDates)) ?? d.hiddenDates
         layout = (try? c.decodeIfPresent(YearLayout.self, forKey: .layout)) ?? d.layout
         places = (try? c.decodeIfPresent(PlaceSetting.self, forKey: .places)) ?? d.places
@@ -210,8 +213,32 @@ final class AppStore {
         refreshing = true
         if saved.deviceIndex.isEmpty || force { indexing = true }
         defer { refreshing = false; indexing = false }
+        // Usually only a few photos were added since last time: count just those.
+        if !force, !saved.deviceIndex.isEmpty, let token = saved.changeToken,
+           let added = await PhotoLibrary.newPhotos(since: token) {
+            var next = saved
+            next.changeToken = added.token
+            if !added.times.isEmpty {
+                next.deviceIndex = addingToDayIndex(next.deviceIndex, added.times)
+                // Counted without a scan, so the next full check scans.
+                next.librarySignature = nil
+                if next.places.on, !next.placeIndex.isEmpty, let cities = await CityList.load() {
+                    next.placeIndex = addingToPlaceIndex(next.placeIndex, added.spots, cities: cities)
+                }
+            }
+            saved = next
+            if !added.times.isEmpty { applyReminder() }
+            if saved.places.on {
+                Task { if saved.placeIndex.isEmpty { await refreshPlaces() } else { await checkPlace() } }
+            }
+            return
+        }
         let known = force || saved.deviceIndex.isEmpty ? nil : saved.librarySignature
         let fresh = await PhotoLibrary.deviceIndex(known: known)
+        // Taken after the scan: a photo added during it is missed until the next full scan,
+        // never counted twice.
+        let token = await PhotoLibrary.changeToken()
+        if token != saved.changeToken { saved.changeToken = token }
         if let fresh {
             if saved.deviceIndex != fresh.index || saved.librarySignature != fresh.signature {
                 var next = saved
