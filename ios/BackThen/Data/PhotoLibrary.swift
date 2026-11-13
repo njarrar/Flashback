@@ -163,21 +163,28 @@ enum PhotoLibrary {
     /// Loads a device photo at roughly the given pixel size. High-quality mode calls back once.
     /// `fit` keeps the whole photo inside the size (the viewer, reels); otherwise it fills it
     /// (tiles), which for a panorama means a picture many times wider than the size.
-    static func image(id: String, size: CGSize, fit: Bool = false) async -> UIImage? {
+    /// With `preview`, a quick low-quality copy goes there first while the sharp one loads, so
+    /// a tile shows a picture at once instead of gray.
+    static func image(id: String, size: CGSize, fit: Bool = false, preview: (@Sendable (UIImage) -> Void)? = nil) async -> UIImage? {
         let bucketed = ImageCache.bucket(size)
         let key = ImageCache.key(id, bucketed, fit: fit)
         if let hit = ImageCache.get(key) { return hit }
         guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [id], options: nil).firstObject else { return nil }
         let o = PHImageRequestOptions()
         o.isNetworkAccessAllowed = true
-        o.deliveryMode = .highQualityFormat
+        o.deliveryMode = preview == nil ? .highQualityFormat : .opportunistic
         o.resizeMode = .fast
         // Scrolling a tile away cancels its task; pass that on to PhotoKit so it stops the work.
         let box = RequestBox()
         let image: UIImage? = await withTaskCancellationHandler {
             await withCheckedContinuation { cont in
                 box.start(cont) {
-                    imageManager.requestImage(for: asset, targetSize: bucketed, contentMode: fit ? .aspectFit : .aspectFill, options: o) { image, _ in
+                    imageManager.requestImage(for: asset, targetSize: bucketed, contentMode: fit ? .aspectFit : .aspectFill, options: o) { image, info in
+                        // The quick copy comes first; the request ends with the sharp one.
+                        if (info?[PHImageResultIsDegradedKey] as? Bool) == true {
+                            if let image { preview?(image) }
+                            return
+                        }
                         box.finish(image)
                     }
                 }

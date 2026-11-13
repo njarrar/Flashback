@@ -76,6 +76,9 @@ final class ReelRenderer: @unchecked Sendable {
         }
     }
 
+    /// One for every blur: setting one up is slow, and it is safe to share across threads.
+    private static let blurContext = CIContext(options: [.useSoftwareRenderer: false])
+
     /// A soft, darkened copy for the background. Small on purpose: it is blurred anyway.
     static func blur(_ image: UIImage) -> UIImage? {
         guard let cg = image.cgImage else { return nil }
@@ -88,7 +91,7 @@ final class ReelRenderer: @unchecked Sendable {
         f.setValue(6, forKey: kCIInputRadiusKey)
         let rect = CGRect(x: 0, y: 0, width: input.extent.width * s, height: input.extent.height * s)
         guard let out = f.outputImage?.cropped(to: rect),
-              let made = CIContext(options: [.useSoftwareRenderer: false]).createCGImage(out, from: rect) else { return nil }
+              let made = blurContext.createCGImage(out, from: rect) else { return nil }
         return UIImage(cgImage: made)
     }
 

@@ -40,7 +40,10 @@ struct PhotoImage: View {
                     image = hit
                     return
                 }
-                if let loaded = await loadImage(photo, size: px, fit: contentMode == .fit), !Task.isCancelled { image = loaded }
+                // Grid tiles show a quick copy while the sharp one loads.
+                let show: @MainActor (UIImage) -> Void = { quick in if image == nil { image = quick } }
+                let preview: (@Sendable (UIImage) -> Void)? = contentMode == .fill ? { quick in Task { @MainActor in show(quick) } } : nil
+                if let loaded = await loadImage(photo, size: px, fit: contentMode == .fit, preview: preview), !Task.isCancelled { image = loaded }
             }
         }
         .onGeometryChange(for: Bool.self) { proxy in
@@ -65,10 +68,10 @@ func isNear(_ tile: CGRect, _ shown: CGRect) -> Bool {
 
 /// Loads a photo from PhotoKit or app storage at about the given pixel size. `fit` keeps the
 /// whole photo inside that size; otherwise it covers it.
-func loadImage(_ photo: Photo, size px: CGSize, fit: Bool = false) async -> UIImage? {
+func loadImage(_ photo: Photo, size px: CGSize, fit: Bool = false, preview: (@Sendable (UIImage) -> Void)? = nil) async -> UIImage? {
     switch photo.source {
     case .device:
-        return await PhotoLibrary.image(id: photo.ref, size: px, fit: fit)
+        return await PhotoLibrary.image(id: photo.ref, size: px, fit: fit, preview: preview)
     case .sample:
         let key = ImageCache.key(photo.key, px, fit: fit)
         if let hit = ImageCache.get(key) { return hit }
