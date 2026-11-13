@@ -81,11 +81,10 @@ enum PhotoLibrary {
             var inserted = Set<String>()
             var touched = Set<String>()
             var readable = true
-            changes.enumerateChanges { change, stop in
-                guard let details = try? change.changeDetails(for: .asset) else {
+            for change in changes {
+                guard let details = try? change.changeDetails(for: PHObjectType.asset) else {
                     readable = false
-                    stop.pointee = true
-                    return
+                    break
                 }
                 inserted.formUnion(details.insertedLocalIdentifiers)
                 touched.formUnion(details.updatedLocalIdentifiers)
