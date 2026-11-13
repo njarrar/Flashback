@@ -133,15 +133,15 @@ enum PhotoLibrary {
         return image
     }
 
-    /// Full image data for sharing.
-    static func data(id: String) async -> Data? {
+    /// Full image data for sharing, with its type ("public.jpeg", "public.heic", ...).
+    static func data(id: String) async -> (Data, String?)? {
         guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [id], options: nil).firstObject else { return nil }
         let o = PHImageRequestOptions()
         o.isNetworkAccessAllowed = true
         o.version = .current
         return await withCheckedContinuation { cont in
-            PHImageManager.default().requestImageDataAndOrientation(for: asset, options: o) { data, _, _, _ in
-                cont.resume(returning: data)
+            PHImageManager.default().requestImageDataAndOrientation(for: asset, options: o) { data, type, _, _ in
+                cont.resume(returning: data.map { ($0, type) })
             }
         }
     }

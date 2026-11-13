@@ -71,6 +71,8 @@ struct Pill: View {
     /// Stretch to the full width given. Defaults to ghost pills and tall pills.
     var wide: Bool?
     var iconAfter = false
+    /// Shows a spinner in place of the icon and turns the button off, while its work runs.
+    var busy = false
     var action: () -> Void
 
     @Environment(\.isEnabled) private var enabled
@@ -85,7 +87,8 @@ struct Pill: View {
         }
         Button(action: action) {
             HStack(spacing: 8) {
-                if let systemImage, !iconAfter { Image(systemName: systemImage).font(.system(size: height < 48 ? 14 : 18, weight: .semibold)) }
+                if busy { ProgressView().tint(fg) }
+                else if let systemImage, !iconAfter { Image(systemName: systemImage).font(.system(size: height < 48 ? 14 : 18, weight: .semibold)) }
                 Text(label).font(.nunito(height < 48 ? 15 : 16, .semibold))
                     .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
                 if let systemImage, iconAfter { Image(systemName: systemImage).font(.system(size: height < 48 ? 14 : 18, weight: .semibold)) }
@@ -100,6 +103,7 @@ struct Pill: View {
             .opacity(enabled ? 1 : 0.4)
         }
         .buttonStyle(PressStyle())
+        .allowsHitTesting(!busy)
     }
 }
 

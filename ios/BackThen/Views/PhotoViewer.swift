@@ -15,6 +15,8 @@ struct PhotoViewer: View {
     /// How far the photo has been pulled down, in points.
     @State private var drag: CGFloat = 0
     @State private var dragging = false
+    /// The photo is being got ready to share.
+    @State private var sharing = false
     private let ink = Palette.viewerInk
 
     init(viewer: Viewer) {
@@ -82,8 +84,12 @@ struct PhotoViewer: View {
                         store.toggleFavorite(photo)
                     }
                     Spacer()
-                    action("square.and.arrow.up", L.s("share"), L.s("share"), tint: ink) {
-                        Task { await Share.photos([photo], title: L.date(photo.time, "yMMMMd")) }
+                    action("square.and.arrow.up", L.s("share"), L.s("share"), tint: ink, busy: sharing) {
+                        sharing = true
+                        Task {
+                            await Share.photos([photo], title: L.date(photo.time, "yMMMMd"))
+                            sharing = false
+                        }
                     }
                     Spacer()
                     action("rectangle.stack.badge.plus", L.s("add_to_album"), L.s("add_to_album"), tint: ink) { albumFor = [photo] }
@@ -150,15 +156,19 @@ struct PhotoViewer: View {
     }
 
     /// An icon with a short word under it.
-    private func action(_ icon: String, _ word: String, _ label: String, tint: Color, run: @escaping () -> Void) -> some View {
+    private func action(_ icon: String, _ word: String, _ label: String, tint: Color, busy: Bool = false, run: @escaping () -> Void) -> some View {
         Button(action: run) {
             VStack(spacing: 4) {
-                Image(systemName: icon).font(.system(size: 24)).foregroundStyle(tint).frame(height: 30)
+                Group {
+                    if busy { ProgressView().tint(tint) } else { Image(systemName: icon).font(.system(size: 24)).foregroundStyle(tint) }
+                }
+                .frame(height: 30)
                 Text(word).font(.nunito(11, .semibold)).foregroundStyle(ink.opacity(0.75)).lineLimit(1).minimumScaleFactor(0.8)
             }
             .frame(minWidth: 72, minHeight: 56)
             .contentShape(Rectangle())
         }
+        .disabled(busy)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(label)
         .accessibilityAddTraits(.isButton)
