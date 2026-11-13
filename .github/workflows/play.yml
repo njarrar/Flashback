@@ -74,14 +74,19 @@ jobs:
           sudo apt-get update -q && sudo apt-get install -y -q libraqm0 libfribidi0
           python3 -m venv /tmp/venv && /tmp/venv/bin/pip install -q pillow piexif
           /tmp/venv/bin/python .github/screenshots/make_photos.py /tmp/photos
+          # With drawn stand-in photos, keep the store screenshots we already have.
+          if [ -f /tmp/photos/DRAWN ]; then echo "KEEP_SHOTS=yes" >> "$GITHUB_ENV"; fi
       - name: Build
+        if: env.KEEP_SHOTS != 'yes'
         working-directory: android
         run: ./gradlew assembleDebug
       - name: Enable KVM
+        if: env.KEEP_SHOTS != 'yes'
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
       - name: Take screenshots
+        if: env.KEEP_SHOTS != 'yes'
         uses: reactivecircus/android-emulator-runner@v2
         env:
           LANGS: en fr es ar
@@ -95,7 +100,12 @@ jobs:
       - name: Frame screenshots and make graphics
         run: |
           /tmp/venv/bin/python -c "from PIL import features; assert features.check('raqm'), 'Arabic text needs raqm'"
-          /tmp/venv/bin/python .github/play/frame.py shots/android out/screenshots
+          if [ "$KEEP_SHOTS" = "yes" ]; then
+            echo "picsum.photos was down, so the store keeps its current screenshots." | tee -a "$GITHUB_STEP_SUMMARY"
+            mkdir -p out && cp -r play-store/screenshots out/screenshots
+          else
+            /tmp/venv/bin/python .github/play/frame.py shots/android out/screenshots
+          fi
           /tmp/venv/bin/python .github/play/graphics.py out/graphics
       - uses: actions/upload-artifact@v4
         with: { name: store, path: out }

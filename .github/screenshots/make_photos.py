@@ -1,17 +1,23 @@
 """Downloads sample photos and stamps them with capture dates on today's date in past years.
 
-Used only by the screenshots workflow, to fill a fresh simulator or emulator.
+Used only by the screenshots workflows, to fill a fresh simulator or emulator.
+The photos come from picsum.photos. When that site is down, it draws simple stand-in
+pictures instead and leaves a DRAWN file next to them, so build checks still run.
+Pass --real where only real photos will do (store and README screenshots): then it stops.
 """
 import datetime
 import io
 import pathlib
+import random
 import sys
+import time
 import urllib.request
 
 import piexif
-from PIL import Image
+from PIL import Image, ImageDraw
 
-out = pathlib.Path(sys.argv[1])
+real = "--real" in sys.argv
+out = pathlib.Path([a for a in sys.argv[1:] if a != "--real"][0])
 out.mkdir(parents=True, exist_ok=True)
 today = datetime.date.today()
 
@@ -29,10 +35,45 @@ plan = [
 nearby = [(-3, 1060), (-1, 1062), (2, 1063), (5, 1067), (9, 1068), (-8, 1069)]
 
 
+site_down = False
+
+
 def fetch(pid, portrait):
+    global site_down
     w, h = (900, 1200) if portrait else (1200, 900)
-    with urllib.request.urlopen(f"https://picsum.photos/id/{pid}/{w}/{h}", timeout=60) as r:
-        return Image.open(io.BytesIO(r.read())).convert("RGB")
+    for attempt in range(3 if not site_down else 0):
+        try:
+            with urllib.request.urlopen(f"https://picsum.photos/id/{pid}/{w}/{h}", timeout=60) as r:
+                return Image.open(io.BytesIO(r.read())).convert("RGB")
+        except Exception as e:
+            print(f"picsum.photos photo {pid}: {e}")
+            time.sleep(5 * (attempt + 1))
+    if real:
+        sys.exit("picsum.photos is down, and store screenshots need real photos. Run again later.")
+    if not site_down:
+        print("::warning::picsum.photos is down, so these are drawn stand-in photos.")
+        (out / "DRAWN").write_text("picsum.photos was down\n")
+    site_down = True
+    return draw(pid, w, h)
+
+
+def draw(pid, w, h):
+    """A plain landscape: sky, sun and two hills, in colors picked from the photo id."""
+    rnd = random.Random(pid)
+    img = Image.new("RGB", (w, h))
+    d = ImageDraw.Draw(img)
+    top, low = [rnd.randint(60, 200) for _ in range(3)], [rnd.randint(150, 255) for _ in range(3)]
+    for y in range(h):
+        t = y / h
+        d.line([(0, y), (w, y)], fill=tuple(int(a + (b - a) * t) for a, b in zip(top, low)))
+    r = rnd.randint(w // 14, w // 8)
+    x, y = rnd.randint(r, w - r), rnd.randint(r, h // 3)
+    d.ellipse([x - r, y - r, x + r, y + r], fill=(255, rnd.randint(200, 240), rnd.randint(120, 200)))
+    for k in range(2):
+        base = h * (0.55 + 0.15 * k)
+        pts = [(0, h)] + [(i * w / 6, base - rnd.randint(0, h // 6)) for i in range(7)] + [(w, h)]
+        d.polygon(pts, fill=tuple(rnd.randint(30, 120) for _ in range(3)))
+    return img
 
 
 def save(img, when, name):
