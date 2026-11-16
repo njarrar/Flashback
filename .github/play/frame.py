@@ -28,21 +28,41 @@ CAPTIONS = {
            "Amplía, guarda y comparte", "Tus mejores momentos, cerca", "Crea álbumes y compártelos"],
     "ar": ["كل عام، في مثل هذا اليوم", "صور اليوم، سنة بعد سنة", "اختر أي يوم واسترجع ذكرياته",
            "كبّر الصورة، احفظها، شاركها", "أجمل لحظاتك دائمًا قريبة", "أنشئ ألبومات وشاركها"],
+    "pt": ["Todo ano, neste dia", "As fotos de hoje, ano a ano", "Escolha um dia e relembre",
+           "Amplie, curta, compartilhe", "Seus melhores momentos, por perto", "Crie álbuns e compartilhe"],
+    "zh": ["每一年的今天", "今天的照片，按年份排列", "选一天，回顾过去",
+           "放大、收藏、分享", "美好时刻，近在眼前", "创建相簿并分享"],
 }
 
 
+def cjk(name, size):
+    """Noto Sans CJK SC from the system (apt package fonts-noto-cjk). Each .ttc holds
+    several CJK fonts, so find the simplified Chinese one."""
+    path = f"/usr/share/fonts/opentype/noto/NotoSansCJK-{name}.ttc"
+    for i in range(10):
+        f = ImageFont.truetype(path, size, index=i)
+        if f.getname()[0] == "Noto Sans CJK SC":
+            return f
+    sys.exit(f"No Noto Sans CJK SC in {path}")
+
+
 def font(lang, size):
+    if lang == "zh":
+        return cjk("Bold", size)
     name = "tajawal_extrabold.ttf" if lang == "ar" else "nunito_extrabold.ttf"
     return ImageFont.truetype(str(FONTS / name), size)
 
 
 def wrap(draw, text, f, width, lang):
-    """One line if it fits, else two lines of about the same width."""
+    """One line if it fits, else two lines of about the same width. Chinese has no
+    spaces, so it can break between any two characters."""
     kw = {"direction": "rtl"} if lang == "ar" else {}
     if draw.textlength(text, font=f, **kw) <= width:
         return [text]
-    words = text.split()
-    splits = [(" ".join(words[:i]), " ".join(words[i:])) for i in range(1, len(words))]
+    cjk = any("\u4e00" <= c <= "\u9fff" for c in text)
+    sep = "" if cjk else " "
+    words = list(text) if cjk else text.split()
+    splits = [(sep.join(words[:i]), sep.join(words[i:])) for i in range(1, len(words))]
     return list(min(splits, key=lambda t: max(draw.textlength(x, font=f, **kw) for x in t)))
 
 

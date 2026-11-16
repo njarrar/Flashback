@@ -5,8 +5,10 @@ The version and build number come from the Xcode project. If App Store Connect h
 version by that number yet, the script renames a version that was never released (one
 being prepared, or one Apple sent back), or makes a new one after a release. A version
 still waiting for review is pulled back first only when REPLACE is "true". It then picks
-the uploaded build with that number, the "What's New" text from app-store/listing, and
-the App Review contact and notes.
+the uploaded build with that number, the "What's New" text, description and keywords from
+app-store/listing, and the App Review contact and notes. A language folder in
+app-store/listing that App Store Connect doesn't have yet is added, with its name,
+subtitle and store page.
 
     python submit.py
 
@@ -23,7 +25,7 @@ The App Review notes come from app-store/review-notes.txt.
     SCREENSHOTS                             "true" puts app-store/screenshots/<lang>/ on the version,
                                             in place of the iPhone screenshots there
 
-The store text and build must already be on the version. Apple says what is
+The build must already be uploaded. Apple says what is
 still missing when the submission fails.
 """
 import hashlib
@@ -201,13 +203,57 @@ def attach_build(app, version):
     sys.exit(f"Build {VERSION} ({BUILD}) never showed up. Run the App Store workflow first.")
 
 
+def text(folder, name):
+    f = folder / name
+    return f.read_text(encoding="utf-8").strip() if f.exists() else None
+
+
+def add_languages(app, version):
+    """Adds every language in app-store/listing that App Store Connect doesn't have yet:
+    name, subtitle and privacy policy on the app, and the store page on this version.
+    The links come from the English page."""
+    folders = sorted(p for p in LISTING.iterdir() if p.is_dir())
+    info = [i for i in call("GET", f"/v1/apps/{app['id']}/appInfos")["data"]
+            if i["attributes"].get("state", i["attributes"].get("appStoreState")) != "READY_FOR_DISTRIBUTION"][0]
+    infos = call("GET", f"/v1/appInfos/{info['id']}/appInfoLocalizations")["data"]
+    en = next(l for l in infos if l["attributes"]["locale"] == "en-US")["attributes"]
+    have = {l["attributes"]["locale"] for l in infos}
+    for folder in folders:
+        if folder.name not in have:
+            call("POST", "/v1/appInfoLocalizations", {"data": {
+                "type": "appInfoLocalizations",
+                "attributes": {"locale": folder.name, "name": text(folder, "name.txt"),
+                               "subtitle": text(folder, "subtitle.txt"), "privacyPolicyUrl": en.get("privacyPolicyUrl")},
+                "relationships": {"appInfo": {"data": {"type": "appInfos", "id": info["id"]}}}}})
+            print(f"Added {folder.name} name and subtitle.")
+
+    pages = call("GET", f"/v1/appStoreVersions/{version['id']}/appStoreVersionLocalizations")["data"]
+    en = next(l for l in pages if l["attributes"]["locale"] == "en-US")["attributes"]
+    have = {l["attributes"]["locale"] for l in pages}
+    for folder in folders:
+        if folder.name not in have:
+            attributes = {"locale": folder.name, "description": text(folder, "description.txt"),
+                          "keywords": text(folder, "keywords.txt"), "supportUrl": en.get("supportUrl")}
+            if en.get("marketingUrl"):
+                attributes["marketingUrl"] = en["marketingUrl"]
+            call("POST", "/v1/appStoreVersionLocalizations", {"data": {
+                "type": "appStoreVersionLocalizations", "attributes": attributes,
+                "relationships": {"appStoreVersion": {"data": {"type": "appStoreVersions", "id": version["id"]}}}}})
+            print(f"Added {folder.name} store page.")
+
+
 def whats_new(app, version):
-    """Sets "What's New" from the listing files (the first release has none), and the
-    promotional text where it is empty: a new version record doesn't copy it over."""
+    """Sets "What's New" from the listing files (the first release has none), the
+    description and keywords where they differ from the files, and the promotional text
+    where it is empty: a new version record doesn't copy it over."""
     first = not any(state(v) in RELEASED for v in versions(app))
     for loc in call("GET", f"/v1/appStoreVersions/{version['id']}/appStoreVersionLocalizations")["data"]:
         folder = LISTING / loc["attributes"]["locale"]
         attributes = {}
+        for field, name in (("description", "description.txt"), ("keywords", "keywords.txt")):
+            want = text(folder, name)
+            if want and loc["attributes"].get(field) != want:
+                attributes[field] = want
         notes = folder / "release-notes.txt"
         if not first and notes.exists():
             attributes["whatsNew"] = notes.read_text(encoding="utf-8").strip()
@@ -217,7 +263,7 @@ def whats_new(app, version):
         if attributes:
             call("PATCH", f"/v1/appStoreVersionLocalizations/{loc['id']}", {"data": {
                 "type": "appStoreVersionLocalizations", "id": loc["id"], "attributes": attributes}})
-    print("What's New and promotional text set.")
+    print("What's New, description, keywords and promotional text set.")
 
 
 def upload(path, kind, relationship):
@@ -301,6 +347,7 @@ def main():
     if state(version) not in EDITABLE:
         sys.exit(f"Version {VERSION} is {state(version)}, so there is nothing to send.")
     attach_build(app, version)
+    add_languages(app, version)
     whats_new(app, version)
     if os.environ.get("SCREENSHOTS") == "true":
         screenshots(version)

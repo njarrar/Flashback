@@ -29,7 +29,7 @@ shoot() {
   adb exec-out screencap -p > "shots/android/$1.png"
 }
 # Languages to shoot. English files have no prefix, others start with the code (ar-today).
-# The Play Store workflow sets LANGS="en fr es ar". Debug builds take the language as a
+# The Play Store workflow sets LANGS="en fr es ar pt zh". Debug builds take the language as a
 # launch extra. Welcome screens go first, before a demo scene fills the app.
 LANGS=${LANGS:-en ar}
 pre() { if [ $1 = en ]; then echo ""; else echo "$1-"; fi; }

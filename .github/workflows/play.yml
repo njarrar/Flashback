@@ -4,7 +4,8 @@ name: Play Store
 #   BackThen-Android.aab             release bundle (signed when the upload key secrets are set),
 #                                    on the "latest-build" GitHub release, not in git
 #   play-store/graphics/             app icon and a feature graphic per language
-#   play-store/screenshots/<lang>/   phone screenshots in English, French, Spanish and Arabic
+#   play-store/screenshots/<lang>/   phone screenshots in English, French, Spanish, Arabic,
+#                                    Portuguese and Chinese
 # Run it from the Actions tab (Play Store, Run workflow). See play-store/README.md.
 # With the PLAY_SERVICE_ACCOUNT_JSON secret set, a run from the Actions tab also sends the
 # bundle, release notes, store text, screenshots and graphics to Google Play.
@@ -71,7 +72,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Make sample photos
         run: |
-          sudo apt-get update -q && sudo apt-get install -y -q libraqm0 libfribidi0
+          sudo apt-get update -q && sudo apt-get install -y -q libraqm0 libfribidi0 fonts-noto-cjk
           python3 -m venv /tmp/venv && /tmp/venv/bin/pip install -q pillow piexif
           /tmp/venv/bin/python .github/screenshots/make_photos.py /tmp/photos
           # With drawn stand-in photos, keep the store screenshots we already have.
@@ -89,7 +90,7 @@ jobs:
         if: env.KEEP_SHOTS != 'yes'
         uses: reactivecircus/android-emulator-runner@v2
         env:
-          LANGS: en fr es ar
+          LANGS: en fr es ar pt zh
         with:
           api-level: 34
           target: google_apis

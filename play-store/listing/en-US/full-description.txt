@@ -19,7 +19,7 @@ PRIVATE BY DESIGN
 • Nothing is uploaded, tracked or sold. The app doesn't even use the internet.
 
 MADE FOR EVERYONE
-• English, French, Spanish and Arabic, with full right to left layout in Arabic.
+• English, French, Spanish, Arabic, Portuguese and Chinese (simplified), with full right to left layout in Arabic.
 • Light and dark mode.
 • Large text and screen reader support.
 

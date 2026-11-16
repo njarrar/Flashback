@@ -1,1 +1,1 @@
-Más fluida: la lista de ciudades de Lugares a los que vuelves se carga en segundo plano, así que la app ya no se detiene un momento para leerla. También mantiene al día las versiones de Android y iPhone.
+Flashback ya está en portugués y chino (simplificado), además de inglés, francés, español y árabe. La app usa el idioma de tu teléfono.

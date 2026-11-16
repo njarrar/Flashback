@@ -1,1 +1,1 @@
-Smoother: the city list behind Places you go back to now loads in the background, so the app no longer stops for a moment while it reads it. Also keeps the Android and iPhone versions in step.
+Flashback now speaks Portuguese and Chinese (simplified), on top of English, French, Spanish and Arabic. The app follows your phone's language.
