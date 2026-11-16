@@ -13,8 +13,11 @@ fi
 for f in "$src"/*.xml; do
   code=$(basename "$f" .xml)
   cp "$f" "$dst/lang/"
-  mkdir -p "$dst/$code.lproj"
-  out="$dst/$code.lproj/InfoPlist.strings"
+  # iOS names simplified Chinese zh-Hans, so zh.xml gets a zh-Hans.lproj folder.
+  lproj=$code
+  [ "$code" = zh ] && lproj=zh-Hans
+  mkdir -p "$dst/$lproj.lproj"
+  out="$dst/$lproj.lproj/InfoPlist.strings"
   : > "$out"
   for pair in NSPhotoLibraryUsageDescription:ios_photos_permission NSPhotoLibraryAddUsageDescription:ios_photos_add_permission NSLocationWhenInUseUsageDescription:ios_location_permission; do
     key=${pair%%:*}

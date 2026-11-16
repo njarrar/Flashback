@@ -1,0 +1,258 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Portuguese, as spoken in Brazil. Phones set to any Portuguese use this file. -->
+<language name="Português" dir="ltr" script="latin">
+
+    <!-- Shared -->
+    <string name="app_name">Flashback</string>
+    <string name="cancel">Cancelar</string>
+    <string name="close">Fechar</string>
+    <string name="create">Criar</string>
+    <string name="save">Salvar</string>
+    <string name="not_now">Agora não</string>
+    <string name="share">Compartilhar</string>
+    <string name="more">Mais</string>
+    <string name="options">Opções</string>
+    <string name="settings">Ajustes</string>
+    <string name="loading">Carregando</string>
+    <string name="today">Hoje</string>
+    <string name="photo">Foto</string>
+
+    <plurals name="photos">
+        <item quantity="one">{n} foto</item>
+        <item quantity="other">{n} fotos</item>
+    </plurals>
+    <plurals name="years">
+        <item quantity="one">{n} ano</item>
+        <item quantity="other">{n} anos</item>
+    </plurals>
+    <plurals name="skipped_days">
+        <item quantity="one">{n} dia sem fotos pulado</item>
+        <item quantity="other">{n} dias sem fotos pulados</item>
+    </plurals>
+    <plurals name="trips">
+        <item quantity="one">{n} viagem</item>
+        <item quantity="other">{n} viagens</item>
+    </plurals>
+    <plurals name="days">
+        <item quantity="one">{n} dia</item>
+        <item quantity="other">{n} dias</item>
+    </plurals>
+    <plurals name="albums">
+        <item quantity="one">{n} álbum</item>
+        <item quantity="other">{n} álbuns</item>
+    </plurals>
+    <plurals name="ago_years">
+        <item quantity="one">Há {n} ano</item>
+        <item quantity="other">Há {n} anos</item>
+    </plurals>
+    <string name="ago_this_year">Mais cedo neste ano</string>
+    <string name="photos_from_years">{photos} de {years}</string>
+    <string name="weekday_photos">{weekday}, {photos}</string>
+    <string name="ago_weekday">{ago} · {weekday}</string>
+    <string name="ago_weekday_photos">{ago} · {weekday}, {photos}</string>
+    <string name="photo_from">Foto de {date}</string>
+    <string name="favorite_photo_from">Foto favorita de {date}</string>
+
+    <!-- Tabs -->
+    <string name="tab_today">Hoje</string>
+    <string name="tab_favorites">Favoritas</string>
+    <string name="tab_albums">Álbuns</string>
+
+    <!-- Welcome -->
+    <string name="welcome_title">Veja como foi este dia, em cada ano.</string>
+    <string name="welcome_body">O Flashback encontra as fotos que você tirou na data de hoje em anos passados e as organiza por ano.</string>
+    <string name="welcome_denied">Sem acesso às fotos, não há nada para mostrar. Você pode permitir depois em Ajustes.</string>
+    <string name="show_my_photos">Ver minhas fotos</string>
+    <string name="privacy_line">Suas fotos ficam neste celular.</string>
+
+    <!-- Daily reminder, on the welcome screen and in the notification -->
+    <string name="reminder_title_years">{day} tem fotos de {years}</string>
+    <string name="reminder_title_any">{day} tem fotos de anos passados</string>
+    <string name="reminder_body_oldest">A mais antiga é de {year}. Toque para relembrar.</string>
+    <string name="reminder_body">Toque para relembrar.</string>
+    <string name="reminder_onboarding_title">Um lembrete por dia</string>
+    <string name="reminder_onboarding_body">Só nos dias que têm fotos de anos passados. Você pode mudar o horário depois.</string>
+    <string name="turn_on_reminder">Ativar lembrete</string>
+
+    <!-- Today -->
+    <string name="today_loading">Procurando na sua galeria…</string>
+    <string name="today_none">Nenhuma foto nesta data</string>
+    <string name="pick_another_day">Escolher outro dia</string>
+    <string name="layout_cards">Cartões por ano</string>
+    <string name="place_card_range">{trips}, de {first} a {last}. {photos}.</string>
+    <string name="place_card_one">{trips}, {first}. {photos}.</string>
+    <string name="place_been_before">Você já esteve em {city}</string>
+    <string name="trips_photos">{trips} · {photos}</string>
+    <string name="days_photos">{days}, {photos}</string>
+    <string name="see_city">Ver {city}</string>
+    <string name="places_title">Lugares aonde você volta</string>
+    <string name="places_note">Quando você está numa cidade onde já esteve, Hoje mostra suas fotos de viagens passadas. Sua localização fica neste celular. Lista de cidades do GeoNames (CC BY 4.0).</string>
+    <string name="places_ask_title">Mostrar fotos de lugares aonde você volta?</string>
+    <string name="places_ask_body">Quando você visita uma cidade onde já esteve, o Flashback mostra suas fotos da última vez que esteve lá.</string>
+    <string name="places_ask_private">Só a cidade, descoberta neste celular. Nada é enviado.</string>
+    <string name="places_ask_open_only">Só verifica com o app aberto.</string>
+    <string name="places_ask_settings">Desative quando quiser em Ajustes.</string>
+    <string name="turn_on">Ativar</string>
+    <string name="toast_location_off">Permita a localização para ver lugares</string>
+    <string name="ios_location_permission">O Flashback descobre em que cidade você está para mostrar fotos de viagens passadas a ela. Sua localização fica neste iPhone.</string>
+    <string name="previous_day_photos">Dia anterior com fotos</string>
+    <string name="next_day_photos">Próximo dia com fotos</string>
+    <string name="back_to_today">Voltar para hoje</string>
+    <string name="select">Selecionar</string>
+    <string name="selected">Selecionada</string>
+    <string name="not_selected">Não selecionada</string>
+    <string name="select_hint">Toque nas fotos para selecionar</string>
+    <string name="n_selected">{photos} selecionadas</string>
+    <string name="album">Álbum</string>
+    <string name="share_year">Compartilhar {year}</string>
+    <string name="empty_no_sources_title">Nenhuma foto conectada</string>
+    <string name="empty_title">Ainda nada de {day}</string>
+    <string name="empty_no_sources_ios">Permita que o Flashback use o app Fotos para ver este dia em anos passados.</string>
+    <string name="empty_no_sources_android">Permita que o Flashback use as fotos do seu celular para ver este dia em anos passados.</string>
+    <string name="empty_nearby">Você não tirou fotos nesta data em anos passados. Estes dias próximos têm algumas.</string>
+    <string name="empty_none">Você não tirou fotos nesta data em anos passados.</string>
+    <string name="connect_photos">Conectar fotos</string>
+
+    <!-- Calendar -->
+    <string name="previous_month">Mês anterior</string>
+    <string name="next_month">Próximo mês</string>
+    <string name="day_no_photos">{day}, sem fotos</string>
+    <string name="day_photos_from">{day}, {photos} de {years}</string>
+
+    <!-- Photo viewer -->
+    <string name="favorite">Favoritar</string>
+    <string name="favorite_short">Favorita</string>
+    <string name="unfavorite">Remover das favoritas</string>
+    <string name="add_to_album">Adicionar ao álbum</string>
+    <string name="photo_n_of">Foto {n} de {total}</string>
+    <string name="n_of_total">{n} de {total}</string>
+
+    <!-- Favorites -->
+    <string name="favorites_none">Nada salvo ainda</string>
+    <string name="favorites_empty_title">Nenhuma favorita ainda</string>
+    <string name="favorites_empty_body">Abra qualquer foto e toque no coração. Ela fica guardada aqui, seja de que dia for.</string>
+
+    <!-- Albums -->
+    <string name="new_album">Novo</string>
+    <string name="albums_empty_title">Nenhum álbum ainda</string>
+    <string name="albums_empty_body">Em Hoje, toque em Selecionar, escolha algumas fotos e toque em Álbum.</string>
+    <string name="album_made">{photos} · criado em {date}</string>
+    <string name="share_album">Compartilhar álbum</string>
+    <string name="save_to_photos">Salvar no Fotos</string>
+    <string name="save_to_gallery">Salvar na galeria</string>
+    <string name="rename">Renomear</string>
+    <string name="rename_album">Renomear álbum</string>
+    <string name="album_name">Nome do álbum</string>
+    <string name="delete_album">Apagar álbum</string>
+    <string name="delete_album_confirm">Apagar "{name}"?</string>
+    <string name="delete_album_note">As fotos continuam na sua galeria.</string>
+    <string name="new_album_name">Nome do novo álbum</string>
+    <string name="album_name_example">ex.: Outono na cidade</string>
+    <string name="add_to_existing">Ou adicione a um álbum existente</string>
+    <string name="add_to_named">Adicionar a {name}</string>
+
+    <!-- Settings -->
+    <string name="photo_sources">Fontes de fotos</string>
+    <string name="phone_photos">Fotos neste celular</string>
+    <string name="connected">Conectado</string>
+    <string name="not_connected">Não conectado</string>
+    <string name="daily_reminder">Lembrete diário</string>
+    <string name="change_reminder_time">Mudar horário do lembrete</string>
+    <string name="reminder_settings_note">Só nos dias que têm fotos de anos passados. Toque no horário para mudar.</string>
+
+    <!-- Hidden dates, layout and the share sheet -->
+    <string name="you_hid_date">Você ocultou esta data</string>
+    <string name="hide_date">Ocultar data</string>
+    <string name="hide_day">Ocultar {day}</string>
+    <string name="show_day_again">Mostrar {day} de novo</string>
+    <string name="hidden_note">Datas ocultas não aparecem sozinhas nem nos lembretes.</string>
+    <string name="hidden_dates">Datas ocultas</string>
+    <string name="show">Mostrar</string>
+    <string name="day_is_hidden">{day} está oculto</string>
+    <string name="hidden_body">Não vai aparecer sozinho nem nos lembretes.</string>
+    <string name="show_it_again">Mostrar de novo</string>
+    <string name="toast_day_hidden">{day} oculto</string>
+    <string name="toast_day_shown">{day} visível de novo</string>
+    <string name="layout">Layout</string>
+    <string name="layout_all_years">Todos os anos</string>
+    <string name="layout_one_year">Um ano por vez</string>
+    <string name="newest">Mais recentes</string>
+    <string name="oldest">Mais antigas</string>
+    <string name="save_copies_photos">Salvar num álbum no Fotos</string>
+    <string name="save_copies_gallery">Salvar cópias em Pictures</string>
+
+    <!-- Short messages at the bottom of the screen -->
+    <string name="toast_reminder_set">Lembrete diário às {time}</string>
+    <string name="toast_apple_connected">Fotos da Apple conectado</string>
+    <string name="toast_notifications_off">As notificações estão desativadas em Ajustes</string>
+    <string name="toast_allow_access">Permita o acesso às fotos em Ajustes</string>
+    <string name="toast_favorited">Adicionada às Favoritas</string>
+    <string name="toast_unfavorited">Removida das Favoritas</string>
+    <string name="toast_album_created">Álbum criado</string>
+    <string name="toast_added_to">Adicionada a {name}</string>
+    <string name="toast_new_album_hint">Toque em Selecionar, escolha fotos e toque em Álbum</string>
+    <string name="toast_allow_save">Permita o acesso às fotos para salvar</string>
+    <string name="toast_saved_photos">Salvo no Fotos</string>
+    <string name="toast_saved_gallery">Salvo em Pictures/Flashback</string>
+    <string name="toast_save_failed">Não foi possível salvar o álbum</string>
+
+    <!-- iPhone photo access prompts -->
+    <string name="ios_photos_permission">O Flashback mostra as fotos que você tirou neste dia em anos passados.</string>
+    <string name="ios_photos_add_permission">O Flashback salva seus álbuns e reels no Fotos quando você pede.</string>
+
+    <!-- Home screen widget -->
+    <string name="widget_name">Neste dia</string>
+    <string name="widget_description">Uma foto deste dia em um ano passado</string>
+    <string name="widget_empty">Ainda não há fotos deste dia</string>
+    <string name="widget_open_app">Abra o Flashback para ver fotos deste dia</string>
+
+    <!-- Sample albums for the README screenshots -->
+    <string name="demo_album_fall">Fins de semana de outono</string>
+    <string name="demo_album_garden">O jardim da vovó</string>
+
+    <!-- Reels: a short video of picked photos, each stamped with its date -->
+    <string name="reel">Reel</string>
+    <string name="make_reel">Criar um reel</string>
+    <string name="reel_title">Novo reel</string>
+    <string name="reel_preview">Prévia do reel</string>
+    <string name="reel_play">Reproduzir</string>
+    <string name="reel_pause">Pausar</string>
+    <string name="reel_tab_stamp">Data</string>
+    <string name="reel_tab_transition">Transição</string>
+    <string name="reel_look_year">Ano grande</string>
+    <string name="reel_look_film">Data de filme</string>
+    <string name="reel_look_clean">Limpo</string>
+    <string name="reel_move_fade">Esmaecer</string>
+    <string name="reel_move_slide">Deslizar</string>
+    <string name="reel_move_zoom">Zoom</string>
+    <string name="reel_move_flash">Flash</string>
+    <string name="reel_move_fade_note">Uma foto se dissolve na seguinte.</string>
+    <string name="reel_move_slide_note">As fotos entram pela lateral.</string>
+    <string name="reel_move_zoom_note">A foto antiga cresce e some enquanto a próxima aparece.</string>
+    <string name="reel_move_flash_note">Um flash branco rápido entre as fotos.</string>
+    <string name="reel_order">Ordem</string>
+    <string name="reel_newest_first">Mais recentes primeiro</string>
+    <string name="reel_oldest_first">Mais antigas primeiro</string>
+    <string name="reel_speed">Velocidade</string>
+    <string name="reel_speed_fast">Rápida</string>
+    <string name="reel_speed_normal">Normal</string>
+    <string name="reel_speed_slow">Lenta</string>
+    <string name="reel_size">Tamanho</string>
+    <string name="reel_photo">Foto</string>
+    <string name="reel_whole">Inteira</string>
+    <string name="reel_fill">Preencher</string>
+    <string name="reel_end_card">Tela final</string>
+    <string name="reel_on">Ativado</string>
+    <string name="reel_off">Desativado</string>
+    <string name="reel_years_range">{years} · de {from} a {to}</string>
+    <string name="reel_making">Criando seu reel</string>
+    <string name="reel_making_note">Feito no seu celular. Suas fotos nunca saem dele.</string>
+    <string name="reel_failed">Não foi possível criar o reel. Tente de novo.</string>
+    <string name="reel_need_two">Escolha 2 ou mais fotos para um reel</string>
+    <plurals name="reel_too_many">
+        <item quantity="one">Um reel aceita até {n} foto</item>
+        <item quantity="other">Um reel aceita até {n} fotos, então usa as {n} primeiras</item>
+    </plurals>
+    <string name="reel_save">Salvar</string>
+    <string name="toast_reel_saved">Salvo em Movies/Flashback</string>
+</language>

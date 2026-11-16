@@ -124,6 +124,19 @@ rather than take shots without real photos.
   that grows with the system text size; a large top app bar and navigation bar on
   Android. Light and dark mode.
 
+## What's new in 1.23
+
+- **Portuguese and Chinese.** Both apps now speak Portuguese (as in Brazil) and
+  simplified Chinese, on top of English, French, Spanish and Arabic. They follow the
+  phone's language: a phone set to any Portuguese gets `lang/pt.xml`, and one set to
+  any Chinese gets `lang/zh.xml`. Spanish was checked and already had every word.
+- **Store pages in six languages.** The App Store and Google Play get the name,
+  description, keywords, release notes, screenshots and feature graphic in Portuguese
+  and Chinese too. The App Store review workflow now adds a store language that App
+  Store Connect doesn't have yet, and keeps each language's description and keywords
+  the same as the files in `app-store/listing`. Chinese headlines on the screenshots
+  use Noto Sans CJK.
+
 ## What's new in 1.22
 
 Steadier and smoother, mostly on iPhone. It started from a crash log: the app froze on
@@ -572,7 +585,8 @@ share it.
 ## Languages
 
 Every word the apps show lives in one XML file per language in [`lang/`](lang):
-`en.xml`, `fr.xml`, `es.xml` and `ar.xml`. Both apps read the same files. Android
+`en.xml`, `fr.xml`, `es.xml`, `ar.xml`, `pt.xml` (Portuguese, as in Brazil) and
+`zh.xml` (simplified Chinese). Both apps read the same files. Android
 packs the folder as app assets; on iPhone a build step copies it into the app.
 
 ```xml
@@ -599,7 +613,9 @@ plural, the same on both apps.
    one written in Arabic script (Persian, Urdu).
 3. Translate the text between the tags, keeping the `{slots}`. Give each plural the
    forms the language uses (`zero`, `one`, `two`, `few`, `many`, `other`).
-4. Run the tests. They check that the file has every word and the same slots.
+4. On Android, add `android/app/src/main/res/values-<code>/strings.xml` with the
+   widget description, since the widget picker reads it before the app runs.
+5. Run the tests. They check that the file has every word and the same slots.
 
 That's all for both apps. If the language has plural rules the apps don't know yet,
 add a line to `pluralForm` in `ios/BackThen/Core/Lang.swift` and

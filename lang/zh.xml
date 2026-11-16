@@ -1,0 +1,251 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Chinese, in simplified characters. Phones set to any Chinese use this file.
+     Chinese has one plural form, "other". -->
+<language name="简体中文" dir="ltr" script="han">
+
+    <!-- Shared -->
+    <string name="app_name">Flashback</string>
+    <string name="cancel">取消</string>
+    <string name="close">关闭</string>
+    <string name="create">创建</string>
+    <string name="save">保存</string>
+    <string name="not_now">以后再说</string>
+    <string name="share">分享</string>
+    <string name="more">更多</string>
+    <string name="options">选项</string>
+    <string name="settings">设置</string>
+    <string name="loading">正在载入</string>
+    <string name="today">今天</string>
+    <string name="photo">照片</string>
+
+    <plurals name="photos">
+        <item quantity="other">{n} 张照片</item>
+    </plurals>
+    <plurals name="years">
+        <item quantity="other">{n} 年</item>
+    </plurals>
+    <plurals name="skipped_days">
+        <item quantity="other">已跳过 {n} 天没有照片的日子</item>
+    </plurals>
+    <plurals name="trips">
+        <item quantity="other">{n} 次旅行</item>
+    </plurals>
+    <plurals name="days">
+        <item quantity="other">{n} 天</item>
+    </plurals>
+    <plurals name="albums">
+        <item quantity="other">{n} 个相簿</item>
+    </plurals>
+    <plurals name="ago_years">
+        <item quantity="other">{n} 年前</item>
+    </plurals>
+    <string name="ago_this_year">今年早些时候</string>
+    <string name="photos_from_years">{years}，共 {photos}</string>
+    <string name="weekday_photos">{weekday}，{photos}</string>
+    <string name="ago_weekday">{ago} · {weekday}</string>
+    <string name="ago_weekday_photos">{ago} · {weekday}，{photos}</string>
+    <string name="photo_from">{date}的照片</string>
+    <string name="favorite_photo_from">{date}的收藏照片</string>
+
+    <!-- Tabs -->
+    <string name="tab_today">今天</string>
+    <string name="tab_favorites">收藏</string>
+    <string name="tab_albums">相簿</string>
+
+    <!-- Welcome -->
+    <string name="welcome_title">看看每一年的今天是什么样子。</string>
+    <string name="welcome_body">Flashback 会找出你往年今天拍的照片，并按年份排列。</string>
+    <string name="welcome_denied">没有照片访问权限，就没有内容可以显示。你可以稍后在“设置”中允许。</string>
+    <string name="show_my_photos">查看我的照片</string>
+    <string name="privacy_line">你的照片只留在这部手机上。</string>
+
+    <!-- Daily reminder, on the welcome screen and in the notification -->
+    <string name="reminder_title_years">{day}有 {years}的照片</string>
+    <string name="reminder_title_any">{day}有往年的照片</string>
+    <string name="reminder_body_oldest">最早的一张拍于 {year} 年。轻点回顾。</string>
+    <string name="reminder_body">轻点回顾。</string>
+    <string name="reminder_onboarding_title">每天一条提醒</string>
+    <string name="reminder_onboarding_body">只在有往年照片的日子提醒。时间可以稍后更改。</string>
+    <string name="turn_on_reminder">开启提醒</string>
+
+    <!-- Today -->
+    <string name="today_loading">正在查找你的图库…</string>
+    <string name="today_none">这一天没有照片</string>
+    <string name="pick_another_day">选择其他日期</string>
+    <string name="layout_cards">年份卡片</string>
+    <string name="place_card_range">{trips}，从 {first} 到 {last}。{photos}。</string>
+    <string name="place_card_one">{trips}，{first}。{photos}。</string>
+    <string name="place_been_before">你以前来过{city}</string>
+    <string name="trips_photos">{trips} · {photos}</string>
+    <string name="days_photos">{days}，{photos}</string>
+    <string name="see_city">查看{city}</string>
+    <string name="places_title">常回去的地方</string>
+    <string name="places_note">当你来到以前去过的城市，“今天”会显示你过去在那里拍的照片。你的位置只留在这部手机上。城市列表来自 GeoNames (CC BY 4.0)。</string>
+    <string name="places_ask_title">显示你常回去的地方的照片？</string>
+    <string name="places_ask_body">当你来到以前去过的城市，Flashback 会显示你上次在那里拍的照片。</string>
+    <string name="places_ask_private">只判断城市，而且在这部手机上完成。不会发送任何信息。</string>
+    <string name="places_ask_open_only">只在 App 打开时检查。</string>
+    <string name="places_ask_settings">随时可以在“设置”中关闭。</string>
+    <string name="turn_on">开启</string>
+    <string name="toast_location_off">允许使用位置才能查看地点</string>
+    <string name="ios_location_permission">Flashback 会判断你所在的城市，以显示你过去在那里拍的照片。你的位置只留在这部 iPhone 上。</string>
+    <string name="previous_day_photos">上一个有照片的日子</string>
+    <string name="next_day_photos">下一个有照片的日子</string>
+    <string name="back_to_today">回到今天</string>
+    <string name="select">选择</string>
+    <string name="selected">已选择</string>
+    <string name="not_selected">未选择</string>
+    <string name="select_hint">轻点照片进行选择</string>
+    <string name="n_selected">已选择 {photos}</string>
+    <string name="album">相簿</string>
+    <string name="share_year">分享 {year} 年</string>
+    <string name="empty_no_sources_title">没有连接照片</string>
+    <string name="empty_title">{day}还没有照片</string>
+    <string name="empty_no_sources_ios">允许 Flashback 使用 Apple 照片，查看往年的这一天。</string>
+    <string name="empty_no_sources_android">允许 Flashback 使用手机中的照片，查看往年的这一天。</string>
+    <string name="empty_nearby">往年的这一天你没有拍照片。附近这几天有一些。</string>
+    <string name="empty_none">往年的这一天你没有拍照片。</string>
+    <string name="connect_photos">连接照片</string>
+
+    <!-- Calendar -->
+    <string name="previous_month">上个月</string>
+    <string name="next_month">下个月</string>
+    <string name="day_no_photos">{day}，没有照片</string>
+    <string name="day_photos_from">{day}，{years}，共 {photos}</string>
+
+    <!-- Photo viewer -->
+    <string name="favorite">收藏</string>
+    <string name="favorite_short">收藏</string>
+    <string name="unfavorite">取消收藏</string>
+    <string name="add_to_album">添加到相簿</string>
+    <string name="photo_n_of">第 {n} 张，共 {total} 张</string>
+    <string name="n_of_total">{n} / {total}</string>
+
+    <!-- Favorites -->
+    <string name="favorites_none">还没有收藏</string>
+    <string name="favorites_empty_title">还没有收藏</string>
+    <string name="favorites_empty_body">打开任意照片，轻点爱心。不论是哪一天的照片，都会保存在这里。</string>
+
+    <!-- Albums -->
+    <string name="new_album">新建</string>
+    <string name="albums_empty_title">还没有相簿</string>
+    <string name="albums_empty_body">在“今天”中轻点“选择”，选几张照片，再轻点“相簿”。</string>
+    <string name="album_made">{photos} · 创建于 {date}</string>
+    <string name="share_album">分享相簿</string>
+    <string name="save_to_photos">存储到“照片”</string>
+    <string name="save_to_gallery">保存到相册</string>
+    <string name="rename">重命名</string>
+    <string name="rename_album">重命名相簿</string>
+    <string name="album_name">相簿名称</string>
+    <string name="delete_album">删除相簿</string>
+    <string name="delete_album_confirm">删除“{name}”？</string>
+    <string name="delete_album_note">照片仍会保留在你的图库中。</string>
+    <string name="new_album_name">新相簿名称</string>
+    <string name="album_name_example">例如：城市里的秋天</string>
+    <string name="add_to_existing">或添加到现有相簿</string>
+    <string name="add_to_named">添加到“{name}”</string>
+
+    <!-- Settings -->
+    <string name="photo_sources">照片来源</string>
+    <string name="phone_photos">这部手机上的照片</string>
+    <string name="connected">已连接</string>
+    <string name="not_connected">未连接</string>
+    <string name="daily_reminder">每日提醒</string>
+    <string name="change_reminder_time">更改提醒时间</string>
+    <string name="reminder_settings_note">只在有往年照片的日子提醒。轻点时间即可更改。</string>
+
+    <!-- Hidden dates, layout and the share sheet -->
+    <string name="you_hid_date">你隐藏了这个日期</string>
+    <string name="hide_date">隐藏日期</string>
+    <string name="hide_day">隐藏{day}</string>
+    <string name="show_day_again">重新显示{day}</string>
+    <string name="hidden_note">隐藏的日期不会自动出现，也不会出现在提醒中。</string>
+    <string name="hidden_dates">隐藏的日期</string>
+    <string name="show">显示</string>
+    <string name="day_is_hidden">{day}已隐藏</string>
+    <string name="hidden_body">它不会自动出现，也不会出现在提醒中。</string>
+    <string name="show_it_again">重新显示</string>
+    <string name="toast_day_hidden">已隐藏{day}</string>
+    <string name="toast_day_shown">已重新显示{day}</string>
+    <string name="layout">布局</string>
+    <string name="layout_all_years">所有年份</string>
+    <string name="layout_one_year">一次一年</string>
+    <string name="newest">最新</string>
+    <string name="oldest">最早</string>
+    <string name="save_copies_photos">存储到“照片”中的相簿</string>
+    <string name="save_copies_gallery">将副本保存到 Pictures</string>
+
+    <!-- Short messages at the bottom of the screen -->
+    <string name="toast_reminder_set">每日提醒时间：{time}</string>
+    <string name="toast_apple_connected">已连接 Apple 照片</string>
+    <string name="toast_notifications_off">通知已在“设置”中关闭</string>
+    <string name="toast_allow_access">请在“设置”中允许访问照片</string>
+    <string name="toast_favorited">已添加到收藏</string>
+    <string name="toast_unfavorited">已从收藏中移除</string>
+    <string name="toast_album_created">相簿已创建</string>
+    <string name="toast_added_to">已添加到“{name}”</string>
+    <string name="toast_new_album_hint">轻点“选择”，选择照片，再轻点“相簿”</string>
+    <string name="toast_allow_save">允许访问照片才能保存</string>
+    <string name="toast_saved_photos">已存储到“照片”</string>
+    <string name="toast_saved_gallery">已保存到 Pictures/Flashback</string>
+    <string name="toast_save_failed">无法保存相簿</string>
+
+    <!-- iPhone photo access prompts -->
+    <string name="ios_photos_permission">Flashback 会显示你往年今天拍的照片。</string>
+    <string name="ios_photos_add_permission">在你需要时，Flashback 会把你的相簿和短片存储到“照片”。</string>
+
+    <!-- Home screen widget -->
+    <string name="widget_name">往年今日</string>
+    <string name="widget_description">往年这一天的一张照片</string>
+    <string name="widget_empty">这一天还没有照片</string>
+    <string name="widget_open_app">打开 Flashback 查看这一天的照片</string>
+
+    <!-- Sample albums for the README screenshots -->
+    <string name="demo_album_fall">秋天的周末</string>
+    <string name="demo_album_garden">奶奶的花园</string>
+
+    <!-- Reels: a short video of picked photos, each stamped with its date -->
+    <string name="reel">短片</string>
+    <string name="make_reel">制作短片</string>
+    <string name="reel_title">新短片</string>
+    <string name="reel_preview">短片预览</string>
+    <string name="reel_play">播放</string>
+    <string name="reel_pause">暂停</string>
+    <string name="reel_tab_stamp">日期印记</string>
+    <string name="reel_tab_transition">转场</string>
+    <string name="reel_look_year">大号年份</string>
+    <string name="reel_look_film">胶片日期</string>
+    <string name="reel_look_clean">简洁</string>
+    <string name="reel_move_fade">淡入淡出</string>
+    <string name="reel_move_slide">滑动</string>
+    <string name="reel_move_zoom">缩放</string>
+    <string name="reel_move_flash">闪光</string>
+    <string name="reel_move_fade_note">一张照片渐渐融入下一张。</string>
+    <string name="reel_move_slide_note">照片从侧边推入。</string>
+    <string name="reel_move_zoom_note">旧照片放大并淡出，下一张随之出现。</string>
+    <string name="reel_move_flash_note">照片之间闪过一道白色闪光。</string>
+    <string name="reel_order">顺序</string>
+    <string name="reel_newest_first">最新的在前</string>
+    <string name="reel_oldest_first">最早的在前</string>
+    <string name="reel_speed">速度</string>
+    <string name="reel_speed_fast">快</string>
+    <string name="reel_speed_normal">正常</string>
+    <string name="reel_speed_slow">慢</string>
+    <string name="reel_size">尺寸</string>
+    <string name="reel_photo">照片</string>
+    <string name="reel_whole">完整</string>
+    <string name="reel_fill">填满</string>
+    <string name="reel_end_card">片尾卡</string>
+    <string name="reel_on">开</string>
+    <string name="reel_off">关</string>
+    <string name="reel_years_range">{years} · {from} 至 {to}</string>
+    <string name="reel_making">正在制作短片</string>
+    <string name="reel_making_note">在你的手机上制作。照片不会离开手机。</string>
+    <string name="reel_failed">无法制作短片，请重试。</string>
+    <string name="reel_need_two">请至少选择 2 张照片来制作短片</string>
+    <plurals name="reel_too_many">
+        <item quantity="other">一个短片最多 {n} 张照片，因此只用前 {n} 张</item>
+    </plurals>
+    <string name="reel_save">保存</string>
+    <string name="toast_reel_saved">已保存到 Movies/Flashback</string>
+</language>

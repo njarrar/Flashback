@@ -24,7 +24,7 @@ class LangTest {
     @AfterTest fun reset() = L.use(en, en, Locale.ENGLISH)
 
     @Test fun shipsEveryLanguage() {
-        assertEquals(listOf("ar", "en", "es", "fr"), LangFiles.codes)
+        assertEquals(listOf("ar", "en", "es", "fr", "pt", "zh"), LangFiles.codes)
     }
 
     @Test fun everyLanguageHasEveryWordWithTheSameSlots() {
@@ -52,7 +52,7 @@ class LangTest {
         assertTrue(ar.rtl)
         assertTrue(ar.arabicScript)
         assertEquals("العربية", ar.name)
-        for (code in listOf("en", "fr", "es")) {
+        for (code in listOf("en", "fr", "es", "pt", "zh")) {
             val lang = LangFiles.load(code)
             assertTrue(!lang.rtl && !lang.arabicScript, "$code should be left to right")
         }
@@ -98,6 +98,22 @@ class LangTest {
         assertEquals("Hoy", L.s("tab_today"))
     }
 
+    @Test fun portugueseAndChinese() {
+        L.use(en, LangFiles.load("pt"), Locale.forLanguageTag("pt-BR"))
+        assertEquals("0 foto", L.p("photos", 0))
+        assertEquals("1 foto", L.p("photos", 1))
+        assertEquals("2 fotos", L.p("photos", 2))
+        assertEquals("Há 3 anos", L.p("ago_years", 3))
+        assertEquals("Hoje", L.s("tab_today"))
+        L.use(en, LangFiles.load("zh"), Locale.forLanguageTag("zh-CN"))
+        assertEquals("1 张照片", L.p("photos", 1))
+        assertEquals("5 张照片", L.p("photos", 5))
+        assertEquals("3 年前", L.p("ago_years", 3))
+        assertEquals("今天", L.s("tab_today"))
+        // Chinese has one plural form: every key has "other" and nothing else.
+        for ((key, forms) in LangFiles.load("zh").plurals) assertEquals(setOf("other"), forms.keys, key)
+    }
+
     @Test fun missingWordsFallBackToEnglish() {
         L.use(en, Strings("ar", strings = mapOf("tab_today" to "اليوم")), Locale.ENGLISH)
         assertEquals("اليوم", L.s("tab_today"))
@@ -112,6 +128,11 @@ class LangTest {
         assertEquals("en", L.pick(listOf("de"), have).first)
         assertEquals("es", L.pick(listOf("es_MX"), have).first)
         assertEquals("pt-BR", L.pick(listOf("pt-BR"), have + "pt-BR").first)
+        val all = have + "pt" + "zh"
+        assertEquals("pt", L.pick(listOf("pt-BR"), all).first)
+        assertEquals("pt", L.pick(listOf("pt-PT"), all).first)
+        assertEquals("zh", L.pick(listOf("zh-Hans-CN"), all).first)
+        assertEquals("zh", L.pick(listOf("zh-CN"), all).first)
     }
 
     @Test fun yearsAreNotGrouped() {
