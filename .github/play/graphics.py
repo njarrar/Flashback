@@ -19,6 +19,8 @@ TAGLINES = {
     "fr": "Vos photos de ce jour, chaque année",
     "es": "Tus fotos de este día, cada año",
     "ar": "صورك في مثل هذا اليوم، كل عام",
+    "pt": "Suas fotos deste dia, todo ano",
+    "zh": "每一年的今天，你的照片",
 }
 
 
@@ -35,16 +37,30 @@ def icon(out):
     img.convert("RGB").save(out / "icon-512.png", optimize=True)
 
 
+def cjk(name, size):
+    """Noto Sans CJK SC from the system (apt package fonts-noto-cjk). Each .ttc holds
+    several CJK fonts, so find the simplified Chinese one."""
+    path = f"/usr/share/fonts/opentype/noto/NotoSansCJK-{name}.ttc"
+    for i in range(10):
+        f = ImageFont.truetype(path, size, index=i)
+        if f.getname()[0] == "Noto Sans CJK SC":
+            return f
+    sys.exit(f"No Noto Sans CJK SC in {path}")
+
+
 def font(name, size):
     return ImageFont.truetype(str(RES / "font" / name), size)
 
 
 def wrap(draw, text, f, width, kw):
-    """One line if it fits, else two lines of about the same width."""
+    """One line if it fits, else two lines of about the same width. Chinese has no
+    spaces, so it can break between any two characters."""
     if draw.textlength(text, font=f, **kw) <= width:
         return [text]
-    words = text.split()
-    splits = [(" ".join(words[:i]), " ".join(words[i:])) for i in range(1, len(words))]
+    cjk = any("\u4e00" <= c <= "\u9fff" for c in text)
+    sep = "" if cjk else " "
+    words = list(text) if cjk else text.split()
+    splits = [(sep.join(words[:i]), sep.join(words[i:])) for i in range(1, len(words))]
     return list(min(splits, key=lambda t: max(draw.textlength(x, font=f, **kw) for x in t)))
 
 
@@ -65,7 +81,7 @@ def feature(out, lang):
     draw = ImageDraw.Draw(img)
     kw = {"direction": "rtl", "language": "ar"} if rtl else {}
     title_f = font("nunito_black.ttf", 96)
-    tag_f = font("tajawal_bold.ttf" if rtl else "nunito_bold.ttf", 44)
+    tag_f = cjk("Bold", 44) if lang == "zh" else font("tajawal_bold.ttf" if rtl else "nunito_bold.ttf", 44)
     x0, width = (430, 540) if rtl else (64, 520)
     lines = wrap(draw, TAGLINES[lang], tag_f, width, kw)
     block = 110 + 58 * len(lines)

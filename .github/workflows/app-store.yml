@@ -2,7 +2,8 @@ name: App Store
 
 # Makes everything the App Store upload needs:
 #   a signed build, sent to App Store Connect (TestFlight) when the signing secrets are set
-#   app-store/screenshots/<lang>/   6.9" iPhone screenshots in English, French, Spanish and Arabic,
+#   app-store/screenshots/<lang>/   6.9" iPhone screenshots in English, French, Spanish, Arabic,
+#                                   Portuguese and Chinese,
 #                                   in a phone frame with a headline (.github/screenshots/frame.py)
 # Run it from the Actions tab (App Store, Run workflow). See app-store/README.md.
 # A push that changes this file only checks that the app still builds for a real iPhone
@@ -157,21 +158,23 @@ jobs:
           mkdir -p "$DATA/Library/Application Support/samples"
           cp /tmp/photos/*.jpg "$DATA/Library/Application Support/samples/"
           APP=com.njarrar.backthen
-          locale() { case $1 in en) echo en_US;; fr) echo fr_FR;; es) echo es_ES;; ar) echo ar_SA;; esac; }
+          locale() { case $1 in en) echo en_US;; fr) echo fr_FR;; es) echo es_ES;; ar) echo ar_SA;; pt) echo pt_BR;; zh) echo zh_CN;; esac; }
+          # The phone language: Portuguese as in Brazil, simplified Chinese.
+          plang() { case $1 in pt) echo pt-BR;; zh) echo zh-Hans;; *) echo $1;; esac; }
           # The welcome screen only shows before a demo scene runs, so take it first in each language.
-          for lang in en fr es ar; do
+          for lang in en fr es ar pt zh; do
             mkdir -p "shots/$lang"
             xcrun simctl terminate "$DEVICE" $APP || true
-            xcrun simctl launch "$DEVICE" $APP -AppleLanguages "($lang)" -AppleLocale "$(locale $lang)"
+            xcrun simctl launch "$DEVICE" $APP -AppleLanguages "($(plang $lang))" -AppleLocale "$(locale $lang)"
             # A short wait caught the screen before it drew, and the store showed a blank shot.
             sleep 15
             xcrun simctl io "$DEVICE" screenshot "shots/$lang/1-welcome.png"
           done
-          for lang in en fr es ar; do
+          for lang in en fr es ar pt zh; do
             n=2
             for scene in today calendar viewer favorites album; do
               xcrun simctl terminate "$DEVICE" $APP || true
-              xcrun simctl launch "$DEVICE" $APP -AppleLanguages "($lang)" -AppleLocale "$(locale $lang)" -scene $scene
+              xcrun simctl launch "$DEVICE" $APP -AppleLanguages "($(plang $lang))" -AppleLocale "$(locale $lang)" -scene $scene
               sleep 10
               xcrun simctl io "$DEVICE" screenshot "shots/$lang/$n-$scene.png"
               n=$((n + 1))
@@ -203,8 +206,9 @@ jobs:
         with: { name: app-store-screenshots, path: /tmp/shots }
       - name: Frame
         run: |
-          # Arabic needs Pillow's raqm layout, which loads FriBiDi from the system.
-          dpkg -s libfribidi0 >/dev/null 2>&1 || { sudo apt-get update -q && sudo apt-get install -y -q libfribidi0; }
+          # Arabic needs Pillow's raqm layout, which loads FriBiDi from the system. Chinese
+          # headlines use Noto Sans CJK.
+          sudo apt-get update -q && sudo apt-get install -y -q libfribidi0 fonts-noto-cjk
           python3 -m venv /tmp/venv && /tmp/venv/bin/pip install -q pillow
           /tmp/venv/bin/python .github/screenshots/frame.py /tmp/shots /tmp/framed
       - uses: actions/upload-artifact@v4

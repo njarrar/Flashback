@@ -8,9 +8,9 @@ Everything the Play Console asks for is in this folder or made by the
 | Package name | `com.njarrar.backthen` |
 | Version | 1.11.0 (version code 12) |
 | Release bundle | `BackThen-Android.aab` on the [Latest build](../../../releases/tag/latest-build) release |
-| Store text, four languages | [`listing/`](listing) |
+| Store text, six languages | [`listing/`](listing) |
 | App icon, feature graphics | [`graphics/`](graphics) |
-| Phone screenshots, four languages | [`screenshots/`](screenshots) |
+| Phone screenshots, six languages | [`screenshots/`](screenshots) |
 | Privacy policy | [`privacy-policy.md`](privacy-policy.md) |
 
 ## 1. Package name
@@ -108,11 +108,12 @@ App, Free. Tick the declarations.
 
 - **App name, short description, full description:** copy from
   `listing/en-US/`. Then **Manage translations > Add your own translations** for
-  French (France) `fr-FR`, Spanish (Spain) `es-ES` and Arabic `ar`, and paste each
+  French (France) `fr-FR`, Spanish (Spain) `es-ES`, Arabic `ar`, Portuguese (Brazil)
+  `pt-BR` and Chinese (simplified) `zh-CN`, and paste each
   folder's text.
 - **App icon:** `graphics/icon-512.png`
-- **Feature graphic:** `graphics/en/feature-graphic.png` (and the `fr`, `es`, `ar`
-  ones for each translation)
+- **Feature graphic:** `graphics/en/feature-graphic.png` (and the `fr`, `es`, `ar`,
+  `pt`, `zh` ones for each translation)
 - **Phone screenshots:** all six from `screenshots/en/` (and each language's
   folder for its translation). They are 1080 x 1920, which Play asks for.
 - **Category:** Photography. **Tags:** Photography, Photo gallery, Memories.
@@ -138,7 +139,7 @@ bundle, or let the workflow send it for you (step 9).
 
 Once set up, each run of the Play Store workflow from the Actions tab sends Play the
 new bundle with the release notes from `listing/<lang>/release-notes.txt`, plus the
-store text, icon, feature graphics and screenshots in all four languages. You only
+store text, icon, feature graphics and screenshots in all six languages. You only
 do this once. Play needs the first bundle uploaded by hand, which you have done.
 
 1. **Make a service account.** In the [Google Cloud console](https://console.cloud.google.com),

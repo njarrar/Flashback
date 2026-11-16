@@ -103,7 +103,7 @@ class ReelTest {
         val en = LangFiles.load("en")
         val keys = en.strings.keys.filter { it.startsWith("reel") || it == "make_reel" || it == "toast_reel_saved" }
         assertTrue(keys.size > 30)
-        for (code in listOf("fr", "es", "ar")) {
+        for (code in listOf("fr", "es", "ar", "pt", "zh")) {
             val lang = LangFiles.load(code)
             for (k in keys) assertTrue(k in lang.strings, "$code is missing $k")
             assertTrue("reel_too_many" in lang.plurals, "$code is missing reel_too_many")

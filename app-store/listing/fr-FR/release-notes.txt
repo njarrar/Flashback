@@ -1,1 +1,1 @@
-Plus stable et plus fluide. Corrigé : Aujourd'hui pouvait se figer si vous arrêtiez de faire défiler avec la date à moitié sous la barre du haut. Les jours avec beaucoup de photos défilent mieux et prennent moins de mémoire, les photos s'affichent plus vite, partager de grandes photos est plus rapide avec un indicateur pendant la préparation, et le widget ne reste plus vide en attendant iCloud.
+Flashback parle maintenant portugais et chinois (simplifié), en plus de l'anglais, du français, de l'espagnol et de l'arabe. L'appli suit la langue de votre téléphone.

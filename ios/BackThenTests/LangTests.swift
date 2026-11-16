@@ -22,9 +22,9 @@ final class LangTests: XCTestCase {
     }
 
     func testAppShipsEveryLanguage() {
-        XCTAssertEqual(Set(L.available), ["ar", "en", "es", "fr"])
+        XCTAssertEqual(Set(L.available), ["ar", "en", "es", "fr", "pt", "zh"])
         // The build step makes an .lproj folder per language, which is what tells iOS the app speaks it.
-        for code in ["ar", "en", "es", "fr"] {
+        for code in ["ar", "en", "es", "fr", "pt", "zh-Hans"] {
             XCTAssertTrue(Bundle.main.localizations.contains(code), "no \(code).lproj in the app")
         }
     }
@@ -105,6 +105,20 @@ final class LangTests: XCTestCase {
         L.use(try load("es"), locale: Locale(identifier: "es_ES"))
         XCTAssertEqual(L.p("years", 1), "1 año")
         XCTAssertEqual(L.p("years", 4), "4 años")
+    }
+
+    func testPortugueseAndChinese() throws {
+        L.use(try load("pt"), locale: Locale(identifier: "pt_BR"))
+        XCTAssertEqual(L.p("photos", 0), "0 foto")
+        XCTAssertEqual(L.p("photos", 2), "2 fotos")
+        XCTAssertEqual(L.p("ago_years", 3), "Há 3 anos")
+        XCTAssertEqual(MonthDay(month: 9, day: 16).label, "16 de outubro")
+        L.use(try load("zh"), locale: Locale(identifier: "zh_Hans_CN"))
+        XCTAssertEqual(L.p("photos", 1), "1 张照片")
+        XCTAssertEqual(L.p("ago_years", 3), "3 年前")
+        XCTAssertEqual(MonthDay(month: 9, day: 16).label, "10月16日")
+        XCTAssertEqual(L.pick(preferred: ["zh-Hans-CN"], available: L.available).code, "zh")
+        XCTAssertEqual(L.pick(preferred: ["pt-BR"], available: L.available).code, "pt")
     }
 
     func testMissingWordsFallBackToEnglish() {

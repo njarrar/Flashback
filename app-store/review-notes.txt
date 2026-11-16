@@ -25,7 +25,7 @@ None. The app does not use the internet at all. It uses only Apple frameworks on
 The city names for Places come from a list built into the app (GeoNames, CC BY 4.0), so no location lookup goes to any server.
 
 Regional differences
-None. The app works the same in all regions. The interface is in English, French, Spanish and Arabic (with right to left layout in Arabic), and follows the phone's language. Dates always use the Gregorian calendar.
+None. The app works the same in all regions. The interface is in English, French, Spanish, Arabic, Portuguese and simplified Chinese (with right to left layout in Arabic), and follows the phone's language. Dates always use the Gregorian calendar.
 
 Regulated industry or third-party material
 Not applicable. The app is not in a regulated industry and shows no third-party content. It only shows the user's own photos from their own library. The bundled city list (GeoNames) is used under the CC BY 4.0 license, and the bundled fonts (Nunito and Tajawal) under the SIL Open Font License.

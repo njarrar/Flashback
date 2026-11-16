@@ -14,7 +14,9 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont, features
 
 ROOT = pathlib.Path(__file__).parents[2]
 FONTS = ROOT / "ios" / "BackThen" / "Fonts"
-LOCALES = {"en": "en-US", "fr": "fr-FR", "es": "es-ES", "ar": "ar-SA"}
+LOCALES = {"en": "en-US", "fr": "fr-FR", "es": "es-ES", "ar": "ar-SA", "pt": "pt-BR", "zh": "zh-Hans"}
+# Chinese comes from the system Noto Sans CJK (apt package fonts-noto-cjk).
+CJK = pathlib.Path("/usr/share/fonts/opentype/noto")
 # (raw file, framed file), in store order: real photos first, the welcome screen last.
 SHOTS = [("2-today", "1-today"), ("3-calendar", "2-calendar"), ("4-viewer", "3-viewer"),
          ("5-favorites", "4-favorites"), ("6-album", "5-album"), ("1-welcome", "6-welcome")]
@@ -27,7 +29,19 @@ BEZEL = (18, 18, 20)
 PHONE_W = 1000  # screen width inside the frame
 
 
+def cjk(bold, size):
+    """Noto Sans CJK SC: each .ttc holds several CJK fonts, so find the simplified Chinese one."""
+    path = str(CJK / ("NotoSansCJK-Bold.ttc" if bold else "NotoSansCJK-Regular.ttc"))
+    for i in range(10):
+        f = ImageFont.truetype(path, size, index=i)
+        if f.getname()[0] == "Noto Sans CJK SC":
+            return f
+    sys.exit(f"No Noto Sans CJK SC in {path}")
+
+
 def font(lang, bold, size):
+    if lang == "zh":
+        return cjk(bold, size)
     if lang == "ar":
         name = "Tajawal-Black.ttf" if bold else "Tajawal-Medium.ttf"
     else:
@@ -69,17 +83,20 @@ def shadow(im, box, r, alpha, blur):
 
 
 def wrap(d, text, f, width, kw):
-    """Splits text into lines no wider than width, as evenly as it can."""
-    words = text.split()
+    """Splits text into lines no wider than width, as evenly as it can. Chinese has no
+    spaces, so it can break between any two characters."""
+    cjk = any("\u4e00" <= c <= "\u9fff" for c in text)
+    sep = "" if cjk else " "
+    words = list(text) if cjk else text.split()
     for n in range(1, len(words) + 1):
         # Try n lines: fill each to about len/n characters, then check the widths.
         lines, line, goal = [], [], len(text) / n
         for w in words:
-            if line and len(" ".join(line + [w])) > goal + 4 and len(lines) < n - 1:
-                lines.append(" ".join(line))
+            if line and len(sep.join(line + [w])) > goal + (1 if cjk else 4) and len(lines) < n - 1:
+                lines.append(sep.join(line))
                 line = []
             line.append(w)
-        lines.append(" ".join(line))
+        lines.append(sep.join(line))
         if all(d.textlength(l, font=f, **kw) <= width for l in lines):
             return lines
     return [text]
