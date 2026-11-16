@@ -247,9 +247,14 @@ def whats_new(app, version):
     description and keywords where they differ from the files, and the promotional text
     where it is empty: a new version record doesn't copy it over."""
     first = not any(state(v) in RELEASED for v in versions(app))
-    for loc in call("GET", f"/v1/appStoreVersions/{version['id']}/appStoreVersionLocalizations")["data"]:
+    pages = call("GET", f"/v1/appStoreVersions/{version['id']}/appStoreVersionLocalizations")["data"]
+    # A page added in a new language can come without the support link, so it takes English's.
+    support = next((l["attributes"].get("supportUrl") for l in pages if l["attributes"].get("supportUrl")), None)
+    for loc in pages:
         folder = LISTING / loc["attributes"]["locale"]
         attributes = {}
+        if support and not loc["attributes"].get("supportUrl"):
+            attributes["supportUrl"] = support
         for field, name in (("description", "description.txt"), ("keywords", "keywords.txt")):
             want = text(folder, name)
             if want and loc["attributes"].get(field) != want:
