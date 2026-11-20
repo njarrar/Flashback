@@ -37,6 +37,7 @@ struct PhotoViewer: View {
         }
     }
 
+    @ViewBuilder
     private func viewerBody(photos: [Photo]) -> some View {
         let safeIndex = min(max(index, 0), photos.count - 1)
         let photo = photos[safeIndex]
