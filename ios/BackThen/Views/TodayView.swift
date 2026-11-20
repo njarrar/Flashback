@@ -178,7 +178,7 @@ struct TodayView: View {
         .toolbar(selecting ? .hidden : .visible, for: .tabBar)
         .sensoryFeedback(.selection, trigger: picked.count) { _, _ in selecting }
         .sensoryFeedback(.selection, trigger: day)
-        .sensoryFeedback(.impact(weight: .rigid), trigger: boundaryHit)
+        .sensoryFeedback(.impact(flexibility: .rigid), trigger: boundaryHit)
         .onChange(of: store.tab) { _, _ in stopSelecting() }
         .onChange(of: total) { _, n in if n == 0 && selecting { stopSelecting() } }
         .onChange(of: hidden) { _, h in if h && selecting { stopSelecting() } }
