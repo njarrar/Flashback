@@ -5,7 +5,7 @@ import Foundation
 // ReelExport.swift writes them to an MP4, all on the phone.
 
 /// How each photo shows its date.
-enum ReelLook: String, CaseIterable, Codable {
+enum ReelLook: String, CaseIterable, Codable, Sendable {
     /// The year in large type, with the date and how long ago.
     case year
     /// An orange date in the corner, like old film cameras printed.
@@ -15,11 +15,11 @@ enum ReelLook: String, CaseIterable, Codable {
 }
 
 /// The move from one photo to the next.
-enum ReelMove: String, CaseIterable, Codable {
+enum ReelMove: String, CaseIterable, Codable, Sendable {
     case fade, slide, zoom, flash
 }
 
-enum ReelSpeed: String, CaseIterable, Codable {
+enum ReelSpeed: String, CaseIterable, Codable, Sendable {
     case fast, normal, slow
 
     /// Seconds each photo stays on screen, counting the moves in and out.
@@ -32,7 +32,7 @@ enum ReelSpeed: String, CaseIterable, Codable {
     }
 }
 
-enum ReelSize: String, CaseIterable, Codable {
+enum ReelSize: String, CaseIterable, Codable, Sendable {
     /// 9:16, for Reels, Stories and TikTok.
     case story
     /// 4:5, for feed posts.
@@ -57,7 +57,7 @@ enum ReelSize: String, CaseIterable, Codable {
     }
 }
 
-struct ReelOptions: Equatable, Codable {
+struct ReelOptions: Equatable, Codable, Sendable {
     var look: ReelLook = .year
     var move: ReelMove = .fade
     var newestFirst = true
@@ -70,15 +70,15 @@ struct ReelOptions: Equatable, Codable {
 }
 
 /// When each card of a reel starts and ends. Cards overlap by the length of the move between them.
-struct ReelPlan: Equatable {
-    enum Kind: Equatable {
+struct ReelPlan: Equatable, Sendable {
+    enum Kind: Equatable, Sendable {
         case intro
         /// A photo, by its place in the reel's order.
         case photo(Int)
         case outro
     }
 
-    struct Item: Equatable {
+    struct Item: Equatable, Sendable {
         let kind: Kind
         let start: Double
         let length: Double
@@ -86,7 +86,7 @@ struct ReelPlan: Equatable {
     }
 
     /// What shows at one moment: one card, or two while the move runs from `a` to `b`.
-    struct Moment: Equatable {
+    struct Moment: Equatable, Sendable {
         let a: Item
         let b: Item?
         /// How far the move has gone, 0 to 1. 0 when there is no move.
@@ -111,8 +111,9 @@ struct ReelPlan: Equatable {
         case .slide: 0.5
         default: 0.65
         }
+        let safeCount = max(0, count)
         var kinds: [(Kind, Double)] = [(.intro, Self.introLength)]
-        for i in 0..<min(count, Self.maxPhotos) { kinds.append((.photo(i), options.speed.seconds)) }
+        for i in 0..<min(safeCount, Self.maxPhotos) { kinds.append((.photo(i), options.speed.seconds)) }
         if options.endCard { kinds.append((.outro, Self.outroLength)) }
         var start = 0.0
         var items: [Item] = []

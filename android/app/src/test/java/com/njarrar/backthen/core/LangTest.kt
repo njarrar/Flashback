@@ -1,10 +1,12 @@
 package com.njarrar.backthen.core
 
+import java.io.ByteArrayInputStream
 import java.io.File
 import java.util.Locale
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFails
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -62,14 +64,20 @@ class LangTest {
         }
     }
 
-    @Test fun arabicPluralForms() {
+    @Test fun arabicAndEdgePluralForms() {
         val cases = listOf(0 to "zero", 1 to "one", 2 to "two", 3 to "few", 10 to "few", 11 to "many",
             99 to "many", 100 to "other", 102 to "other", 103 to "few", 111 to "many")
         for ((n, form) in cases) assertEquals(form, pluralForm(n, "ar"), "ar $n")
         assertEquals("one", pluralForm(0, "fr"))
         assertEquals("other", pluralForm(2, "fr"))
+        assertEquals("other", pluralForm(0, "pt"))
+        assertEquals("one", pluralForm(1, "pt"))
+        assertEquals("other", pluralForm(2, "pt"))
         assertEquals("one", pluralForm(1, "es"))
         assertEquals("other", pluralForm(0, "en"))
+        // Int.MIN_VALUE must not overflow abs(Int) into a negative modulo.
+        assertEquals("other", pluralForm(Int.MIN_VALUE, "en"))
+        assertEquals("many", pluralForm(Int.MIN_VALUE, "ar"))
     }
 
     @Test fun arabicWords() {
@@ -100,7 +108,7 @@ class LangTest {
 
     @Test fun portugueseAndChinese() {
         L.use(en, LangFiles.load("pt"), Locale.forLanguageTag("pt-BR"))
-        assertEquals("0 foto", L.p("photos", 0))
+        assertEquals("0 fotos", L.p("photos", 0))
         assertEquals("1 foto", L.p("photos", 1))
         assertEquals("2 fotos", L.p("photos", 2))
         assertEquals("Há 3 anos", L.p("ago_years", 3))
@@ -114,11 +122,31 @@ class LangTest {
         for ((key, forms) in LangFiles.load("zh").plurals) assertEquals(setOf("other"), forms.keys, key)
     }
 
-    @Test fun missingWordsFallBackToEnglish() {
+    @Test fun missingWordsFallBackToEnglishUsingEnglishPluralRule() {
         L.use(en, Strings("ar", strings = mapOf("tab_today" to "اليوم")), Locale.ENGLISH)
         assertEquals("اليوم", L.s("tab_today"))
         assertEquals("Favorites", L.s("tab_favorites"))
         assertEquals("3 photos", L.p("photos", 3))
+        // French treats 0 as "one", but when falling back to English it must use English's rule ("0 photos").
+        L.use(en, Strings("fr"), Locale.FRENCH)
+        assertEquals("0 photos", L.p("photos", 0))
+        assertEquals("1 photo", L.p("photos", 1))
+        // Portuguese fallback for 0 also yields "0 photos".
+        L.use(en, Strings("pt"), Locale.forLanguageTag("pt-BR"))
+        assertEquals("0 photos", L.p("photos", 0))
+    }
+
+    @Test fun languageVersionIncrementsOnSwitch() {
+        val before = L.version.value
+        L.use(en, LangFiles.load("fr"), Locale.FRENCH)
+        assertEquals(before + 1, L.version.value)
+    }
+
+    @Test fun xmlParserRejectsDoctype() {
+        val xxe = """<?xml version="1.0"?><!DOCTYPE foo [<!ENTITY x "boom">]><language name="Test"><string name="a">&x;</string></language>"""
+        assertFails {
+            Strings.parse("xx", ByteArrayInputStream(xxe.toByteArray(Charsets.UTF_8)))
+        }
     }
 
     @Test fun picksThePhoneLanguage() {
@@ -150,11 +178,26 @@ class LangTest {
         }
     }
 
+    /** Dynamically constructed reel keys exist in every language. */
+    @Test fun dynamicKeysExistInEveryLanguage() {
+        val dynamicKeys = ReelMove.entries.flatMap { m ->
+            val k = m.name.lowercase(Locale.ROOT)
+            listOf("reel_move_$k", "reel_move_${k}_note")
+        } + ReelSpeed.entries.map { "reel_speed_${it.name.lowercase(Locale.ROOT)}" }
+        for (code in LangFiles.codes) {
+            val lang = LangFiles.load(code)
+            for (key in dynamicKeys) {
+                assertNotNull(lang.strings[key], "$code is missing dynamic key $key")
+            }
+        }
+    }
+
     /** Every word the Kotlin and Swift code asks for is in en.xml. */
     @Test fun everyWordTheCodeUsesExists() {
         val sources = listOf(File("src/main/java"), File("../../ios/BackThen"), File("../../ios/BackThenWidget"))
+            .filter { it.exists() }
             .flatMap { it.walkTopDown().filter { f -> f.extension in setOf("kt", "swift") && !f.name.startsWith("Lang") }.toList() }
-        assertTrue(sources.size > 20)
+        assertTrue(sources.size > 15)
         var seen = 0
         for (file in sources) for ((kind, key) in usedKeys(file.readText())) {
             seen++

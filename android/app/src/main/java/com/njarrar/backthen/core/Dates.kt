@@ -2,9 +2,11 @@ package com.njarrar.backthen.core
 
 import android.icu.text.DateFormat
 import android.icu.util.GregorianCalendar
+import android.icu.util.TimeZone as IcuTimeZone
 import java.time.LocalDate
 import java.time.ZoneId
 import java.util.Date
+import java.util.Locale
 
 /** A calendar day without a year. [month] is 0-based, to match the design's logic. */
 data class MonthDay(val month: Int, val day: Int) {
@@ -45,7 +47,7 @@ fun MonthDay.shift(delta: Int): MonthDay {
 
 fun agoLabel(year: Int, thisYear: Int = LocalDate.now().year): String {
     val diff = thisYear - year
-    return if (diff == 0) L.s("ago_this_year") else L.p("ago_years", diff)
+    return if (diff <= 0) L.s("ago_this_year") else L.p("ago_years", diff)
 }
 
 // Dates in the app's language, from CLDR skeletons such as "MMMMd" (October 16) or "EEEE" (Friday).
@@ -56,13 +58,26 @@ fun agoLabel(year: Int, thisYear: Int = LocalDate.now().year): String {
 private val dateFormats = HashMap<String, DateFormat>()
 private val timeFormats = HashMap<String, DateFormat>()
 
+private fun cachedFormat(
+    cache: HashMap<String, DateFormat>,
+    locale: Locale,
+    zoneId: String,
+    skeleton: String,
+): DateFormat {
+    if (cache.size > 64) cache.clear()
+    val key = "${locale.toLanguageTag()}|$zoneId|$skeleton"
+    return cache.getOrPut(key) {
+        val cal = GregorianCalendar(IcuTimeZone.getTimeZone(zoneId), locale)
+        DateFormat.getInstanceForSkeleton(cal, skeleton, locale)
+    }
+}
+
 fun formatDate(date: LocalDate, skeleton: String): String {
     val locale = L.locale
-    val at = Date(date.atTime(12, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli())
+    val zone = ZoneId.systemDefault()
+    val at = Date(date.atTime(12, 0).atZone(zone).toInstant().toEpochMilli())
     return synchronized(dateFormats) {
-        dateFormats.getOrPut("${locale.toLanguageTag()}|$skeleton") {
-            DateFormat.getInstanceForSkeleton(GregorianCalendar(locale), skeleton, locale)
-        }.format(at)
+        cachedFormat(dateFormats, locale, zone.id, skeleton).format(at)
     }
 }
 
@@ -87,23 +102,21 @@ fun weekdayOf(year: Int, md: MonthDay): String =
 /** The reminder time in the app's language. [use24] is the phone's 12 or 24 hour setting; null lets the language pick. */
 fun formatTime(hour: Int, minute: Int, use24: Boolean? = null): String {
     val locale = L.locale
-    val at = Date(LocalDate.of(2024, 1, 1).atTime(hour, minute).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli())
+    val zone = ZoneId.systemDefault()
+    val at = Date(LocalDate.of(2024, 1, 1).atTime(hour, minute).atZone(zone).toInstant().toEpochMilli())
     val skeleton = when (use24) { true -> "Hmm"; false -> "hmm"; null -> "jmm" }
     return synchronized(timeFormats) {
-        timeFormats.getOrPut("${locale.toLanguageTag()}|$skeleton") {
-            DateFormat.getInstanceForSkeleton(skeleton, locale)
-        }.format(at)
+        cachedFormat(timeFormats, locale, zone.id, skeleton).format(at)
     }
 }
 
 /** "Friday 4:12 PM" for a photo's capture time, in the app's language and the phone's 12 or 24 hour setting. */
 fun weekdayTime(epochMs: Long, use24: Boolean): String {
     val locale = L.locale
+    val zone = ZoneId.systemDefault()
     val skeleton = if (use24) "EEEEHmm" else "EEEEhmm"
     return synchronized(dateFormats) {
-        dateFormats.getOrPut("${locale.toLanguageTag()}|$skeleton") {
-            DateFormat.getInstanceForSkeleton(GregorianCalendar(locale), skeleton, locale)
-        }.format(Date(epochMs))
+        cachedFormat(dateFormats, locale, zone.id, skeleton).format(Date(epochMs))
     }
 }
 

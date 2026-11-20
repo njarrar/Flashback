@@ -24,8 +24,8 @@ enum class ReelSpeed(val seconds: Double) { FAST(2.0), NORMAL(2.8), SLOW(3.8) }
 enum class ReelSize(val width: Int, val height: Int, val label: String) {
     /** 9:16, for Reels, Stories and TikTok. */
     STORY(1080, 1920, "9:16"),
-    /** 4:5, for feed posts. */
-    PORTRAIT(1080, 1350, "4:5"),
+    /** 4:5, for feed posts (16-pixel aligned for hardware H.264 encoders). */
+    PORTRAIT(1088, 1360, "4:5"),
     SQUARE(1080, 1080, "1:1"),
 }
 

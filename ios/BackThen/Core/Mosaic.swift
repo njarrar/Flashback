@@ -44,9 +44,14 @@ func layoutMosaic(_ count: Int) -> (tiles: [Tile], rows: Int) {
     var tiles: [Tile] = []
     tiles.reserveCapacity(allSpans.count)
     var rows = 0
+    let fullRowMask = UInt8((1 << mosaicColumns) - 1)
+    var firstFreeRow = 0
     for (cols, rs) in allSpans {
         let spanMask = UInt8((1 << cols) - 1)
-        var r = 0
+        while firstFreeRow < rowMasks.count && rowMasks[firstFreeRow] == fullRowMask {
+            firstFreeRow += 1
+        }
+        var r = firstFreeRow
         placing: while true {
             while rowMasks.count < r + rs { rowMasks.append(0) }
             for c in 0...(mosaicColumns - cols) {
@@ -77,12 +82,14 @@ func tileAspect(width: Int, height: Int) -> CGFloat {
 /// Splits photos into columns of about equal height, as in the design's strip layout.
 /// Each photo, in order, goes to the shortest column so far. Returns indexes per column.
 func masonryColumns(_ aspects: [CGFloat], columns: Int = 2) -> [[Int]] {
+    guard columns > 0 else { return [] }
     var cols = Array(repeating: [Int](), count: columns)
     var heights = Array(repeating: CGFloat(0), count: columns)
     for (i, a) in aspects.enumerated() {
+        let safe = (a.isFinite && a > 0) ? max(a, 0.01) : 1
         let c = heights.indices.min { heights[$0] < heights[$1] }!
         cols[c].append(i)
-        heights[c] += 1 / a
+        heights[c] += 1 / safe
     }
     return cols
 }

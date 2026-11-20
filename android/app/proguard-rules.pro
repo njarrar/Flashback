@@ -8,3 +8,11 @@
 # WorkManager stores the worker's class name with each scheduled job, so a renamed
 # class would break reminders scheduled by an older version.
 -keep class com.njarrar.backthen.data.ReminderWorker { *; }
+
+# Strip debug/info logging calls in release builds.
+-assumenosideeffects class android.util.Log {
+    public static boolean isLoggable(java.lang.String, int);
+    public static int v(...);
+    public static int d(...);
+    public static int i(...);
+}

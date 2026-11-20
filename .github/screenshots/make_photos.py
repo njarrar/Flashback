@@ -87,15 +87,24 @@ def save(img, when, name):
     img.save(out / name, "JPEG", quality=88, exif=exif)
 
 
+def years_before(day, years):
+    """Returns the same month/day `years` earlier, clamping Feb 29 to Feb 28 in non-leap years."""
+    target_year = day.year - years
+    try:
+        return day.replace(year=target_year)
+    except ValueError:
+        return datetime.date(target_year, 2, 28)
+
+
 n = 0
 for years_ago, ids in plan:
-    day = today.replace(year=today.year - years_ago)
+    day = years_before(today, years_ago)
     for i, pid in enumerate(ids):
         when = datetime.datetime.combine(day, datetime.time(10 + i, 5 * i))
         save(fetch(pid, portrait=(n % 3 == 1)), when, f"IMG_{n:04d}.jpg")
         n += 1
 for delta, pid in nearby:
-    day = today.replace(year=today.year - 3) + datetime.timedelta(days=delta)
+    day = years_before(today, 3) + datetime.timedelta(days=delta)
     save(fetch(pid, portrait=False), datetime.datetime.combine(day, datetime.time(12)), f"IMG_{n:04d}.jpg")
     n += 1
 # The App Store calendar shot needs a month full of photo days. Early in a month most days

@@ -9,6 +9,7 @@ import android.location.Location
 import android.location.LocationManager
 import android.os.Build
 import android.os.CancellationSignal
+import android.os.SystemClock
 import android.provider.MediaStore
 import androidx.core.content.ContextCompat
 import androidx.exifinterface.media.ExifInterface
@@ -19,13 +20,19 @@ import com.njarrar.backthen.core.PhotoSource
 import com.njarrar.backthen.core.Trip
 import com.njarrar.backthen.core.dayKey
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.time.ZoneId
+import kotlin.coroutines.coroutineContext
 import kotlin.coroutines.resume
 
 /**
@@ -47,75 +54,117 @@ class PlaceLibrary(private val context: Context) {
         ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
     }
 
-    /** The app has its city list. A quick look at the file names, so screens can ask it while drawing. */
-    val hasCities: Boolean by lazy { runCatching { context.assets.list("")?.contains("cities.tsv") == true }.getOrDefault(false) }
+    @Volatile
+    private var citiesAvailable: Boolean? = null
+
+    /** True if the bundled city list exists. Pre-checked off the main thread via [checkCitiesAvailable]. */
+    val hasCities: Boolean
+        get() = citiesAvailable ?: runCatching {
+            context.assets.open("cities.tsv").use { true }
+        }.getOrDefault(false).also { citiesAvailable = it }
+
+    /** Pre-warms [hasCities] off the main thread. */
+    suspend fun checkCitiesAvailable(): Boolean = withContext(Dispatchers.IO) { hasCities }
 
     private val cityList: CityList? by lazy { runCatching { context.assets.open("cities.tsv").use(CityList::read) }.getOrNull() }
 
     /** The city list, read once, off the main thread: it has about 12,000 lines. */
     suspend fun cities(): CityList? = withContext(Dispatchers.Default) { cityList }
 
+    private sealed interface ReadCityResult {
+        data class Found(val cityId: Int) : ReadCityResult
+        data object NoLocation : ReadCityResult
+        data object TransientError : ReadCityResult
+    }
+
     /** Photo days per city for the whole library. Only photos not seen before get read. */
-    suspend fun index(cities: CityList): PlaceIndex = withContext(Dispatchers.IO) {
-        lock.withLock {
-            val known = loadCache()
-            val times = allTimes()
-            var read = 0
-            for (id in times.keys) {
-                if (id in known) continue
-                known[id] = readCity(id, cities) ?: -1
-                // Keep what was read so far, in case the app closes during a long first pass.
-                if (++read % 500 == 0) saveCache(known)
+    suspend fun index(cities: CityList, partialAccess: Boolean = false): PlaceIndex = withContext(Dispatchers.IO) {
+        val known = lock.withLock { loadCache(expectedHash = cities.hash) }
+        val times = allTimes()
+        var read = 0
+        for (id in times.keys) {
+            coroutineContext.ensureActive()
+            if (id in known) continue
+            when (val res = readCity(id, cities)) {
+                is ReadCityResult.Found -> known[id] = res.cityId
+                ReadCityResult.NoLocation -> known[id] = -1
+                ReadCityResult.TransientError -> continue
             }
-            known.keys.retainAll(times.keys)
-            saveCache(known)
-            val out = HashMap<Int, HashMap<String, Int>>()
-            for ((id, time) in times) {
-                val city = known[id]?.takeIf { it >= 0 } ?: continue
-                val days = out.getOrPut(city) { HashMap() }
-                val key = dayKey(time)
-                days[key] = (days[key] ?: 0) + 1
+            // Keep what was read so far, in case the app closes during a long first pass.
+            if (++read % 500 == 0) {
+                val snapshot = HashMap(known)
+                lock.withLock { saveCache(snapshot, cities.hash) }
             }
-            out
         }
+        coroutineContext.ensureActive()
+        if (!partialAccess) {
+            known.keys.retainAll(times.keys)
+        }
+        val finalSnapshot = HashMap(known)
+        lock.withLock { saveCache(finalSnapshot, cities.hash) }
+        val out = HashMap<Int, HashMap<String, Int>>()
+        for ((id, time) in times) {
+            val city = known[id]?.takeIf { it >= 0 } ?: continue
+            val days = out.getOrPut(city) { HashMap() }
+            val key = dayKey(time)
+            days[key] = (days[key] ?: 0) + 1
+        }
+        out
     }
 
     /** The photos from one visit to a city, oldest first. */
     suspend fun photos(city: Int, trip: Trip): List<Photo> = withContext(Dispatchers.IO) {
-        val known = lock.withLock { loadCache() }
+        val known = lock.withLock { loadCache(expectedHash = null) }
         val zone = ZoneId.systemDefault()
         val from = trip.start.atStartOfDay(zone).toInstant().toEpochMilli()
         val to = trip.end.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
         val projection = arrayOf(
             MediaStore.Images.Media._ID,
             MediaStore.Images.Media.DATE_TAKEN,
+            MediaStore.Images.Media.DATE_ADDED,
             MediaStore.Images.Media.WIDTH,
             MediaStore.Images.Media.HEIGHT,
+            MediaStore.Images.Media.ORIENTATION,
         )
+        val (exclSql, exclArgs) = excludeSavedFlashbackSelection()
+        val dateClause = "((${MediaStore.Images.Media.DATE_TAKEN} >= ? AND ${MediaStore.Images.Media.DATE_TAKEN} < ?) OR " +
+            "((${MediaStore.Images.Media.DATE_TAKEN} IS NULL OR ${MediaStore.Images.Media.DATE_TAKEN} = 0) AND " +
+            "${MediaStore.Images.Media.DATE_ADDED} >= ? AND ${MediaStore.Images.Media.DATE_ADDED} < ?))"
+        val selection = "$dateClause AND $exclSql"
+        val args = arrayOf(from.toString(), to.toString(), (from / 1000L).toString(), (to / 1000L).toString()) + exclArgs
         val out = ArrayList<Photo>()
         context.contentResolver.query(
-            collection, projection,
-            "${MediaStore.Images.Media.DATE_TAKEN} >= ? AND ${MediaStore.Images.Media.DATE_TAKEN} < ?",
-            arrayOf(from.toString(), to.toString()),
-            "${MediaStore.Images.Media.DATE_TAKEN} ASC",
+            collection,
+            projection,
+            selection,
+            args,
+            null,
         )?.use { c ->
             val idCol = c.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
             val takenCol = c.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN)
+            val addedCol = c.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
             val w = c.getColumnIndexOrThrow(MediaStore.Images.Media.WIDTH)
             val h = c.getColumnIndexOrThrow(MediaStore.Images.Media.HEIGHT)
+            val orient = c.getColumnIndex(MediaStore.Images.Media.ORIENTATION)
             while (c.moveToNext()) {
                 val id = c.getLong(idCol)
                 if (known[id] != city) continue
+                val time = if (c.isNull(takenCol) || c.getLong(takenCol) == 0L) c.getLong(addedCol) * 1000L else c.getLong(takenCol)
+                val rawW = c.getInt(w)
+                val rawH = c.getInt(h)
+                val deg = if (orient >= 0 && !c.isNull(orient)) c.getInt(orient) else 0
+                val swap = deg == 90 || deg == 270
                 out += Photo(
                     key = "d:$id",
                     source = PhotoSource.DEVICE,
                     uri = ContentUris.withAppendedId(collection, id).toString(),
-                    width = c.getInt(w),
-                    height = c.getInt(h),
-                    time = c.getLong(takenCol),
+                    width = if (swap) rawH else rawW,
+                    height = if (swap) rawW else rawH,
+                    time = time,
                 )
             }
         }
+        out.sortBy { it.time }
         out
     }
 
@@ -125,7 +174,7 @@ class PlaceLibrary(private val context: Context) {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) return null
         val lm = context.getSystemService(LocationManager::class.java) ?: return null
         val provider = when {
-            Build.VERSION.SDK_INT >= 31 && lm.hasProvider(LocationManager.FUSED_PROVIDER) -> LocationManager.FUSED_PROVIDER
+            Build.VERSION.SDK_INT >= 31 && lm.isProviderEnabled(LocationManager.FUSED_PROVIDER) -> LocationManager.FUSED_PROVIDER
             lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER) -> LocationManager.NETWORK_PROVIDER
             else -> null
         }
@@ -140,39 +189,72 @@ class PlaceLibrary(private val context: Context) {
         } else {
             null
         }
-        val spot = now ?: listOf(LocationManager.NETWORK_PROVIDER, LocationManager.PASSIVE_PROVIDER)
-            .firstNotNullOfOrNull { runCatching { lm.getLastKnownLocation(it) }.getOrNull() }
+        val nowNs = SystemClock.elapsedRealtimeNanos()
+        val fallbackProviders = buildList {
+            if (Build.VERSION.SDK_INT >= 31) add(LocationManager.FUSED_PROVIDER)
+            add(LocationManager.NETWORK_PROVIDER)
+            add(LocationManager.PASSIVE_PROVIDER)
+        }
+        val spot = now ?: fallbackProviders
+            .mapNotNull { runCatching { lm.getLastKnownLocation(it) }.getOrNull() }
+            .filter { loc ->
+                val age = nowNs - loc.elapsedRealtimeNanos
+                age in 0L..MAX_LAST_KNOWN_AGE_NS
+            }
+            .minByOrNull { nowNs - it.elapsedRealtimeNanos }
         return spot?.let { it.latitude to it.longitude }
     }
 
-    /** Capture time of every photo, by MediaStore ID. */
+    /** Capture time of every photo, by MediaStore ID (excluding Flashback's saved copies). */
     private fun allTimes(): LinkedHashMap<Long, Long> {
         val out = LinkedHashMap<Long, Long>()
+        val (exclSql, exclArgs) = excludeSavedFlashbackSelection()
         val projection = arrayOf(MediaStore.Images.Media._ID, MediaStore.Images.Media.DATE_TAKEN, MediaStore.Images.Media.DATE_ADDED)
-        context.contentResolver.query(collection, projection, null, null, null)?.use { c ->
+        context.contentResolver.query(collection, projection, exclSql, exclArgs, null)?.use { c ->
             val id = c.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
             val taken = c.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_TAKEN)
             val added = c.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
             while (c.moveToNext()) {
-                val t = if (c.isNull(taken) || c.getLong(taken) == 0L) c.getLong(added) * 1000 else c.getLong(taken)
-                if (t > 0) out[c.getLong(id)] = t
+                val t = if (c.isNull(taken) || c.getLong(taken) == 0L) c.getLong(added) * 1000L else c.getLong(taken)
+                if (t > 0L) out[c.getLong(id)] = t
             }
         }
         return out
     }
 
-    private fun readCity(id: Long, cities: CityList): Int? {
+    private fun readCity(id: Long, cities: CityList): ReadCityResult {
         var uri = ContentUris.withAppendedId(collection, id)
         // Without this, Android 10 and later blank out the location in the file.
         if (Build.VERSION.SDK_INT >= 29) uri = MediaStore.setRequireOriginal(uri)
-        val at = runCatching { context.contentResolver.openInputStream(uri)?.use { ExifInterface(it).latLong } }.getOrNull() ?: return null
-        return cities.city(at[0], at[1])
+        val at = try {
+            val stream = context.contentResolver.openInputStream(uri) ?: return ReadCityResult.TransientError
+            stream.use { ExifInterface(it).latLong }
+        } catch (_: SecurityException) {
+            return ReadCityResult.TransientError
+        } catch (_: IOException) {
+            return ReadCityResult.TransientError
+        } catch (_: Exception) {
+            return ReadCityResult.NoLocation
+        } ?: return ReadCityResult.NoLocation
+        val cityId = cities.city(at[0], at[1]) ?: return ReadCityResult.NoLocation
+        return ReadCityResult.Found(cityId)
     }
 
-    private fun loadCache(): HashMap<Long, Int> {
+    private fun loadCache(expectedHash: String?): HashMap<Long, Int> {
         val out = HashMap<Long, Int>()
+        if (!cacheFile.exists()) return out
+        var fileHash: String? = null
+        var firstLine = true
         runCatching {
             cacheFile.forEachLine { line ->
+                if (firstLine) {
+                    firstLine = false
+                    if (line.startsWith(HASH_PREFIX)) {
+                        fileHash = line.removePrefix(HASH_PREFIX)
+                        return@forEachLine
+                    }
+                }
+                if (line.startsWith("#")) return@forEachLine
                 val tab = line.indexOf('\t')
                 if (tab > 0) {
                     val id = line.substring(0, tab).toLongOrNull()
@@ -181,14 +263,38 @@ class PlaceLibrary(private val context: Context) {
                 }
             }
         }
+        // If cities.tsv changed (or legacy cache predates hash header), discard stale positional IDs.
+        if (expectedHash != null && fileHash != expectedHash) {
+            out.clear()
+        }
         return out
     }
 
-    private fun saveCache(known: Map<Long, Int>) {
+    private fun saveCache(known: Map<Long, Int>, hash: String) {
         val tmp = File(cacheFile.path + ".tmp")
         runCatching {
-            tmp.bufferedWriter().use { w -> for ((id, city) in known) { w.write("$id\t$city\n") } }
-            tmp.renameTo(cacheFile)
-        }
+            cacheFile.parentFile?.mkdirs()
+            val sb = StringBuilder(known.size * 14 + hash.length + 16)
+            sb.append(HASH_PREFIX).append(hash).append('\n')
+            for ((id, city) in known) {
+                sb.append(id).append('\t').append(city).append('\n')
+            }
+            val bytes = sb.toString().toByteArray(Charsets.UTF_8)
+            FileOutputStream(tmp).use { out ->
+                out.write(bytes)
+                out.flush()
+                runCatching { out.fd.sync() }
+            }
+            runCatching {
+                Files.move(tmp.toPath(), cacheFile.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+            }.onFailure {
+                Files.move(tmp.toPath(), cacheFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
+            }
+        }.onFailure { tmp.delete() }
+    }
+
+    private companion object {
+        const val HASH_PREFIX = "#hash:"
+        const val MAX_LAST_KNOWN_AGE_NS = 6L * 60L * 60L * 1_000_000_000L
     }
 }

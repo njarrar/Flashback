@@ -80,12 +80,14 @@ fun tileAspect(width: Int, height: Int): Float =
  * Each photo, in order, goes to the shortest column so far. Returns indexes per column.
  */
 fun masonryColumns(aspects: List<Float>, columns: Int = 2): List<List<Int>> {
+    if (columns <= 0) return emptyList()
     val cols = List(columns) { ArrayList<Int>() }
     val heights = FloatArray(columns)
     aspects.forEachIndexed { i, a ->
+        val safe = if (a.isFinite() && a > 0f) a.coerceAtLeast(0.1f) else 1f
         val c = heights.indices.minBy { heights[it] }
         cols[c] += i
-        heights[c] += 1f / a
+        heights[c] += 1f / safe
     }
     return cols
 }

@@ -11,7 +11,7 @@ extension Calendar {
 }
 
 /// A calendar day without a year. `month` is 0-based, to match the design's logic.
-struct MonthDay: Hashable, Codable {
+struct MonthDay: Hashable, Codable, Sendable {
     let month: Int
     let day: Int
 
@@ -29,7 +29,7 @@ struct MonthDay: Hashable, Codable {
 
     /// Moves forward or back, wrapping around the year.
     func shifted(by delta: Int) -> MonthDay {
-        var m = month
+        var m = ((month % 12) + 12) % 12
         var d = day + delta
         while d < 1 {
             m = (m + 11) % 12
@@ -61,9 +61,13 @@ extension MonthDay {
 /// February has 29 so Feb 29 can always be picked.
 let daysInMonth = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
+func isLeapYear(_ year: Int) -> Bool {
+    (year % 4 == 0 && year % 100 != 0) || year % 400 == 0
+}
+
 func agoLabel(_ year: Int, thisYear: Int = Calendar.app.component(.year, from: Date())) -> String {
     let diff = thisYear - year
-    return diff == 0 ? L.s("ago_this_year") : L.p("ago_years", diff)
+    return diff <= 0 ? L.s("ago_this_year") : L.p("ago_years", diff)
 }
 
 /// The reminder time, 12 or 24 hour as the language and phone prefer.
@@ -72,12 +76,14 @@ func formatTime(hour: Int, minute: Int) -> String { L.time(hour: hour, minute: m
 /// Start and end (exclusive) of a local calendar day. Nil if the day doesn't exist that year.
 func dayRange(year: Int, _ md: MonthDay, calendar: Calendar = .app) -> (Date, Date)? {
     let comps = DateComponents(year: year, month: md.month + 1, day: md.day)
-    guard comps.isValidDate(in: calendar), let start = calendar.date(from: comps),
-          let end = calendar.date(byAdding: .day, value: 1, to: start) else { return nil }
+    guard comps.isValidDate(in: calendar), let rawStart = calendar.date(from: comps) else { return nil }
+    let start = calendar.startOfDay(for: rawStart)
+    guard let nextDay = calendar.date(byAdding: .day, value: 1, to: start) else { return nil }
+    let end = calendar.startOfDay(for: nextDay)
     return (start, end)
 }
 
-func yearOf(_ date: Date) -> Int { Calendar.app.component(.year, from: date) }
+func yearOf(_ date: Date, calendar: Calendar = .app) -> Int { calendar.component(.year, from: date) }
 
 func weekday(year: Int, _ md: MonthDay) -> String {
     guard let (start, _) = dayRange(year: year, md) else { return "" }

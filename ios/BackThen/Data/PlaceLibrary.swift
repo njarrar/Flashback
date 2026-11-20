@@ -21,7 +21,8 @@ enum PlaceLibrary {
 
     /// The photos from one visit to a city, oldest first.
     static func photos(city: Int, trip: Trip, cities: CityList) async -> [Photo] {
-        guard let end = Calendar.app.date(byAdding: .day, value: 1, to: trip.end) else { return [] }
+        guard let nextDay = Calendar.app.date(byAdding: .day, value: 1, to: trip.end) else { return [] }
+        let end = Calendar.app.startOfDay(for: nextDay)
         return await Task.detached(priority: .userInitiated) {
             let o = PHFetchOptions()
             o.includeAssetSourceTypes = [.typeUserLibrary, .typeCloudShared, .typeiTunesSynced]
@@ -43,8 +44,10 @@ enum PlaceLibrary {
 final class Locator: NSObject, CLLocationManagerDelegate {
     static let shared = Locator()
     private let manager = CLLocationManager()
-    private var accessWaiters: [CheckedContinuation<Bool, Never>] = []
-    private var spotWaiters: [CheckedContinuation<(lat: Double, lon: Double)?, Never>] = []
+    private var accessWaiters: [UUID: CheckedContinuation<Bool, Never>] = [:]
+    private var spotWaiters: [UUID: CheckedContinuation<(lat: Double, lon: Double)?, Never>] = [:]
+    private var accessTimeoutTask: Task<Void, Never>?
+    private var spotTimeoutTask: Task<Void, Never>?
 
     override private init() {
         super.init()
@@ -58,20 +61,66 @@ final class Locator: NSObject, CLLocationManagerDelegate {
         return s == .authorizedWhenInUse || s == .authorizedAlways
     }
 
-    func requestAccess() async -> Bool {
+    func requestAccess(timeout: Duration = .seconds(30)) async -> Bool {
         guard manager.authorizationStatus == .notDetermined else { return allowed }
-        return await withCheckedContinuation { c in
-            accessWaiters.append(c)
-            manager.requestWhenInUseAuthorization()
+        guard !Task.isCancelled else { return false }
+        let token = UUID()
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { c in
+                if Task.isCancelled {
+                    c.resume(returning: false)
+                    return
+                }
+                accessWaiters[token] = c
+                if accessWaiters.count == 1 {
+                    manager.requestWhenInUseAuthorization()
+                    accessTimeoutTask?.cancel()
+                    // Checks now and then in case the answer came without a callback.
+                    // While the prompt is still up, keep waiting: people can take their time.
+                    accessTimeoutTask = Task { @MainActor [weak self] in
+                        while !Task.isCancelled {
+                            try? await Task.sleep(for: timeout)
+                            guard !Task.isCancelled, let self else { return }
+                            if self.manager.authorizationStatus != .notDetermined {
+                                self.finishAccess(self.allowed)
+                                return
+                            }
+                        }
+                    }
+                }
+            }
+        } onCancel: {
+            Task { @MainActor [weak self] in
+                self?.cancelAccessWaiter(token)
+            }
         }
     }
 
     /// Where the phone is now, roughly. Nil without permission or when it can't tell.
-    func current() async -> (lat: Double, lon: Double)? {
-        guard allowed else { return nil }
-        return await withCheckedContinuation { c in
-            spotWaiters.append(c)
-            if spotWaiters.count == 1 { manager.requestLocation() }
+    func current(timeout: Duration = .seconds(10)) async -> (lat: Double, lon: Double)? {
+        guard allowed, !Task.isCancelled else { return nil }
+        let token = UUID()
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { c in
+                if Task.isCancelled {
+                    c.resume(returning: nil)
+                    return
+                }
+                spotWaiters[token] = c
+                if spotWaiters.count == 1 {
+                    manager.requestLocation()
+                    spotTimeoutTask?.cancel()
+                    spotTimeoutTask = Task { @MainActor [weak self] in
+                        try? await Task.sleep(for: timeout)
+                        guard !Task.isCancelled else { return }
+                        self?.finishSpot(nil)
+                    }
+                }
+            }
+        } onCancel: {
+            Task { @MainActor [weak self] in
+                self?.cancelSpotWaiter(token)
+            }
         }
     }
 
@@ -80,24 +129,56 @@ final class Locator: NSObject, CLLocationManagerDelegate {
         guard status != .notDetermined else { return }
         Task { @MainActor in
             let ok = status == .authorizedWhenInUse || status == .authorizedAlways
-            let waiting = accessWaiters
-            accessWaiters = []
-            waiting.forEach { $0.resume(returning: ok) }
+            finishAccess(ok)
+            if !ok { finishSpot(nil) }
         }
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        let spot = locations.last.map { (lat: $0.coordinate.latitude, lon: $0.coordinate.longitude) }
-        Task { @MainActor in finish(spot) }
+        let valid = locations.last {
+            $0.horizontalAccuracy >= 0 && CLLocationCoordinate2DIsValid($0.coordinate)
+        }
+        let spot = valid.map { (lat: $0.coordinate.latitude, lon: $0.coordinate.longitude) }
+        Task { @MainActor in finishSpot(spot) }
     }
 
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        Task { @MainActor in finish(nil) }
+        Task { @MainActor in finishSpot(nil) }
     }
 
-    private func finish(_ spot: (lat: Double, lon: Double)?) {
-        let waiting = spotWaiters
-        spotWaiters = []
+    private func cancelAccessWaiter(_ token: UUID) {
+        if let c = accessWaiters.removeValue(forKey: token) {
+            c.resume(returning: false)
+            if accessWaiters.isEmpty {
+                accessTimeoutTask?.cancel()
+                accessTimeoutTask = nil
+            }
+        }
+    }
+
+    private func cancelSpotWaiter(_ token: UUID) {
+        if let c = spotWaiters.removeValue(forKey: token) {
+            c.resume(returning: nil)
+            if spotWaiters.isEmpty {
+                spotTimeoutTask?.cancel()
+                spotTimeoutTask = nil
+            }
+        }
+    }
+
+    private func finishAccess(_ ok: Bool) {
+        accessTimeoutTask?.cancel()
+        accessTimeoutTask = nil
+        let waiting = accessWaiters.values
+        accessWaiters = [:]
+        waiting.forEach { $0.resume(returning: ok) }
+    }
+
+    private func finishSpot(_ spot: (lat: Double, lon: Double)?) {
+        spotTimeoutTask?.cancel()
+        spotTimeoutTask = nil
+        let waiting = spotWaiters.values
+        spotWaiters = [:]
         waiting.forEach { $0.resume(returning: spot) }
     }
 }

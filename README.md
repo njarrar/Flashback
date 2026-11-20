@@ -124,6 +124,43 @@ rather than take shots without real photos.
   that grows with the system text size; a large top app bar and navigation bar on
   Android. Light and dark mode.
 
+## What's new in 1.24
+
+A large round of fixes across both apps. Nothing here sends anything off the phone.
+
+- **Crashes and hangs.** The widget no longer goes blank when one photo has no date,
+  or crashes on a photo with a very old date. Making a reel no longer hangs when the
+  video writer fails, uses less memory, and on Android picks a video size the phone's
+  encoder supports.
+- **Saved data.** Edits made while the city list loads are no longer lost. A broken
+  state file is kept as a backup instead of wiped. On Android, albums saved to the
+  gallery no longer show up twice on Today. Reminders keep coming after 30 days with
+  no new photos, a reminder tap on a closed app opens the right day, and dates stay
+  right after a change of time zone.
+- **Photo access.** If you say no to photo access, the welcome screen offers Open
+  Settings. With limited access, Today and Settings show a banner with a Manage button.
+- **Today.** The date title no longer shows twice while scrolling. Hide date moved to
+  the bottom of the ••• menu, and its message has an Undo button. Select mode has
+  Select all and Select year. Messages wrap to more lines, show a mark for success,
+  info or error, and screen readers read them out.
+- **Viewer.** While a photo loads from iCloud you see its thumbnail, and a Retry
+  button if it fails. Darker shades at the top and bottom keep the buttons readable on
+  bright photos. A new Info button shows the photo's date and place.
+- **Albums and reels.** Remove a photo from an album, make a reel from an album, and
+  make a new album right from the Albums tab. The reel editor has a bigger scrubber
+  and a Photos tab.
+- **Calendar and Settings.** Tap the month to jump to any month. Settings has a Close
+  button, a home city you can change, a time picker for the reminder and an open
+  source licenses row. Days after today stay locked, as before.
+- **Easier to read.** Darker shades behind white text on photos, darker grey text,
+  bigger tap targets, and on iPhone stronger colors when Increase Contrast is on. The
+  coral stays the same.
+- **Android.** The share button uses the Android share icon. App backup is off, since
+  photo IDs change on a new phone anyway, and this keeps the photo city list off
+  backup servers. Android 13 and later can pick the app's language in Settings.
+- **Languages.** Grammar fixes in Arabic, Spanish, French, Portuguese and Chinese, and
+  new words for all the above in all six languages.
+
 ## What's new in 1.23
 
 - **Portuguese and Chinese.** Both apps now speak Portuguese (as in Brazil) and

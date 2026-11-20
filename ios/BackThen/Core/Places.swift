@@ -6,7 +6,7 @@ import Foundation
 /// Photo days per city: city row in cities.tsv -> "yyyy-MM-dd" -> photo count.
 typealias PlaceIndex = [Int: [String: Int]]
 
-struct City: Hashable {
+struct City: Hashable, Sendable {
     let id: Int
     let name: String
     let country: String
@@ -19,23 +19,37 @@ struct City: Hashable {
 /// cells so finding the city for a spot looks at a few dozen cities, not thousands.
 final class CityList: @unchecked Sendable {
     let cities: [City]
+    /// Deterministic checksum of the TSV content, stored with `placeIndex` so TSV updates trigger a clean rebuild.
+    let citiesHash: String
     private let grid: [Int: [Int]]
 
     /// Photos farther than this from every city have no city.
     static let reachKm = 40.0
 
     init(tsv: String) {
+        self.citiesHash = Self.checksum(tsv)
         var cities: [City] = []
         var grid: [Int: [Int]] = [:]
         for line in tsv.split(separator: "\n") {
             let f = line.split(separator: "\t", omittingEmptySubsequences: false)
-            guard f.count >= 5, let lat = Double(f[2]), let lon = Double(f[3]), let pop = Int(f[4]) else { continue }
+            guard f.count >= 5,
+                  let lat = Double(f[2]), let lon = Double(f[3]), let pop = Int(f[4]),
+                  lat.isFinite, lon.isFinite, (-90...90).contains(lat), (-180...180).contains(lon) else { continue }
             let city = City(id: cities.count, name: String(f[0]), country: String(f[1]), lat: lat, lon: lon, population: pop)
             grid[Self.cell(lat, lon), default: []].append(city.id)
             cities.append(city)
         }
         self.cities = cities
         self.grid = grid
+    }
+
+    static func checksum(_ text: String) -> String {
+        var hash: UInt64 = 14_695_981_039_346_656_037
+        for byte in text.utf8 {
+            hash ^= UInt64(byte)
+            hash &*= 1_099_511_628_211
+        }
+        return String(format: "%016llx", hash)
     }
 
     /// The app has its city list. Only looks for the file, so views can ask it while drawing.
@@ -52,18 +66,40 @@ final class CityList: @unchecked Sendable {
         return CityList(tsv: text)
     }()
 
+    private static func latIndex(_ lat: Double) -> Int {
+        min(max(Int((lat + 90).rounded(.down)), 0), 180)
+    }
+
+    private static func lonIndex(_ lon: Double) -> Int {
+        ((Int((lon + 180).rounded(.down)) % 360) + 360) % 360
+    }
+
+    private static func cellKey(_ latIdx: Int, _ lonIdx: Int) -> Int {
+        latIdx * 360 + (((lonIdx % 360) + 360) % 360)
+    }
+
     private static func cell(_ lat: Double, _ lon: Double) -> Int {
-        Int((lat + 90).rounded(.down)) * 361 + Int((lon + 180).rounded(.down))
+        cellKey(latIndex(lat), lonIndex(lon))
     }
 
     /// The city a spot belongs to: among cities within reach, big and near wins, so a photo
     /// in a suburb counts for the big city next door, as people say it.
     func city(lat: Double, lon: Double) -> Int? {
+        guard lat.isFinite, lon.isFinite, (-90...90).contains(lat), (-180...180).contains(lon) else { return nil }
         if lat == 0 && lon == 0 { return nil }
+        let baseLat = Self.latIndex(lat)
+        let baseLon = Self.lonIndex(lon)
+        let cosLat = cos(lat * .pi / 180)
+        let kmPerLonDeg = 111.32 * max(cosLat, 0.0001)
+        let lonRadius = min(180, max(1, Int(ceil(Self.reachKm / kmPerLonDeg))))
+        let lonOffsets: [Int] = lonRadius >= 180 ? Array(0..<360) : Array(-lonRadius...lonRadius)
         var best: (id: Int, score: Double)?
         for dLat in -1...1 {
-            for dLon in -1...1 {
-                for id in grid[Self.cell(lat + Double(dLat), lon + Double(dLon))] ?? [] {
+            let rLat = baseLat + dLat
+            guard (0...180).contains(rLat) else { continue }
+            for dLon in lonOffsets {
+                let rLon = lonRadius >= 180 ? dLon : baseLon + dLon
+                for id in grid[Self.cellKey(rLat, rLon)] ?? [] {
                     let c = cities[id]
                     let d = distanceKm(lat, lon, c.lat, c.lon)
                     guard d <= Self.reachKm else { continue }
@@ -93,9 +129,12 @@ func addingToPlaceIndex(_ start: PlaceIndex, _ spots: [PhotoSpot], cities: CityL
     return out
 }
 
-/// Close enough for distances under a few hundred kilometers.
+/// Close enough for distances under a few hundred kilometers, wrapping across the ±180° antimeridian.
 func distanceKm(_ lat1: Double, _ lon1: Double, _ lat2: Double, _ lon2: Double) -> Double {
-    let x = (lon2 - lon1) * cos((lat1 + lat2) / 2 * .pi / 180) * 111.32
+    var dLon = (lon2 - lon1).truncatingRemainder(dividingBy: 360)
+    if dLon > 180 { dLon -= 360 }
+    if dLon < -180 { dLon += 360 }
+    let x = dLon * cos((lat1 + lat2) / 2 * .pi / 180) * 111.32
     let y = (lat2 - lat1) * 110.57
     return (x * x + y * y).squareRoot()
 }
@@ -113,7 +152,7 @@ func dateOf(dayKey key: String, calendar: Calendar = .app) -> Date? {
 }
 
 /// One visit to a city: days with photos there, with no more than two days between them.
-struct Trip: Equatable, Hashable {
+struct Trip: Equatable, Hashable, Sendable {
     /// Start of the first and last day.
     let start: Date
     let end: Date
@@ -158,15 +197,23 @@ func pastTrips(_ days: [String: Int], today: Date = Date(), calendar: Calendar =
 }
 
 /// What Today shows when you're in a city you've been to before, away from home.
-struct PlaceCard: Equatable {
+struct PlaceCard: Equatable, Sendable {
     let city: City
     let trips: [Trip]
     var photos: Int { trips.reduce(0) { $0 + $1.photos } }
 }
 
-func makePlaceCard(_ index: PlaceIndex, here: Int?, cities: CityList, today: Date = Date(), calendar: Calendar = .app) -> PlaceCard? {
-    guard let here, here != homeCity(index, today: today, calendar: calendar), let days = index[here] else { return nil }
+func makePlaceCard(
+    _ index: PlaceIndex,
+    here: Int?,
+    cities: CityList,
+    customHome: Int? = nil,
+    today: Date = Date(),
+    calendar: Calendar = .app
+) -> PlaceCard? {
+    let home = customHome ?? homeCity(index, today: today, calendar: calendar)
+    guard let here, cities.cities.indices.contains(here), here != home, let days = index[here] else { return nil }
     let past = pastTrips(days, today: today, calendar: calendar)
-    guard !past.isEmpty, here < cities.cities.count else { return nil }
+    guard !past.isEmpty else { return nil }
     return PlaceCard(city: cities.cities[here], trips: past)
 }

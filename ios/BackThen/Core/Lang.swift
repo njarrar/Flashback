@@ -4,7 +4,7 @@ import Foundation
 ///
 /// A file holds `<string name="key">` entries and `<plurals name="key">` entries with one
 /// `<item quantity="...">` per plural form. Words can hold `{name}` slots, filled in by `L.s`.
-struct Strings {
+struct Strings: Sendable {
     let code: String
     var name = ""
     /// Right to left, such as Arabic or Hebrew.
@@ -41,7 +41,13 @@ private final class LangReader: NSObject, XMLParserDelegate {
             result.rtl = attributes["dir"] == "rtl"
             result.arabicScript = attributes["script"] == "arabic"
         case "string": key = attributes["name"]; text = ""
-        case "plurals": plural = attributes["name"]; result.plurals[plural ?? ""] = [:]
+        case "plurals":
+            if let p = attributes["name"], !p.isEmpty {
+                plural = p
+                result.plurals[p] = [:]
+            } else {
+                plural = nil
+            }
         case "item": quantity = attributes["quantity"]; text = ""
         default: break
         }
@@ -66,44 +72,54 @@ private final class LangReader: NSObject, XMLParserDelegate {
 /// The plural form a number takes in a language, by the Unicode CLDR rules.
 /// Languages not listed use the English rule; a missing form falls back to "other".
 func pluralForm(_ n: Int, language: String) -> String {
-    let n = abs(n), n10 = n % 10, n100 = n % 100
-    switch language.prefix(2) {
+    let m = n.magnitude
+    let n10 = m % 10
+    let n100 = m % 100
+    switch language.lowercased().prefix(2) {
     case "ar":
-        if n == 0 { return "zero" }
-        if n == 1 { return "one" }
-        if n == 2 { return "two" }
+        if m == 0 { return "zero" }
+        if m == 1 { return "one" }
+        if m == 2 { return "two" }
         if (3...10).contains(n100) { return "few" }
         if (11...99).contains(n100) { return "many" }
         return "other"
-    case "fr", "pt", "hi", "fa", "bn":
-        return n <= 1 ? "one" : "other"
+    case "fr", "hi", "fa", "bn":
+        return m <= 1 ? "one" : "other"
     case "ru", "uk", "be":
         if n10 == 1 && n100 != 11 { return "one" }
         if (2...4).contains(n10) && !(12...14).contains(n100) { return "few" }
         return "many"
     case "pl":
-        if n == 1 { return "one" }
+        if m == 1 { return "one" }
         if (2...4).contains(n10) && !(12...14).contains(n100) { return "few" }
         return "many"
     case "cs", "sk":
-        return n == 1 ? "one" : (2...4).contains(n) ? "few" : "other"
+        return m == 1 ? "one" : (2...4).contains(m) ? "few" : "other"
     case "he":
-        return n == 1 ? "one" : n == 2 ? "two" : "other"
+        return m == 1 ? "one" : m == 2 ? "two" : "other"
     case "zh", "ja", "ko", "th", "vi", "id", "ms":
         return "other"
     default:
-        return n == 1 ? "one" : "other"
+        return m == 1 ? "one" : "other"
     }
 }
 
 /// The app's current language. The phone's language setting picks the file; any word
 /// missing from it comes from English, so a new file can start small.
 enum L {
-    static private(set) var english = load("en") ?? Strings(code: "en")
-    static private(set) var lang = english
-    static private(set) var locale = Locale(identifier: "en")
-    private static let formatterLock = NSLock()
+    private static let lock = NSLock()
+    private static var _english = load("en") ?? Strings(code: "en")
+    private static var _lang = _english
+    private static var _locale = Locale(identifier: "en")
     private static var formatters: [String: DateFormatter] = [:]
+
+    static var english: Strings { lock.withLock { _english } }
+    static var lang: Strings { lock.withLock { _lang } }
+    static var locale: Locale { lock.withLock { _locale } }
+
+    private static func snapshot() -> (english: Strings, lang: Strings, locale: Locale) {
+        lock.withLock { (_english, _lang, _locale) }
+    }
 
     /// Codes of every language file in the app, such as `["ar", "en", "es", "fr"]`.
     static var available: [String] {
@@ -114,15 +130,16 @@ enum L {
     /// Picks the language once, at launch.
     static func start(preferred: [String] = Locale.preferredLanguages) {
         let (code, tag) = pick(preferred: preferred, available: available)
-        use(load(code) ?? english, locale: Locale(identifier: tag))
+        let loaded = load(code) ?? english
+        use(loaded, locale: Locale(identifier: tag))
     }
 
     static func use(_ strings: Strings, locale: Locale) {
-        lang = strings
-        self.locale = locale
-        formatterLock.lock()
-        formatters.removeAll()
-        formatterLock.unlock()
+        lock.withLock {
+            _lang = strings
+            _locale = locale
+            formatters.removeAll()
+        }
     }
 
     /// The first preferred language that has a file, and the full tag to format dates and
@@ -147,42 +164,74 @@ enum L {
 
     /// A word, with its `{name}` slots filled. Numbers are written the language's way.
     static func s(_ key: String, _ args: [String: Any] = [:]) -> String {
-        fill(lang.strings[key] ?? english.strings[key] ?? key, args)
+        let snap = snapshot()
+        return fill(snap.lang.strings[key] ?? snap.english.strings[key] ?? key, args, locale: snap.locale)
     }
 
     /// The plural word for `n`, such as "3 photos". `{n}` is the number.
     static func p(_ key: String, _ n: Int, _ args: [String: Any] = [:]) -> String {
-        let form = pluralForm(n, language: lang.code)
-        let words = lang.plurals[key] ?? english.plurals[key] ?? [:]
-        let fallback = english.plurals[key] ?? [:]
-        let text = words[form] ?? words["other"] ?? fallback[pluralForm(n, language: "en")] ?? key
+        let snap = snapshot()
+        let text: String
+        if let words = snap.lang.plurals[key] {
+            let form = pluralForm(n, language: snap.lang.code)
+            if let hit = words[form] ?? words["other"] {
+                text = hit
+            } else {
+                let fallback = snap.english.plurals[key] ?? [:]
+                text = fallback[pluralForm(n, language: "en")] ?? fallback["other"] ?? key
+            }
+        } else {
+            let fallback = snap.english.plurals[key] ?? [:]
+            text = fallback[pluralForm(n, language: "en")] ?? fallback["other"] ?? key
+        }
         var all = args
         all["n"] = n
-        return fill(text, all)
+        return fill(text, all, locale: snap.locale)
     }
 
     /// A whole number in the language's digits, without grouping (so years read 2021).
     static func num(_ n: Int) -> String {
+        num(n, locale: locale)
+    }
+
+    private static func num(_ n: Int, locale: Locale) -> String {
         n.formatted(.number.grouping(.never).locale(locale))
     }
 
     /// Fills every `{name}` slot in one pass, so a value that holds a slot name (an album
     /// called "{n}") stays as typed.
     static func fill(_ text: String, _ args: [String: Any]) -> String {
+        fill(text, args, locale: locale)
+    }
+
+    private static func fill(_ text: String, _ args: [String: Any], locale: Locale) -> String {
         guard !args.isEmpty, text.contains("{") else { return text }
         var out = ""
         var rest = text[...]
         while let open = rest.firstIndex(of: "{") {
             out += rest[..<open]
-            rest = rest[open...]
-            guard let close = rest.firstIndex(of: "}") else { break }
-            let name = String(rest[rest.index(after: open)..<close])
-            if let value = args[name] {
-                out += (value as? Int).map(num) ?? "\(value)"
-            } else {
-                out += rest[...close]
+            let afterOpen = rest.index(after: open)
+            guard let close = rest[afterOpen...].firstIndex(of: "}") else {
+                out += rest[open...]
+                return out
             }
-            rest = rest[rest.index(after: close)...]
+            let name = String(rest[afterOpen..<close])
+            if let value = args[name] {
+                if let intVal = value as? Int {
+                    out += num(intVal, locale: locale)
+                } else if let intVal = value as? any BinaryInteger {
+                    out += Int64(clamping: intVal).formatted(.number.grouping(.never).locale(locale))
+                } else if let dblVal = value as? Double {
+                    out += dblVal.formatted(.number.grouping(.never).locale(locale))
+                } else {
+                    out += "\(value)"
+                }
+                rest = rest[rest.index(after: close)...]
+            } else {
+                // Unknown slot or stray '{' (e.g. "{foo {n}"): emit only '{' and keep scanning.
+                out.append("{")
+                rest = rest[afterOpen...]
+            }
         }
         return out + rest
     }
@@ -191,21 +240,24 @@ enum L {
 
     /// A date from a CLDR skeleton such as "MMMMd" (October 16) or "EEEE" (Friday).
     static func date(_ date: Date, _ skeleton: String) -> String {
-        let key = "\(locale.identifier)|\(skeleton)"
-        formatterLock.lock()
-        defer { formatterLock.unlock() }
-        if let cached = formatters[key] {
-            return cached.string(from: date)
+        lock.withLock {
+            let loc = _locale
+            let key = "\(loc.identifier)|\(skeleton)"
+            if let cached = formatters[key] {
+                return cached.string(from: date)
+            }
+            let f = DateFormatter()
+            f.locale = loc
+            // The app matches photos by Gregorian date; a phone set to Saudi Arabia would otherwise write the Hijri date.
+            var gregorian = Calendar(identifier: .gregorian)
+            gregorian.locale = loc
+            gregorian.timeZone = .autoupdatingCurrent
+            f.calendar = gregorian
+            f.timeZone = .autoupdatingCurrent
+            f.setLocalizedDateFormatFromTemplate(skeleton)
+            formatters[key] = f
+            return f.string(from: date)
         }
-        let f = DateFormatter()
-        f.locale = locale
-        // The app matches photos by Gregorian date; a phone set to Saudi Arabia would otherwise write the Hijri date.
-        var gregorian = Calendar(identifier: .gregorian)
-        gregorian.locale = locale
-        f.calendar = gregorian
-        f.setLocalizedDateFormatFromTemplate(skeleton)
-        formatters[key] = f
-        return f.string(from: date)
     }
 
     /// A month and day with no year, in a leap year so February 29 works.

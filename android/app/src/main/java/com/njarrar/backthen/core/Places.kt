@@ -1,11 +1,14 @@
 package com.njarrar.backthen.core
 
 import java.io.InputStream
+import java.security.MessageDigest
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
+import kotlin.math.ceil
 import kotlin.math.cos
 import kotlin.math.floor
+import kotlin.math.max
 import kotlin.math.sqrt
 
 // Places: which city each photo was taken in, from a list of cities built into the app
@@ -22,21 +25,29 @@ data class City(val id: Int, val name: String, val country: String, val lat: Dou
  */
 class CityList(lines: Sequence<String>) {
     val cities: List<City>
+    /** SHA-256 checksum of the parsed dataset, used to invalidate cached positional city IDs when cities.tsv updates. */
+    val hash: String
     private val grid = HashMap<Int, MutableList<Int>>()
 
     init {
         val out = ArrayList<City>()
+        val digest = MessageDigest.getInstance("SHA-256")
         for (line in lines) {
             val f = line.split('\t')
             if (f.size < 5) continue
             val lat = f[2].toDoubleOrNull() ?: continue
             val lon = f[3].toDoubleOrNull() ?: continue
             val pop = f[4].toIntOrNull() ?: continue
-            val city = City(out.size, f[0], f[1], lat, lon, pop)
-            grid.getOrPut(cell(lat, lon)) { ArrayList() } += city.id
+            if (!lat.isFinite() || !lon.isFinite() || lat !in -90.0..90.0 || lon !in -180.0..180.0) continue
+            val normLon = wrapLon(lon)
+            val city = City(out.size, f[0], f[1], lat, normLon, pop)
+            grid.getOrPut(cell(lat, normLon)) { ArrayList() } += city.id
             out += city
+            digest.update(line.toByteArray(Charsets.UTF_8))
+            digest.update('\n'.code.toByte())
         }
         cities = out
+        hash = digest.digest().joinToString("") { "%02x".format(it) }
     }
 
     /**
@@ -44,16 +55,23 @@ class CityList(lines: Sequence<String>) {
      * in a suburb counts for the big city next door, as people say it.
      */
     fun city(lat: Double, lon: Double): Int? {
+        if (!lat.isFinite() || !lon.isFinite() || lat !in -90.0..90.0 || lon !in -180.0..180.0) return null
         if (lat == 0.0 && lon == 0.0) return null
+        val cosLat = max(0.05, cos(lat * Math.PI / 180.0))
+        val lonSpan = minOf(180, ceil(REACH_KM / (111.32 * cosLat)).toInt())
         var best = -1
         var bestScore = 0.0
-        for (dLat in -1..1) for (dLon in -1..1) {
-            for (id in grid[cell(lat + dLat, lon + dLon)].orEmpty()) {
-                val c = cities[id]
-                val d = distanceKm(lat, lon, c.lat, c.lon)
-                if (d > REACH_KM) continue
-                val score = c.population / ((d + 5) * (d + 5))
-                if (best < 0 || score > bestScore) { best = id; bestScore = score }
+        for (dLat in -1..1) {
+            val searchLat = lat + dLat
+            if (searchLat < -90.0 || searchLat > 90.0) continue
+            for (dLon in -lonSpan..lonSpan) {
+                for (id in grid[cell(searchLat, lon + dLon)].orEmpty()) {
+                    val c = cities[id]
+                    val d = distanceKm(lat, lon, c.lat, c.lon)
+                    if (!(d <= REACH_KM)) continue
+                    val score = c.population / ((d + 5.0) * (d + 5.0))
+                    if (best < 0 || score > bestScore) { best = id; bestScore = score }
+                }
             }
         }
         return best.takeIf { it >= 0 }
@@ -65,13 +83,27 @@ class CityList(lines: Sequence<String>) {
 
         fun read(input: InputStream) = input.bufferedReader().useLines { CityList(it) }
 
-        private fun cell(lat: Double, lon: Double) = floor(lat + 90).toInt() * 361 + floor(lon + 180).toInt()
+        internal fun wrapLon(lon: Double): Double {
+            var x = ((lon + 180.0) % 360.0 + 360.0) % 360.0 - 180.0
+            if (x == 180.0) x = -180.0
+            return x
+        }
+
+        private fun cell(lat: Double, lon: Double): Int {
+            val latBin = floor(lat.coerceIn(-90.0, 90.0) + 90.0).toInt()
+            val lonBin = floor(wrapLon(lon) + 180.0).toInt()
+            return latBin * 361 + lonBin
+        }
     }
 }
 
-/** Close enough for distances under a few hundred kilometers. */
+/** Close enough for distances under a few hundred kilometers. Wraps longitude across the antimeridian. */
 fun distanceKm(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
-    val x = (lon2 - lon1) * cos((lat1 + lat2) / 2 * Math.PI / 180) * 111.32
+    if (!lat1.isFinite() || !lon1.isFinite() || !lat2.isFinite() || !lon2.isFinite()) return Double.NaN
+    var dLon = lon2 - lon1
+    while (dLon > 180.0) dLon -= 360.0
+    while (dLon < -180.0) dLon += 360.0
+    val x = dLon * cos((lat1 + lat2) / 2.0 * Math.PI / 180.0) * 111.32
     val y = (lat2 - lat1) * 110.57
     return sqrt(x * x + y * y)
 }
@@ -126,8 +158,15 @@ data class PlaceCard(val city: City, val trips: List<Trip>) {
     val photos: Int get() = trips.sumOf { it.photos }
 }
 
-fun makePlaceCard(index: PlaceIndex, here: Int?, cities: CityList, today: LocalDate = LocalDate.now()): PlaceCard? {
-    if (here == null || here == homeCity(index, today)) return null
+fun makePlaceCard(
+    index: PlaceIndex,
+    here: Int?,
+    cities: CityList,
+    today: LocalDate = LocalDate.now(),
+    customHomeCity: Int? = null,
+): PlaceCard? {
+    val home = customHomeCity ?: homeCity(index, today)
+    if (here == null || here < 0 || here == home) return null
     val past = pastTrips(index[here] ?: return null, today)
     if (past.isEmpty() || here >= cities.cities.size) return null
     return PlaceCard(cities.cities[here], past)

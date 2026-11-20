@@ -28,7 +28,7 @@
     <plurals name="years">
         <item quantity="zero">لا سنوات</item>
         <item quantity="one">سنة واحدة</item>
-        <item quantity="two">سنتين</item>
+        <item quantity="two">سنتان</item>
         <item quantity="few">{n} سنوات</item>
         <item quantity="many">{n} سنة</item>
         <item quantity="other">{n} سنة</item>
@@ -66,6 +66,7 @@
         <item quantity="other">{n} ألبوم</item>
     </plurals>
     <plurals name="ago_years">
+        <item quantity="zero">هذا العام</item>
         <item quantity="one">قبل سنة</item>
         <item quantity="two">قبل سنتين</item>
         <item quantity="few">قبل {n} سنوات</item>
@@ -113,7 +114,7 @@
     <string name="days_photos">{days}، {photos}</string>
     <string name="see_city">عرض {city}</string>
     <string name="places_title">أماكن تعود إليها</string>
-    <string name="places_note">عندما تكون في مدينة زرتها من قبل، تعرض صفحة اليوم صورك من رحلاتك السابقة. يبقى موقعك على هذا الهاتف. قائمة المدن من GeoNames (CC BY 4.0).</string>
+    <string name="places_note">عندما تكون في مدينة زرتها من قبل، تعرض «اليوم» صورك من رحلاتك السابقة. يبقى موقعك على هذا الهاتف. قائمة المدن من GeoNames (CC BY 4.0).</string>
     <string name="places_ask_title">هل تريد عرض صور الأماكن التي تعود إليها؟</string>
     <string name="places_ask_body">عندما تزور مدينة زرتها من قبل، يعرض Flashback صورك من آخر مرة كنت فيها هناك.</string>
     <string name="places_ask_private">المدينة فقط، تُحدَّد على هذا الهاتف. لا يُرسَل أي شيء.</string>
@@ -121,7 +122,7 @@
     <string name="places_ask_settings">يمكنك إيقافه في أي وقت من الإعدادات.</string>
     <string name="turn_on">تشغيل</string>
     <string name="toast_location_off">اسمح بالموقع لعرض الأماكن</string>
-    <string name="ios_location_permission">يحدد Flashback المدينة التي أنت فيها ليعرض صورك من رحلات سابقة إليها. يبقى موقعك على هذا الـ iPhone.</string>
+    <string name="ios_location_permission">يحدد Flashback المدينة التي أنت فيها ليعرض صورك من رحلات سابقة إليها. يبقى موقعك على جهاز iPhone هذا.</string>
     <string name="previous_day_photos">اليوم السابق الذي فيه صور</string>
     <string name="next_day_photos">اليوم التالي الذي فيه صور</string>
     <string name="back_to_today">العودة إلى اليوم</string>
@@ -220,7 +221,7 @@
     <string name="toast_new_album_hint">اضغط «تحديد» واختر الصور، ثم اضغط «ألبوم»</string>
     <string name="toast_allow_save">اسمح بالوصول إلى الصور للحفظ</string>
     <string name="toast_saved_photos">تم الحفظ في الصور</string>
-    <string name="toast_saved_gallery">تم الحفظ في Pictures/Flashback</string>
+    <string name="toast_saved_gallery">تم الحفظ في &#x2066;Pictures/Flashback&#x2069;</string>
     <string name="toast_save_failed">تعذّر حفظ الألبوم</string>
 
     <!-- iPhone photo access prompts -->
@@ -239,7 +240,7 @@
 
     <!-- مقاطع الريلز: فيديو قصير من الصور المختارة، على كل صورة تاريخها -->
     <string name="reel">ريل</string>
-    <string name="make_reel">اصنع ريل</string>
+    <string name="make_reel">إنشاء ريل</string>
     <string name="reel_title">ريل جديد</string>
     <string name="reel_preview">معاينة الريل</string>
     <string name="reel_play">تشغيل</string>
@@ -285,5 +286,34 @@
         <item quantity="other">يتسع الريل لـ {n} صورة، لذا يأخذ أول {n}</item>
     </plurals>
     <string name="reel_save">حفظ</string>
-    <string name="toast_reel_saved">تم الحفظ في Movies/Flashback</string>
+    <string name="toast_reel_saved">تم الحفظ في &#x2066;Movies/Flashback&#x2069;</string>
+
+    <!-- الوصول والأذونات والتحديد والألبومات والأماكن والريلز والمعلومات -->
+    <string name="open_settings">فتح الإعدادات</string>
+    <string name="limited_access">وصول محدود</string>
+    <string name="limited_access_note">تُعرض الصور التي اخترتها فقط. يمكنك إضافة المزيد في أي وقت.</string>
+    <string name="manage_photos">إدارة</string>
+    <string name="select_all">تحديد الكل</string>
+    <string name="clear_selection">مسح</string>
+    <string name="select_year">تحديد السنة</string>
+    <string name="deselect_year">إلغاء التحديد</string>
+    <string name="undo">تراجع</string>
+    <string name="photo_unavailable">الصورة غير متوفرة</string>
+    <string name="retry">إعادة المحاولة</string>
+    <string name="loading_hd">جارٍ تحميل الصورة الكاملة…</string>
+    <string name="remove_from_album">إزالة من الألبوم</string>
+    <string name="already_in_album">موجودة بالفعل في {name}</string>
+    <string name="album_empty">لا توجد صور في هذا الألبوم بعد.</string>
+    <string name="album_deleted">تم حذف {name}</string>
+    <string name="home_city">المدينة الرئيسية</string>
+    <string name="change">تغيير</string>
+    <string name="places_scanning">جارٍ فحص صورك…</string>
+    <string name="reel_reduce_motion_note">تقليل الحركة مفعّل، لذا يستخدم الوميض تلاشيًا هادئًا.</string>
+    <string name="reel_playing">قيد التشغيل</string>
+    <string name="reel_paused">متوقف مؤقتًا</string>
+    <string name="day_upcoming">{day}، قادم</string>
+    <string name="share_failed">تعذّر فتح قائمة المشاركة.</string>
+    <string name="info">معلومات</string>
+    <string name="show_this_day">إظهار هذا اليوم</string>
+    <string name="licenses">تراخيص المصدر المفتوح</string>
 </language>

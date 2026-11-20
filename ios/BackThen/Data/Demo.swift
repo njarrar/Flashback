@@ -20,25 +20,31 @@ extension AppStore {
     }
 
     func runDemo(_ scene: String) async {
+        isDemoMode = true
+        photoAccessRevoked = false
         samplePhotos = Self.loadSamples()
-        saved.sources.device = !samplePhotos.isEmpty
-        saved.deviceIndex = buildDayIndex(samplePhotos.map(\.time))
-        saved.layout = scene == "cards" ? .cards : scene == "strip" ? .strip : .mosaic
+        var next = saved
+        next.sources.device = !samplePhotos.isEmpty
+        next.deviceIndex = buildDayIndex(samplePhotos.map(\.time))
+        next.layout = scene == "cards" ? .cards : scene == "strip" ? .strip : .mosaic
         // The reminder step of the welcome, with the photos found.
-        saved.onboarded = scene != "reminder"
+        next.onboarded = scene != "reminder"
+        saved = next
         if !saved.onboarded { return }
         let photos = await photos(for: .today).flatMap(\.photos)
         guard !photos.isEmpty else { return }
-        saved.favorites = stride(from: 0, to: photos.count, by: 3).map { photos[$0] }
+        var populated = saved
+        populated.favorites = stride(from: 0, to: photos.count, by: 3).map { photos[$0] }
         let album = Album(id: "demo", name: L.s("demo_album_fall"), photos: Array(photos.prefix(9)), createdAt: Date())
-        saved.albums = [album, Album(id: "demo2", name: L.s("demo_album_garden"), photos: Array(photos.suffix(5)), createdAt: Date())]
+        populated.albums = [album, Album(id: "demo2", name: L.s("demo_album_garden"), photos: Array(photos.suffix(5)), createdAt: Date())]
+        saved = populated
         switch scene {
         case "calendar": demoCalendar = true
         case "viewer": viewer = Viewer(photos: photos, start: min(2, photos.count - 1))
         case "favorites": tab = .favorites
         case "album": openAlbumID = album.id
         // The sample photos skip tomorrow, so it shows the empty day.
-        case "empty": day = .of(Date().addingTimeInterval(86_400))
+        case "empty": day = MonthDay.today.shifted(by: 1)
         case "settings", "select", "share", "addalbum", "reel", "reelmore": demoScene = scene
         case "reelexport": await checkReelExport(photos)
         default: break
@@ -49,6 +55,7 @@ extension AppStore {
         let names = (try? FileManager.default.contentsOfDirectory(atPath: SamplePhotos.folder.path)) ?? []
         let exifDate = DateFormatter()
         exifDate.locale = Locale(identifier: "en_US_POSIX")
+        exifDate.calendar = .app
         exifDate.dateFormat = "yyyy:MM:dd HH:mm:ss"
         return names.filter { $0.hasSuffix(".jpg") }.sorted().compactMap { name in
             guard let src = CGImageSourceCreateWithURL(SamplePhotos.fileURL(name) as CFURL, nil),

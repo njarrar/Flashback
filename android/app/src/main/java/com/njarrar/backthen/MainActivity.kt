@@ -48,14 +48,23 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        setIntent(intent)
         openDayFrom(intent)
     }
 
-    /** A tap on the daily reminder opens that day. */
+    /** A tap on the daily reminder or home screen widget opens that day. */
     private fun openDayFrom(intent: Intent?) {
+        if (intent?.getBooleanExtra(EXTRA_OPEN_TODAY, false) == true) {
+            vm.openDay(MonthDay.today())
+            return
+        }
         val m = intent?.getIntExtra(EXTRA_MONTH, -1) ?: -1
         val d = intent?.getIntExtra(EXTRA_DAY, -1) ?: -1
         // Checked, since any app can start this screen with any numbers.
         MonthDay.fromKey("$m-$d")?.let(vm::openDay)
+    }
+
+    companion object {
+        const val EXTRA_OPEN_TODAY = "open_today"
     }
 }
