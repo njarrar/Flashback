@@ -16,11 +16,18 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -36,10 +43,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.selected
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -59,42 +67,102 @@ import kotlinx.coroutines.launch
 
 /**
  * Calendar bottom sheet, like the iPhone one. Picks a month and day, not a year, since every
- * year shows at once. Each day with photos shows a tiny copy of one of them. One tap on a day
- * opens it; days after today can't be picked.
+ * year shows at once. Each day with photos shows a tiny copy of one of them. Past-year days
+ * after today that have photos are unlocked and tappable; empty upcoming days are disabled.
  */
 @Composable
-fun CalendarSheet(start: MonthDay, index: DayIndex, cover: suspend (MonthDay) -> Photo?, onPick: (MonthDay) -> Unit, onDismiss: () -> Unit) {
+fun CalendarSheet(
+    start: MonthDay,
+    index: DayIndex,
+    coversForMonth: suspend (Int) -> Map<String, Photo?>,
+    hiddenDates: Set<String> = emptySet(),
+    onPick: (MonthDay) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val p = LocalPalette.current
+    val reduce = LocalReduceMotion.current
     val today = MonthDay.today()
-    // One page per month, opening on the chosen month. Swipe or use the arrows.
     val pager = rememberPagerState(initialPage = start.month) { 12 }
     val scope = rememberCoroutineScope()
     val month = pager.currentPage
     val view = LocalView.current
     var shown by remember { mutableStateOf(month) }
+    var monthMenu by remember { mutableStateOf(false) }
     LaunchedEffect(month) { if (month != shown) { shown = month; Haptics.tick(view) } }
+
+    fun jumpTo(target: Int) {
+        scope.launch {
+            val wrap = (month == 0 && target == 11) || (month == 11 && target == 0)
+            if (wrap || reduce) pager.scrollToPage(target) else pager.animateScrollToPage(target)
+        }
+    }
+
     BottomSheet(onDismiss) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            T(monthName(month), size = 24, weight = FontWeight.ExtraBold, tight = true, modifier = Modifier.weight(1f).semantics { heading() })
+            Box(Modifier.weight(1f)) {
+                Row(
+                    Modifier
+                        .minimumInteractiveComponentSize()
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable(role = Role.Button) { monthMenu = true }
+                        .padding(horizontal = 4.dp, vertical = 4.dp)
+                        .clearAndSetSemantics {
+                            heading()
+                            contentDescription = monthName(month)
+                        },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    T(monthName(month), size = 24, weight = FontWeight.ExtraBold, tight = true, maxLines = 1, modifier = Modifier.weight(1f, fill = false))
+                    Icon(Icons.Filled.ArrowDropDown, null, tint = Accent, modifier = Modifier.size(22.dp))
+                }
+                DropdownMenu(expanded = monthMenu, onDismissRequest = { monthMenu = false }, containerColor = p.surface) {
+                    (0..11).forEach { m ->
+                        val on = m == month
+                        DropdownMenuItem(
+                            text = { T(monthName(m), weight = if (on) FontWeight.Bold else FontWeight.Medium) },
+                            trailingIcon = { if (on) Icon(Icons.Filled.Check, null, tint = Accent, modifier = Modifier.size(18.dp)) },
+                            onClick = {
+                                monthMenu = false
+                                scope.launch { pager.scrollToPage(m) }
+                            },
+                        )
+                    }
+                }
+            }
             if (month != today.month || start != today) {
                 Box(
                     Modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(50)).clickable(role = Role.Button) { onPick(today) },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Box(Modifier.clip(RoundedCornerShape(50)).background(LocalPalette.current.fill).padding(horizontal = 14.dp, vertical = 8.dp)) {
+                    Box(Modifier.clip(RoundedCornerShape(50)).background(p.fill).padding(horizontal = 14.dp, vertical = 8.dp)) {
                         T(L.s("today"), size = 15, weight = FontWeight.SemiBold)
                     }
                 }
             }
-            Arrow(left = true) { scope.launch { pager.animateScrollToPage((month + 11) % 12) } }
-            Arrow(left = false) { scope.launch { pager.animateScrollToPage((month + 1) % 12) } }
+            Arrow(left = true) { jumpTo((month + 11) % 12) }
+            Arrow(left = false) { jumpTo((month + 1) % 12) }
         }
         HorizontalPager(state = pager, verticalAlignment = Alignment.Top) { m ->
+            val covers by produceState<Map<String, Photo?>>(emptyMap(), m, index) {
+                value = coversForMonth(m)
+            }
             Column {
                 (1..DAYS_IN_MONTH[m]).chunked(7).forEach { week ->
                     Row {
                         for (d in week) {
                             val md = MonthDay(m, d)
-                            Day(md, index, cover, start == md, today == md, md.isAfter(today), Modifier.weight(1f)) { onPick(md) }
+                            Day(
+                                md = md,
+                                index = index,
+                                photo = covers[md.key],
+                                selected = start == md,
+                                isToday = today == md,
+                                future = md.isAfter(today),
+                                hidden = md.key in hiddenDates,
+                                modifier = Modifier.weight(1f),
+                                onClick = { onPick(md) },
+                            )
                         }
                         repeat(7 - week.size) { Box(Modifier.weight(1f)) }
                     }
@@ -107,56 +175,95 @@ fun CalendarSheet(start: MonthDay, index: DayIndex, cover: suspend (MonthDay) ->
 /** One day: a tiny copy of one of its photos, dimmed, with the number on top, or a plain number. */
 @Composable
 private fun Day(
-    md: MonthDay, index: DayIndex, cover: suspend (MonthDay) -> Photo?, selected: Boolean, isToday: Boolean, future: Boolean,
-    modifier: Modifier, onClick: () -> Unit,
+    md: MonthDay,
+    index: DayIndex,
+    photo: Photo?,
+    selected: Boolean,
+    isToday: Boolean,
+    future: Boolean,
+    hidden: Boolean,
+    modifier: Modifier,
+    onClick: () -> Unit,
 ) {
     val p = LocalPalette.current
     val photos = hasPhotos(index, md)
-    val photo by produceState<Photo?>(null, md, index) { value = if (photos) cover(md) else null }
+    // Past-year days after today with photos are unlocked and tappable; only empty upcoming days stay disabled.
+    val upcomingEmpty = future && !photos && !hidden
+    val enabled = !upcomingEmpty
     val shape = RoundedCornerShape(11.dp)
-    // The whole cell reacts, not only the square in the middle.
-    Box(
-        modifier.height(52.dp)
-            .clickable(enabled = !future, role = Role.Button, onClick = onClick)
-            .semantics {
-                // "October 16, 12 photos from 3 years", or "October 16, no photos".
+    val request = rememberThumbnailRequest(photo?.uri, maxPx = 160, crossfade = false)
+
+    val dayDesc = remember(md, index, isToday, upcomingEmpty, hidden) {
+        val base = when {
+            upcomingEmpty -> L.s("day_upcoming", "day" to md.label())
+            else -> {
                 val years = yearsForDay(index, md).size
-                contentDescription = if (years == 0) L.s("day_no_photos", "day" to md.label())
+                if (years == 0) L.s("day_no_photos", "day" to md.label())
                 else L.s(
-                    "day_photos_from", "day" to md.label(),
-                    "photos" to L.p("photos", photoCount(index, md)), "years" to L.p("years", years),
+                    "day_photos_from",
+                    "day" to md.label(),
+                    "photos" to L.p("photos", photoCount(index, md)),
+                    "years" to L.p("years", years),
                 )
+            }
+        }
+        buildString {
+            append(base)
+            if (isToday) append(", ").append(L.s("today"))
+            if (hidden) append(", ").append(L.s("you_hid_date"))
+        }
+    }
+
+    Box(
+        modifier
+            .height(54.dp)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .clearAndSetSemantics {
+                contentDescription = dayDesc
                 this.selected = selected
+                if (!enabled) disabled()
             },
         contentAlignment = Alignment.Center,
     ) {
-        // The picked day gets a coral ring, set off from the photo by a thin gap. Today gets a thin ink ring.
-        if (selected) Box(Modifier.size(46.dp).border(2.5.dp, Accent, RoundedCornerShape(14.dp)))
+        if (selected) Box(Modifier.size(48.dp).border(2.5.dp, Accent, RoundedCornerShape(14.dp)))
         Box(
-            Modifier.size(38.dp).clip(shape)
+            Modifier
+                .size(42.dp)
+                .clip(shape)
                 .then(if (photos) Modifier.background(p.fill) else Modifier)
                 .then(if (isToday && !selected) Modifier.border(1.5.dp, p.ink, shape) else Modifier),
             contentAlignment = Alignment.Center,
         ) {
-            photo?.let {
-                AsyncImage(it.uri, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-                // A dark wash under the number, so it reads on bright photos too.
+            if (request != null) {
+                AsyncImage(request, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
                 Box(Modifier.fillMaxSize().background(DayWash))
             }
             val onPhoto = photo != null
-            Text(
-                L.num(md.day),
-                color = when {
-                    onPhoto -> Color.White
-                    future -> p.faint.copy(alpha = 0.5f)
-                    photos -> p.ink
-                    // Past days with no photos: muted, so "nothing here" reads apart from "not yet".
-                    else -> p.muted
-                },
+            val textColor = when {
+                onPhoto -> Color.White
+                upcomingEmpty -> p.muted.copy(alpha = 0.65f)
+                photos -> p.ink
+                else -> p.muted2
+            }
+            BasicText(
+                text = L.num(md.day),
+                maxLines = 1,
                 style = TextStyle(
-                    fontFamily = Nunito, fontWeight = if (photos) FontWeight.ExtraBold else FontWeight.SemiBold, fontSize = 16.sp, fontFeatureSettings = "tnum",
+                    color = textColor,
+                    fontFamily = Nunito,
+                    fontWeight = if (photos) FontWeight.ExtraBold else FontWeight.SemiBold,
+                    fontFeatureSettings = "tnum",
                 ),
+                autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = 16.sp, stepSize = 0.5.sp),
             )
+            if (hidden) {
+                Icon(
+                    Icons.Outlined.VisibilityOff,
+                    contentDescription = null,
+                    tint = if (onPhoto) Color.White else p.muted,
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(2.dp).size(11.dp),
+                )
+            }
         }
     }
 }
@@ -164,7 +271,14 @@ private fun Day(
 @Composable
 private fun Arrow(left: Boolean, onClick: () -> Unit) {
     val p = LocalPalette.current
-    Box(Modifier.size(48.dp).clip(CircleShape).background(p.fill).clickable(onClick = onClick), contentAlignment = Alignment.Center) {
+    Box(
+        Modifier
+            .size(48.dp)
+            .clip(CircleShape)
+            .background(p.fill)
+            .clickable(role = Role.Button, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
         Icon(
             if (left) Icons.AutoMirrored.Filled.KeyboardArrowLeft else Icons.AutoMirrored.Filled.KeyboardArrowRight,
             L.s(if (left) "previous_month" else "next_month"),

@@ -70,6 +70,11 @@ final class ReelTests: XCTestCase {
         XCTAssertEqual(plan.items.count, ReelPlan.maxPhotos + 2)
     }
 
+    func testPlanHandlesNegativePhotoCount() {
+        let plan = ReelPlan(count: -5, options: ReelOptions())
+        XCTAssertEqual(plan.items.map(\.kind), [.intro, .outro])
+    }
+
     func testOrderNewestOrOldestFirstAndCapped() {
         let photos = [photo(2019), photo(2025), photo(2015), photo(2025, 9)]
         XCTAssertEqual(reelOrder(photos, newestFirst: true).map(\.key), ["s:2025-12", "s:2025-9", "s:2019-12", "s:2015-12"])
@@ -154,11 +159,11 @@ final class ReelTests: XCTestCase {
         let r = ReelRenderer(photos: photos, options: o, small: small, reduceMotion: false)
         let progress = ProgressBox()
         let url = try await ReelExport.make(
-            renderer: r, name: "test-\(o.size.rawValue)",
+            renderer: r, name: "test-\(o.size.rawValue)-\(UUID().uuidString)",
             load: { i in self.picture(CGFloat(i) / CGFloat(count), CGSize(width: 1600, height: 1200)) },
-            progress: { progress.last = $0 }
+            progress: { progress.set($0) }
         )
-        XCTAssertEqual(progress.last, 1, accuracy: 0.0001)
+        XCTAssertEqual(progress.get(), 1, accuracy: 0.0001)
         return (url, r.plan)
     }
 
@@ -167,6 +172,7 @@ final class ReelTests: XCTestCase {
         o.look = .film
         o.speed = .fast
         let (url, plan) = try await export(o, count: 3)
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
         let asset = AVURLAsset(url: url)
         let duration = try await asset.load(.duration).seconds
         XCTAssertEqual(duration, plan.total, accuracy: 0.1)
@@ -182,7 +188,6 @@ final class ReelTests: XCTestCase {
         let (cg, _) = try await gen.image(at: at)
         XCTAssertEqual(cg.width, 1080)
         XCTAssertGreaterThan(spread(cg), 40)
-        try? FileManager.default.removeItem(at: url)
     }
 
     func testExportWritesSquareFillVideoWithoutEndCard() async throws {
@@ -193,6 +198,7 @@ final class ReelTests: XCTestCase {
         o.endCard = false
         o.speed = .fast
         let (url, plan) = try await export(o, count: 2)
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
         let asset = AVURLAsset(url: url)
         let tracks = try await asset.loadTracks(withMediaType: .video)
         let track = try XCTUnwrap(tracks.first)
@@ -200,22 +206,31 @@ final class ReelTests: XCTestCase {
         XCTAssertEqual(size, CGSize(width: 1080, height: 1080))
         let duration = try await asset.load(.duration).seconds
         XCTAssertEqual(duration, plan.total, accuracy: 0.1)
-        try? FileManager.default.removeItem(at: url)
     }
 
     func testCancelledExportLeavesNoFile() async throws {
         let photos = (0..<5).map { photo(2025 - $0) }
         let r = ReelRenderer(photos: photos, options: ReelOptions(), small: photos.map { _ in nil }, reduceMotion: false)
+        let name = "cancelled-\(UUID().uuidString)"
+        let reelsRoot = FileManager.default.temporaryDirectory.appending(path: "reels")
+        let beforeDirs = Set((try? FileManager.default.contentsOfDirectory(atPath: reelsRoot.path)) ?? [])
         let task = Task {
-            try await ReelExport.make(renderer: r, name: "cancelled", load: { _ in nil }, progress: { _ in })
+            try await ReelExport.make(renderer: r, name: name, load: { _ in nil }, progress: { _ in })
         }
         task.cancel()
         do {
             _ = try await task.value
-            XCTFail("A cancelled export should throw")
-        } catch {}
-        let file = FileManager.default.temporaryDirectory.appending(path: "reels/cancelled.mp4")
-        XCTAssertFalse(FileManager.default.fileExists(atPath: file.path))
+            XCTFail("A cancelled export should throw CancellationError")
+        } catch is CancellationError {
+            // Expected.
+        } catch {
+            XCTFail("Expected CancellationError, got \(error)")
+        }
+        let afterDirs = Set((try? FileManager.default.contentsOfDirectory(atPath: reelsRoot.path)) ?? [])
+        let leftover = afterDirs.subtracting(beforeDirs).filter { dir in
+            FileManager.default.fileExists(atPath: reelsRoot.appending(path: dir).appending(path: "\(name).mp4").path)
+        }
+        XCTAssertTrue(leftover.isEmpty)
     }
 
     /// How far apart the darkest and brightest of a few sample points are, 0 to 255.
@@ -236,5 +251,14 @@ final class ReelTests: XCTestCase {
 }
 
 private final class ProgressBox: @unchecked Sendable {
-    var last = 0.0
+    private let lock = NSLock()
+    private var last = 0.0
+
+    func set(_ value: Double) {
+        lock.withLock { last = value }
+    }
+
+    func get() -> Double {
+        lock.withLock { last }
+    }
 }

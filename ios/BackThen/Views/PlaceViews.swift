@@ -19,13 +19,8 @@ struct PlaceCardView: View {
                     Text(L.s("place_been_before", ["city": card.city.name])).font(.nunito(17, .heavy)).foregroundStyle(Palette.ink)
                     Text(tripsRange(card.trips)).font(.nunito(14)).foregroundStyle(Palette.muted)
                 }
+                .padding(.trailing, 32)
                 Spacer(minLength: 0)
-                Button { store.dismissPlaceCard() } label: {
-                    Image(systemName: "xmark").font(.system(size: 13, weight: .bold)).foregroundStyle(Palette.muted)
-                        .frame(width: 44, height: 44).contentShape(Rectangle())
-                }
-                .padding(.top, -10).padding(.trailing, -12)
-                .accessibilityLabel(L.s("close"))
             }
             if !photos.isEmpty {
                 HStack(spacing: 4) {
@@ -42,6 +37,26 @@ struct PlaceCardView: View {
         .padding(16)
         .background(Palette.surface, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Palette.line, lineWidth: 1))
+        .overlay(alignment: .topTrailing) {
+            Button {
+                let prev = store.saved.placeDismissed
+                store.dismissPlaceCard()
+                store.showToast(
+                    card.city.name,
+                    kind: .info,
+                    undoLabel: L.s("undo"),
+                    undo: {
+                        store.saved.placeDismissed = prev
+                        Task { await store.checkPlace() }
+                    }
+                )
+            } label: {
+                Image(systemName: "xmark").font(.system(size: 13, weight: .bold)).foregroundStyle(Palette.muted)
+                    .frame(width: 44, height: 44).contentShape(Rectangle())
+            }
+            .padding(4)
+            .accessibilityLabel(L.s("close"))
+        }
         .task(id: card.city.id) {
             guard let trip = card.trips.first, let cities = await CityList.load() else { return }
             photos = Array(await PlaceLibrary.photos(city: card.city.id, trip: trip, cities: cities).prefix(4))
@@ -66,24 +81,31 @@ func tripsAndPhotos(_ trips: [Trip]) -> String {
 struct PlacePage: View {
     @Environment(AppStore.self) private var store
     let city: City
+    @State private var showNavTitle = false
 
     var body: some View {
         let all = trips(store.saved.placeIndex[city.id] ?? [:])
+        let country = L.locale.localizedString(forRegionCode: city.country) ?? city.country
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(city.name).font(.nunito(34, .bold)).tight(34).foregroundStyle(Palette.ink)
                         .accessibilityAddTraits(.isHeader)
+                        .onGeometryChange(for: Bool.self) { $0.frame(in: .global).maxY < 96 } action: { showNavTitle = $0 }
+                    if !country.isEmpty {
+                        Text(country).font(.nunito(15, .semibold)).foregroundStyle(Palette.muted2)
+                    }
                     Text(tripsAndPhotos(all)).font(.nunito(15)).foregroundStyle(Palette.muted)
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 20)
-                ForEach(all, id: \.self) { TripSection(city: city.id, trip: $0) }
+                ForEach(all, id: \.self) { TripSection(city: city, trip: $0) }
             }
             .padding(.bottom, 40)
         }
         .background(Palette.bg)
         .toolbar(.visible, for: .navigationBar)
+        .navigationTitle(showNavTitle ? city.name : "")
         .navigationBarTitleDisplayMode(.inline)
     }
 }
@@ -93,9 +115,24 @@ struct PlacePage: View {
 struct TripSection: View {
     @Environment(AppStore.self) private var store
     @Environment(\.layoutDirection) private var direction
-    let city: Int
+    let city: City
     let trip: Trip
     @State private var photos: [Photo]?
+    @State private var shareFor: ShareRequest?
+
+    private var tripSubtitle: AttributedString {
+        let ago = agoLabel(yearOf(trip.start))
+        let details = L.s("days_photos", ["days": L.p("days", trip.days), "photos": L.p("photos", trip.photos)])
+        let full = L.s("ago_weekday", ["ago": ago, "weekday": details])
+        var attr = AttributedString(full)
+        attr.font = .nunito(14)
+        attr.foregroundColor = Palette.muted
+        if let range = attr.range(of: ago) {
+            attr[range].font = .nunito(14, .bold)
+            attr[range].foregroundColor = Palette.ink
+        }
+        return attr
+    }
 
     var body: some View {
         let all = photos ?? []
@@ -103,17 +140,43 @@ struct TripSection: View {
         let more = all.count - shown
         let layout = layoutMosaic(shown)
         let rows = CGFloat(layout.rows)
+        let tripTitle = L.date(trip.start, "yMMMM")
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(L.date(trip.start, "yMMMM")).font(.nunito(30, .black)).tight(30).foregroundStyle(Palette.ink)
-                    .accessibilityAddTraits(.isHeader)
-                (Text(agoLabel(yearOf(trip.start))).foregroundStyle(Palette.ink).font(.nunito(14, .bold))
-                 + Text(" · " + L.s("days_photos", ["days": L.p("days", trip.days), "photos": L.p("photos", trip.photos)])).foregroundStyle(Palette.muted))
-                    .font(.nunito(14))
+                HStack(alignment: .center, spacing: 4) {
+                    Text(tripTitle).font(.nunito(30, .black)).tight(30).foregroundStyle(Palette.ink)
+                        .accessibilityAddTraits(.isHeader)
+                    Spacer(minLength: 4)
+                    if all.count >= 2 {
+                        Button {
+                            if all.count > ReelPlan.maxPhotos {
+                                store.showToast(L.p("reel_too_many", ReelPlan.maxPhotos), kind: .info, undoLabel: nil, undo: nil)
+                            }
+                            store.reel = ReelRequest(photos: all)
+                        } label: {
+                            Image(systemName: "play.rectangle").font(.system(size: 18)).foregroundStyle(Palette.ink)
+                                .frame(width: 44, height: 44).contentShape(Rectangle())
+                        }
+                        .buttonStyle(PressStyle())
+                        .accessibilityLabel(L.s("make_reel"))
+                    }
+                    if !all.isEmpty {
+                        Button {
+                            shareFor = ShareRequest(title: "\(city.name) — \(tripTitle)", photos: all)
+                        } label: {
+                            Image(systemName: "square.and.arrow.up").font(.system(size: 18)).foregroundStyle(Palette.ink)
+                                .frame(width: 44, height: 44).contentShape(Rectangle())
+                        }
+                        .buttonStyle(PressStyle())
+                        .accessibilityLabel(L.s("share"))
+                    }
+                }
+                Text(tripSubtitle)
             }
             .padding(.leading, 4)
             if photos == nil {
                 RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Palette.fill).frame(height: 220)
+                    .accessibilityLabel(L.s("loading"))
             } else if shown > 0 {
                 GeometryReader { geo in
                     let gap: CGFloat = 4, row: CGFloat = 54
@@ -122,19 +185,26 @@ struct TripSection: View {
                         ForEach(Array(all.prefix(shown).enumerated()), id: \.element.key) { i, photo in
                             let t = layout.tiles[i]
                             let col = direction == .rightToLeft ? mosaicColumns - t.col - t.cols : t.col
+                            let isOverflow = more > 0 && i == shown - 1
                             PhotoTile(photo: photo, radius: 12) {
                                 store.viewer = Viewer(photos: all, start: i)
                             }
                             .overlay {
-                                if more > 0, i == shown - 1 {
+                                if isOverflow {
                                     ZStack {
                                         Palette.chip
                                         Text("+" + L.num(more)).font(.nunito(18, .heavy)).foregroundStyle(Palette.chipInk)
                                     }
                                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                                     .allowsHitTesting(false)
+                                    .accessibilityHidden(true)
                                 }
                             }
+                            .accessibilityLabel(
+                                isOverflow
+                                    ? "\(L.s("photo_from", ["date": L.date(photo.time, "yMMMMd")])), +\(L.p("photos", more))"
+                                    : L.s("photo_from", ["date": L.date(photo.time, "yMMMMd")])
+                            )
                             .environment(\.layoutDirection, direction)
                             .frame(width: cell * CGFloat(t.cols) + gap * CGFloat(t.cols - 1), height: row * CGFloat(t.rows) + gap * CGFloat(t.rows - 1))
                             .offset(x: (cell + gap) * CGFloat(col), y: (row + gap) * CGFloat(t.row))
@@ -149,9 +219,10 @@ struct TripSection: View {
         }
         .padding(.horizontal, 16)
         .padding(.bottom, 28)
+        .sheet(item: $shareFor) { ShareSheetView(request: $0) }
         .task {
             guard photos == nil, let cities = await CityList.load() else { return }
-            photos = await PlaceLibrary.photos(city: city, trip: trip, cities: cities)
+            photos = await PlaceLibrary.photos(city: city.id, trip: trip, cities: cities)
         }
     }
 }
@@ -162,23 +233,32 @@ struct PlaceAskSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Image(systemName: "mappin.and.ellipse").font(.system(size: 26, weight: .semibold)).foregroundStyle(Palette.muted2)
-                .frame(width: 56, height: 56)
-                .background(Palette.fill, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 8) {
-                Text(L.s("places_ask_title")).font(.nunito(26, .heavy)).foregroundStyle(Palette.ink)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(L.s("places_ask_body")).font(.nunito(16)).foregroundStyle(Palette.muted2)
-                    .fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: .leading, spacing: 0) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    Image(systemName: "mappin.and.ellipse").font(.system(size: 26, weight: .semibold)).foregroundStyle(Palette.muted2)
+                        .frame(width: 56, height: 56)
+                        .background(Palette.fill, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(L.s("places_ask_title")).font(.nunito(26, .heavy)).foregroundStyle(Palette.ink)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityAddTraits(.isHeader)
+                        Text(L.s("places_ask_body")).font(.nunito(16)).foregroundStyle(Palette.muted2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    VStack(alignment: .leading, spacing: 12) {
+                        point("lock", L.s("places_ask_private"))
+                        point("clock", L.s("places_ask_open_only"))
+                        point("gearshape", L.s("places_ask_settings"))
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 28)
+                .padding(.bottom, 20)
             }
-            VStack(alignment: .leading, spacing: 12) {
-                point("lock", L.s("places_ask_private"))
-                point("clock", L.s("places_ask_open_only"))
-                point("gearshape", L.s("places_ask_settings"))
-            }
-            Spacer(minLength: 0)
+            .scrollBounceBehavior(.basedOnSize)
+
             VStack(spacing: 4) {
                 Pill(label: L.s("turn_on"), kind: .primary, height: 54) {
                     dismiss()
@@ -189,10 +269,10 @@ struct PlaceAskSheet: View {
                     dismiss()
                 }
             }
+            .padding(.top, 8)
+            .padding(.bottom, 16)
         }
         .padding(.horizontal, 24)
-        .padding(.top, 28)
-        .padding(.bottom, 16)
         .background(Palette.bg)
         .presentationDetents([.large])
         .presentationDragIndicator(.visible)

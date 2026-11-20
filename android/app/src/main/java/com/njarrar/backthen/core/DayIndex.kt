@@ -35,8 +35,13 @@ fun photoCount(index: DayIndex, md: MonthDay, today: LocalDate = LocalDate.now()
 }
 
 /** The favorite to show for a day in the calendar: one taken on that day, in a year the day counts. */
-fun favoriteCover(favorites: List<Photo>, md: MonthDay, years: List<Int>): Photo? =
-    favorites.firstOrNull { val d = localDate(it.time); MonthDay.of(d) == md && d.year in years }
+fun favoriteCover(
+    favorites: List<Photo>,
+    md: MonthDay,
+    years: List<Int>,
+    zone: ZoneId = ZoneId.systemDefault(),
+): Photo? =
+    favorites.firstOrNull { val d = localDate(it.time, zone); MonthDay.of(d) == md && d.year in years }
 
 /** The closest earlier and later days that have photos, within 60 days. */
 fun nearbyDays(index: DayIndex, md: MonthDay, today: LocalDate = LocalDate.now()): Pair<MonthDay?, MonthDay?> {
@@ -52,16 +57,20 @@ fun nearbyDays(index: DayIndex, md: MonthDay, today: LocalDate = LocalDate.now()
 
 /**
  * Where a swipe on Today lands: the next day with photos going forward ([step] 1) or back
- * ([step] -1), and how many empty days it passed. Stays between January 1 and today, the days
- * the calendar lets you pick.
+ * ([step] -1), and how many empty days it passed. Wraps around the year and visits any day with
+ * past-year photos, matching [nearbyDays] and the calendar. Skips February 29 in non-leap years
+ * without counting it as an empty day unless leap-year photos exist on it.
  */
 fun swipeTarget(index: DayIndex, from: MonthDay, step: Int, today: LocalDate = LocalDate.now()): Pair<MonthDay, Int>? {
-    val now = MonthDay.of(today)
+    if (step == 0) return null
+    val leap = today.isLeapYear
     var at = from
-    for (skipped in 0 until 366) {
+    var skipped = 0
+    for (i in 0 until 366) {
         val next = at.shift(step)
-        if (next.isAfter(now) || (step < 0 && next.isAfter(at))) return null
+        if (next == from) return null
         if (hasPhotos(index, next, today)) return next to skipped
+        if (leap || next.month != 1 || next.day != 29) skipped++
         at = next
     }
     return null

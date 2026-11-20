@@ -15,17 +15,26 @@ android {
         targetSdk = 36
         versionCode = 24
         versionName = "1.23.0"
+        resourceConfigurations += listOf("en", "ar", "es", "fr", "pt", "zh")
     }
 
     // The language files in lang/ at the top of the repo ship as app assets (en.xml, ar.xml, ...).
     sourceSets["main"].assets.srcDir("../../lang")
-    // The city list for places (cities.tsv).
+    // The city list for places (cities.tsv). Exclude places/README.md from the packaged APK.
     sourceSets["main"].assets.srcDir("../../places")
 
-    // Builds sign with the Play upload key when these are set (the Play Store and Build
-    // apps workflows set them from GitHub secrets). Without them the release bundle is
-    // unsigned and debug builds use the usual debug key. Signing debug builds with the
-    // upload key too gives the APK in build/ the same key each run, so a new one installs over the last.
+    androidResources {
+        ignoreAssetsPattern = "!README.md:!.svn:!.git:!.ds_store:!*.scc:.*:<dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"
+    }
+
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
+    }
+
+    // Release builds sign with the Play upload key when these are set (the Play Store and Build
+    // apps workflows set them from GitHub secrets). Debug builds always use the standard debug
+    // keystore with a separate applicationId so they never share signing identity with production.
     val uploadKey = System.getenv("UPLOAD_KEYSTORE_FILE")?.let(::file)?.takeIf { it.exists() }
     signingConfigs {
         if (uploadKey != null) {
@@ -40,7 +49,7 @@ android {
 
     buildTypes {
         debug {
-            if (uploadKey != null) signingConfig = signingConfigs.getByName("upload")
+            applicationIdSuffix = ".debug"
         }
         release {
             if (uploadKey != null) {
@@ -83,7 +92,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.1")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.1")
     implementation("androidx.work:work-runtime-ktx:2.10.1")
-    implementation("androidx.exifinterface:exifinterface:1.3.7")
+    implementation("androidx.exifinterface:exifinterface:1.4.0")
     implementation("io.coil-kt.coil3:coil-compose:3.2.0")
     implementation("me.saket.telephoto:zoomable-image-coil3:0.16.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.1")

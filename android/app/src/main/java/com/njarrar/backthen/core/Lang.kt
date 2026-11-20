@@ -1,9 +1,12 @@
 package com.njarrar.backthen.core
 
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 import java.io.InputStream
 import java.text.NumberFormat
 import java.util.Locale
 import javax.xml.parsers.DocumentBuilderFactory
+import kotlin.math.abs
 import org.w3c.dom.Element
 
 /**
@@ -24,7 +27,14 @@ class Strings(
 ) {
     companion object {
         fun parse(code: String, input: InputStream): Strings {
-            val root = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(input).documentElement
+            val factory = DocumentBuilderFactory.newInstance().apply {
+                runCatching { setFeature("http://apache.org/xml/features/disallow-doctype-decl", true) }
+                runCatching { setFeature("http://xml.org/sax/features/external-general-entities", false) }
+                runCatching { setFeature("http://xml.org/sax/features/external-parameter-entities", false) }
+                isXIncludeAware = false
+                isExpandEntityReferences = false
+            }
+            val root = factory.newDocumentBuilder().parse(input).documentElement
             fun children(parent: Element, tag: String) = parent.getElementsByTagName(tag).let { list ->
                 (0 until list.length).map { list.item(it) as Element }
             }
@@ -47,33 +57,34 @@ class Strings(
  * Languages not listed use the English rule; a missing form falls back to "other".
  */
 fun pluralForm(n: Int, language: String): String {
-    val a = kotlin.math.abs(n)
-    val n10 = a % 10
-    val n100 = a % 100
+    val a = abs(n.toLong())
+    val n10 = a % 10L
+    val n100 = a % 100L
     return when (language.take(2)) {
         "ar" -> when {
-            a == 0 -> "zero"
-            a == 1 -> "one"
-            a == 2 -> "two"
-            n100 in 3..10 -> "few"
-            n100 in 11..99 -> "many"
+            a == 0L -> "zero"
+            a == 1L -> "one"
+            a == 2L -> "two"
+            n100 in 3L..10L -> "few"
+            n100 in 11L..99L -> "many"
             else -> "other"
         }
-        "fr", "pt", "hi", "fa", "bn" -> if (a <= 1) "one" else "other"
+        "fr", "hi", "fa", "bn" -> if (a <= 1L) "one" else "other"
         "ru", "uk", "be" -> when {
-            n10 == 1 && n100 != 11 -> "one"
-            n10 in 2..4 && n100 !in 12..14 -> "few"
+            n10 == 1L && n100 != 11L -> "one"
+            n10 in 2L..4L && n100 !in 12L..14L -> "few"
             else -> "many"
         }
         "pl" -> when {
-            a == 1 -> "one"
-            n10 in 2..4 && n100 !in 12..14 -> "few"
+            a == 1L -> "one"
+            n10 in 2L..4L && n100 !in 12L..14L -> "few"
             else -> "many"
         }
-        "cs", "sk" -> when (a) { 1 -> "one"; in 2..4 -> "few"; else -> "other" }
-        "he" -> when (a) { 1 -> "one"; 2 -> "two"; else -> "other" }
+        "cs", "sk" -> when (a) { 1L -> "one"; in 2L..4L -> "few"; else -> "other" }
+        "he" -> when (a) { 1L -> "one"; 2L -> "two"; else -> "other" }
         "zh", "ja", "ko", "th", "vi", "id", "ms" -> "other"
-        else -> if (a == 1) "one" else "other"
+        // Includes "en", "es", "pt" (0 uses "other", 1 uses "one").
+        else -> if (a == 1L) "one" else "other"
     }
 }
 
@@ -82,17 +93,27 @@ fun pluralForm(n: Int, language: String): String {
  * missing from it comes from English, so a new file can start small.
  */
 object L {
-    var english = Strings("en"); private set
-    var lang = english; private set
-    var locale: Locale = Locale.ENGLISH; private set
-    private var numberFormat: NumberFormat = NumberFormat.getIntegerInstance(Locale.ENGLISH).apply { isGroupingUsed = false }
+    private class Snapshot(
+        val english: Strings,
+        val lang: Strings,
+        val locale: Locale,
+    )
 
-    @Synchronized
+    @Volatile
+    private var state = Snapshot(Strings("en"), Strings("en"), Locale.ENGLISH)
+
+    /** Increments on every [use] call so Compose UI can observe language switches reactively. */
+    val version = MutableStateFlow(0)
+
+    val english: Strings get() = state.english
+    val lang: Strings get() = state.lang
+    val locale: Locale get() = state.locale
+
+    private val numberFormatters = ThreadLocal<Pair<Locale, NumberFormat>>()
+
     fun use(english: Strings, lang: Strings, locale: Locale) {
-        this.english = english
-        this.lang = lang
-        this.locale = locale
-        this.numberFormat = NumberFormat.getIntegerInstance(locale).apply { isGroupingUsed = false }
+        state = Snapshot(english, lang, locale)
+        version.update { it + 1 }
     }
 
     /**
@@ -113,21 +134,38 @@ object L {
 
     /** A word, with its `{name}` slots filled. Numbers are written the language's way. */
     fun s(key: String, vararg args: Pair<String, Any>): String {
-        val raw = lang.strings[key] ?: english.strings[key] ?: key
+        val cur = state
+        val raw = cur.lang.strings[key] ?: cur.english.strings[key] ?: key
         return if (args.isEmpty()) raw else fill(raw, args.toMap())
     }
 
     /** The plural word for [n], such as "3 photos". `{n}` is the number. */
     fun p(key: String, n: Int, vararg args: Pair<String, Any>): String {
-        val forms = lang.plurals[key] ?: english.plurals[key] ?: emptyMap()
-        val text = forms[pluralForm(n, lang.code)] ?: forms["other"]
-            ?: english.plurals[key]?.get(pluralForm(n, "en")) ?: key
+        val cur = state
+        val langForms = cur.lang.plurals[key]
+        val text = if (langForms != null) {
+            langForms[pluralForm(n, cur.lang.code)] ?: langForms["other"]
+        } else {
+            null
+        } ?: cur.english.plurals[key]?.let { enForms ->
+            enForms[pluralForm(n, "en")] ?: enForms["other"]
+        } ?: key
         return fill(text, args.toMap() + ("n" to n))
     }
 
     /** A whole number in the language's digits, without grouping (so years read 2021). */
-    @Synchronized
-    fun num(n: Int): String = numberFormat.format(n)
+    fun num(n: Int): String {
+        val loc = state.locale
+        val cached = numberFormatters.get()
+        val fmt = if (cached != null && cached.first == loc) {
+            cached.second
+        } else {
+            NumberFormat.getIntegerInstance(loc).apply { isGroupingUsed = false }.also {
+                numberFormatters.set(loc to it)
+            }
+        }
+        return fmt.format(n)
+    }
 
     /** Fills every `{name}` slot in one pass, so a value that holds a slot name (an album called "{n}") stays as typed. */
     fun fill(text: String, args: Map<String, Any>): String {

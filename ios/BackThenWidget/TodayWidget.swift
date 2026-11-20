@@ -1,5 +1,6 @@
 import Photos
 import SwiftUI
+import UIKit
 import WidgetKit
 
 // Home screen widget: a photo from this day in a past year, with its year and how long ago.
@@ -48,22 +49,60 @@ struct TodayProvider: TimelineProvider {
 
     func getSnapshot(in context: Context, completion: @escaping (TodayEntry) -> Void) {
         if context.isPreview { return completion(placeholder(in: context)) }
-        completion(Self.entry(size: context.displaySize))
+        // Never block getSnapshot on synchronous iCloud network downloads.
+        completion(Self.entry(size: context.displaySize, now: Date(), allowNetwork: false))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<TodayEntry>) -> Void) {
         let now = Date()
-        let entry = Self.entry(size: context.displaySize, now: now)
-        // Back at the top of the next hour: a new photo, and a new day after midnight.
-        let next = Calendar.app.nextDate(after: now, matching: DateComponents(minute: 0), matchingPolicy: .nextTime)
-            ?? now.addingTimeInterval(3600)
-        completion(Timeline(entries: [entry], policy: .after(next)))
+        let cal = Calendar.app
+        let startOfToday = cal.startOfDay(for: now)
+        let tomorrow = cal.date(byAdding: .day, value: 1, to: startOfToday)
+            .map { cal.startOfDay(for: $0) } ?? now.addingTimeInterval(86_400)
+        let day = MonthDay.of(now, calendar: cal)
+
+        guard Self.canShowPhotos(on: day) else {
+            let single = Self.entry(size: context.displaySize, now: now, allowNetwork: false)
+            return completion(Timeline(entries: [single], policy: .after(tomorrow)))
+        }
+
+        let assets = Self.photos(on: day, now: now)
+        guard !assets.isEmpty else {
+            let empty = TodayEntry(date: now, day: day, shown: .empty)
+            return completion(Timeline(entries: [empty], policy: .after(tomorrow)))
+        }
+
+        // Batch hourly entries up to midnight so WidgetKit refreshes far less often per day.
+        var dates: [Date] = [now]
+        if assets.count > 1 {
+            var cursor = now
+            let maxEntries = 8
+            while dates.count < maxEntries,
+                  let nextHour = cal.nextDate(after: cursor, matching: DateComponents(minute: 0, second: 0), matchingPolicy: .nextTime),
+                  nextHour < tomorrow {
+                dates.append(nextHour)
+                cursor = nextHour
+            }
+        }
+
+        var entries: [TodayEntry] = []
+        entries.reserveCapacity(dates.count)
+        for (idx, slotDate) in dates.enumerated() {
+            if let shown = Self.pickPhoto(from: assets, day: day, at: slotDate, size: context.displaySize, allowNetwork: idx == 0) {
+                entries.append(TodayEntry(date: slotDate, day: day, shown: shown))
+            }
+        }
+        if entries.isEmpty {
+            return completion(Timeline(entries: [TodayEntry(date: now, day: day, shown: .empty)], policy: .after(tomorrow)))
+        }
+        if entries.count > 1 {
+            completion(Timeline(entries: entries, policy: .atEnd))
+        } else {
+            completion(Timeline(entries: entries, policy: .after(tomorrow)))
+        }
     }
 
-    /// What to show now. Follows the app: hidden days stay hidden.
-    static func entry(size: CGSize, now: Date = Date()) -> TodayEntry {
-        let day = MonthDay.of(now)
-        func make(_ shown: TodayEntry.Shown) -> TodayEntry { TodayEntry(date: now, day: day, shown: shown) }
+    private static func canShowPhotos(on day: MonthDay) -> Bool {
         let info = WidgetInfo.read()
         let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
         // Without the app's settings the widget can't tell which days are hidden, so it shows
@@ -73,24 +112,56 @@ struct TodayProvider: TimelineProvider {
         #else
         let device = info?.device ?? false
         #endif
+        guard status == .authorized || status == .limited, device else { return false }
+        return info?.hidden.contains(day.key) != true
+    }
+
+    /// What to show now. Follows the app: hidden days stay hidden.
+    static func entry(size: CGSize, now: Date = Date(), allowNetwork: Bool = true) -> TodayEntry {
+        let day = MonthDay.of(now)
+        func make(_ shown: TodayEntry.Shown) -> TodayEntry { TodayEntry(date: now, day: day, shown: shown) }
+        let info = WidgetInfo.read()
+        let status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        #if DEBUG
+        let device = info?.device ?? true
+        #else
+        let device = info?.device ?? false
+        #endif
         guard status == .authorized || status == .limited, device else { return make(.needsApp) }
         if info?.hidden.contains(day.key) == true { return make(.empty) }
         let assets = photos(on: day, now: now)
         guard !assets.isEmpty else { return make(.empty) }
-        // A new photo each hour, in a set order through the day. Photos already on the phone
-        // come first; only if none of the next few are does it wait on one from iCloud, so the
-        // widget doesn't run out of time and stay blank.
-        let hour = Calendar.app.component(.hour, from: now)
-        let start = (Int(now.timeIntervalSince1970 / 86400) * 24 + hour) % assets.count
+        guard let shown = pickPhoto(from: assets, day: day, at: now, size: size, allowNetwork: allowNetwork) else {
+            return make(.empty)
+        }
+        return make(shown)
+    }
+
+    private static func photoStartIndex(for date: Date, count: Int) -> Int {
+        guard count > 0 else { return 0 }
+        let cal = Calendar.app
+        let year = cal.component(.year, from: date)
+        let ordinal = cal.ordinality(of: .day, in: .year, for: date) ?? 1
+        let hour = cal.component(.hour, from: date)
+        let slot = ((year * 366) + (ordinal - 1)) * 24 + hour
+        return ((slot % count) + count) % count
+    }
+
+    private static func pickPhoto(from assets: [PHAsset], day: MonthDay, at date: Date, size: CGSize, allowNetwork: Bool) -> TodayEntry.Shown? {
+        guard !assets.isEmpty else { return nil }
+        // A new photo each hour, in a set local-time order through the day. Photos already on the
+        // phone come first; only if none of the next few are does it try one from iCloud.
+        let start = photoStartIndex(for: date, count: assets.count)
         let next = (0..<min(5, assets.count)).map { assets[(start + $0) % assets.count] }
-        for network in [false, true] {
+        let passes = allowNetwork ? [false, true] : [false]
+        for network in passes {
             for asset in network ? Array(next.prefix(1)) : next {
                 guard let time = asset.creationDate, let image = image(asset, size: size, network: network) else { continue }
                 let year = yearOf(time)
-                return make(.photo(image, year: year, date: fullDate(year: year, day)))
+                return .photo(image, year: year, date: fullDate(year: year, day))
             }
         }
-        return make(.empty)
+        return nil
     }
 
     /// Photos taken on this day in past years, oldest first. This year's never count, as on Today.
@@ -99,11 +170,12 @@ struct TodayProvider: TimelineProvider {
         options.includeAssetSourceTypes = [.typeUserLibrary, .typeCloudShared, .typeiTunesSynced]
         let first = PHFetchOptions()
         first.includeAssetSourceTypes = options.includeAssetSourceTypes
+        first.predicate = NSPredicate(format: "creationDate != nil")
         first.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: true)]
         first.fetchLimit = 1
         guard let oldest = PHAsset.fetchAssets(with: .image, options: first).firstObject?.creationDate else { return [] }
         let thisYear = yearOf(now)
-        let from = yearOf(oldest)
+        let from = max(yearOf(oldest), 1970)
         guard from < thisYear else { return [] }
         let ranges = (from..<thisYear).compactMap { dayRange(year: $0, day) }
         guard !ranges.isEmpty else { return [] }
@@ -118,21 +190,44 @@ struct TodayProvider: TimelineProvider {
         return out
     }
 
-    /// The photo filled to the widget's size, at twice its points. Widgets can't hold large pictures.
+    /// The photo center-cropped and redrawn to exact widget pixels so wide panoramas never exceed
+    /// WidgetKit's archival image size limit.
     private static func image(_ asset: PHAsset, size: CGSize, network: Bool) -> UIImage? {
         let o = PHImageRequestOptions()
         o.isSynchronous = true
         o.deliveryMode = .highQualityFormat
         o.resizeMode = .fast
         o.isNetworkAccessAllowed = network
-        let side = max(size.width, size.height, 160)
-        let scale = min(2, 800 / side)
-        let target = CGSize(width: max(size.width, 160) * scale, height: max(size.height, 160) * scale)
+        let w = max(size.width, 160)
+        let h = max(size.height, 160)
+        let scale = min(2, 800 / max(w, h))
+        let target = CGSize(width: floor(w * scale), height: floor(h * scale))
         var out: UIImage?
         PHImageManager.default().requestImage(for: asset, targetSize: target, contentMode: .aspectFill, options: o) { image, _ in
             out = image
         }
-        return out
+        guard let raw = out else { return nil }
+        return cropToTarget(raw, target: target)
+    }
+
+    private static func cropToTarget(_ image: UIImage, target: CGSize) -> UIImage {
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        format.opaque = true
+        return UIGraphicsImageRenderer(size: target, format: format).image { _ in
+            let imgSize = image.size
+            guard imgSize.width > 0, imgSize.height > 0 else { return }
+            let fillScale = max(target.width / imgSize.width, target.height / imgSize.height)
+            let drawW = imgSize.width * fillScale
+            let drawH = imgSize.height * fillScale
+            let rect = CGRect(
+                x: (target.width - drawW) / 2,
+                y: (target.height - drawH) / 2,
+                width: drawW,
+                height: drawH
+            )
+            image.draw(in: rect)
+        }
     }
 }
 
@@ -194,7 +289,7 @@ struct TodayWidgetView: View {
     private func caption(_ year: Int) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(L.num(year)).font(.system(size: 28, weight: .black, design: .rounded))
-            Text(agoLabel(year)).font(.system(size: 13, weight: .semibold, design: .rounded)).opacity(0.9).lineLimit(1)
+            Text(agoLabel(year, thisYear: yearOf(entry.date))).font(.system(size: 13, weight: .semibold, design: .rounded)).opacity(0.9).lineLimit(1)
         }
         .foregroundStyle(.white)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)

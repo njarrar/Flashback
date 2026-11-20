@@ -7,6 +7,7 @@ import android.graphics.BitmapShader
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.LinearGradient
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.PorterDuff
@@ -20,6 +21,7 @@ import com.njarrar.backthen.R
 import com.njarrar.backthen.core.L
 import com.njarrar.backthen.core.Photo
 import com.njarrar.backthen.core.ReelLook
+import com.njarrar.backthen.core.ReelMove
 import com.njarrar.backthen.core.ReelOptions
 import com.njarrar.backthen.core.ReelPlan
 import com.njarrar.backthen.core.agoLabel
@@ -43,6 +45,9 @@ class ReelCard(photo: Photo, now: LocalDate = LocalDate.now()) {
     val ago: String = agoLabel(day.year, now.year)
     val short: String = formatDate(day, "yMMMd")
     val film: String = filmStamp(photo.time)
+    val bigSubtitle: String = "${bidiIsolate(date)} · ${bidiIsolate(ago)}"
+    val cleanFirst: String = bidiIsolate(short)
+    val cleanSecond: String = bidiIsolate(ago)
 }
 
 /** The app font, as plain Android typefaces for drawing on a canvas. */
@@ -60,7 +65,8 @@ class ReelFonts(private val ctx: Context) {
 
 /**
  * Draws one frame of a reel on a canvas. The editor uses it for the live preview, and
- * ReelExport for every frame of the video.
+ * ReelExport for every frame of the video. Pre-allocates geometry, shaders, and xfermodes
+ * so [draw] executes with zero per-frame allocations at 30–120fps.
  */
 class ReelRenderer(
     photos: List<Photo>,
@@ -85,9 +91,34 @@ class ReelRenderer(
     /** Photo `i` at full size for this frame, or null to use its small copy. */
     @Volatile var image: (Int) -> Bitmap? = { null }
 
+    // Pre-allocated drawing state to avoid per-frame GC pauses during preview and MP4 encoding.
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
     private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val path = Path()
+    private val bgRect = RectF()
+    private val cardRect = RectF()
+    private val picRect = RectF()
+    private val outroRect = RectF()
+    private val photoRect = RectF()
+    private val cleanRect = RectF()
+    private val coverDst = RectF()
+    private val noiseMatrix = Matrix()
+    private val multiplyMode = PorterDuffXfermode(PorterDuff.Mode.MULTIPLY)
+    private val overlayMode = PorterDuffXfermode(PorterDuff.Mode.OVERLAY)
+    private val noiseShader = BitmapShader(NOISE, Shader.TileMode.REPEAT, Shader.TileMode.REPEAT)
+
+    // Cached gradients re-created only when viewport/photo geometry changes.
+    private var cachedBigTop = Float.NaN
+    private var cachedBigBottom = Float.NaN
+    private var cachedBigGradient: LinearGradient? = null
+
+    private var cachedVigCx = Float.NaN
+    private var cachedVigCy = Float.NaN
+    private var cachedVigRadius = Float.NaN
+    private var cachedVigStop = Float.NaN
+    private var cachedVignette: RadialGradient? = null
+    private val vignetteColors = intArrayOf(Color.TRANSPARENT, Color.TRANSPARENT, Color.argb(97, 0, 0, 0))
+    private val vignetteStops = floatArrayOf(0f, 0.5f, 1f)
 
     init {
         val shown = photos.take(ReelPlan.MAX_PHOTOS)
@@ -112,25 +143,25 @@ class ReelRenderer(
         val ta = t - a.start
         val tb = t - b.start
         when (plan.move) {
-            com.njarrar.backthen.core.ReelMove.SLIDE -> {
+            ReelMove.SLIDE -> {
                 // Photos come in from the side the reading goes toward.
                 val dir = if (rtl) -1f else 1f
                 c.save(); c.translate(-e * w * dir, 0f); item(c, w, h, a, ta); c.restore()
                 c.save(); c.translate((1 - e) * w * dir, 0f); item(c, w, h, b, tb); c.restore()
             }
-            com.njarrar.backthen.core.ReelMove.ZOOM -> {
+            ReelMove.ZOOM -> {
                 item(c, w, h, b, tb)
                 layer(c, w, h, 1 - e) {
                     c.scale(1 + 0.22f * e, 1 + 0.22f * e, w / 2, h / 2)
                     item(c, w, h, a, ta)
                 }
             }
-            com.njarrar.backthen.core.ReelMove.FLASH -> {
+            ReelMove.FLASH -> {
                 if (p < 0.5) item(c, w, h, a, ta) else item(c, w, h, b, tb)
                 val white = (1 - abs(2 * p - 1)).pow(1.4) * 0.96
                 c.drawColor(Color.argb((white * 255).toInt(), 255, 255, 255))
             }
-            com.njarrar.backthen.core.ReelMove.FADE -> {
+            ReelMove.FADE -> {
                 item(c, w, h, a, ta)
                 layer(c, w, h, e) { item(c, w, h, b, tb) }
             }
@@ -161,7 +192,10 @@ class ReelRenderer(
 
     private fun background(c: Canvas, w: Float, h: Float, i: Int, dark: Float) {
         c.drawColor(INK)
-        blurred.getOrNull(i)?.let { cover(c, it, RectF(0f, 0f, w, h), 1.15f) }
+        blurred.getOrNull(i)?.takeIf { !it.isRecycled }?.let {
+            bgRect.set(0f, 0f, w, h)
+            cover(c, it, bgRect, 1.15f)
+        }
         c.drawColor(Color.argb((dark * 255).toInt(), 13, 13, 14))
     }
 
@@ -173,25 +207,26 @@ class ReelRenderer(
         val cy = h * if (tall) 0.36f else 0.34f
         val pw = w * if (tall) 0.34f else 0.28f
         val ph = pw * 1.18f
-        val fan = (0 until min(3, small.size)).reversed().toList()
-        val n = fan.size.toFloat()
-        fan.forEachIndexed { j, i ->
-            val img = image(i) ?: small[i] ?: return@forEachIndexed
+        val count = min(3, small.size)
+        val n = count.toFloat()
+        for (j in 0 until count) {
+            val i = count - 1 - j
+            val img = (image(i) ?: small.getOrNull(i))?.takeIf { !it.isRecycled } ?: continue
             val k = j - (n - 1) / 2
             layer(c, w, h, min(u * 3, 1.0).toFloat()) {
                 c.translate(cx + k * pw * 0.42f * a, cy + abs(k) * w * 0.012f)
                 c.rotate(k * 9 * a)
-                val card = RectF(-pw / 2, -ph / 2, pw / 2, ph / 2)
+                cardRect.set(-pw / 2, -ph / 2, pw / 2, ph / 2)
                 paint.reset(); paint.isAntiAlias = true
                 paint.color = PAPER
                 paint.setShadowLayer(w * 0.02f, 0f, w * 0.012f, Color.argb(115, 0, 0, 0))
-                c.drawRoundRect(card, w * 0.012f, w * 0.012f, paint)
+                c.drawRoundRect(cardRect, w * 0.012f, w * 0.012f, paint)
                 paint.clearShadowLayer()
                 val m = pw * 0.06f
-                val pic = RectF(card.left + m, card.top + m, card.right - m, card.top + pw - m)
+                picRect.set(cardRect.left + m, cardRect.top + m, cardRect.right - m, cardRect.top + pw - m)
                 c.save()
-                path.reset(); path.addRoundRect(pic, w * 0.006f, w * 0.006f, Path.Direction.CW); c.clipPath(path)
-                cover(c, img, pic)
+                path.reset(); path.addRoundRect(picRect, w * 0.006f, w * 0.006f, Path.Direction.CW); c.clipPath(path)
+                cover(c, img, picRect)
                 c.restore()
             }
         }
@@ -219,16 +254,16 @@ class ReelRenderer(
             val s = w * 0.24f
             val cx = w / 2
             val cy = h * 0.44f
-            val r = RectF(cx - s / 2, cy - s / 2, cx + s / 2, cy + s / 2)
+            outroRect.set(cx - s / 2, cy - s / 2, cx + s / 2, cy + s / 2)
             paint.reset(); paint.isAntiAlias = true; paint.color = Color.WHITE
             paint.setShadowLayer(w * 0.025f, 0f, w * 0.015f, Color.argb(102, 0, 0, 0))
-            c.drawRoundRect(r, s * 0.23f, s * 0.23f, paint)
+            c.drawRoundRect(outroRect, s * 0.23f, s * 0.23f, paint)
             paint.clearShadowLayer()
-            fonts.icon?.let { icon ->
+            fonts.icon?.takeIf { !it.isRecycled }?.let { icon ->
                 c.save()
-                path.reset(); path.addRoundRect(r, s * 0.23f, s * 0.23f, Path.Direction.CW); c.clipPath(path)
+                path.reset(); path.addRoundRect(outroRect, s * 0.23f, s * 0.23f, Path.Direction.CW); c.clipPath(path)
                 paint.isFilterBitmap = true
-                c.drawBitmap(icon, null, r, paint)
+                c.drawBitmap(icon, null, outroRect, paint)
                 c.restore()
             }
             val fs = w * 0.07f
@@ -239,17 +274,16 @@ class ReelRenderer(
     }
 
     private fun photo(c: Canvas, w: Float, h: Float, i: Int, lt: Double, u: Double) {
-        val img = image(i) ?: small.getOrNull(i)
+        val img = (image(i) ?: small.getOrNull(i))?.takeIf { !it.isRecycled }
         if (img == null) { background(c, w, h, i, 0.45f); return }
         val kb = if (reduceMotion) 0.5f else u.toFloat()
         val dir = if (i % 2 == 1) 1f else -1f
         val tall = w / h < 0.7f
-        val r: RectF
         var radius = 0f
         if (options.fill) {
             c.drawColor(INK)
-            r = RectF(0f, 0f, w, h)
-            cover(c, img, r, 1.05f + 0.07f * kb, dir * (kb - 0.5f) * 0.7f)
+            photoRect.set(0f, 0f, w, h)
+            cover(c, img, photoRect, 1.05f + 0.07f * kb, dir * (kb - 0.5f) * 0.7f)
         } else {
             background(c, w, h, i, 0.45f)
             val iw = max(img.width, 1).toFloat()
@@ -258,24 +292,24 @@ class ReelRenderer(
             val pw = iw * s
             val ph = ih * s
             val cy = h * if (tall) 0.39f else 0.44f
-            r = RectF((w - pw) / 2, cy - ph / 2, (w + pw) / 2, cy + ph / 2)
+            photoRect.set((w - pw) / 2, cy - ph / 2, (w + pw) / 2, cy + ph / 2)
             radius = w * 0.028f
             paint.reset(); paint.isAntiAlias = true; paint.color = Color.BLACK
             paint.setShadowLayer(w * 0.03f, 0f, w * 0.02f, Color.argb(128, 0, 0, 0))
-            c.drawRoundRect(r, radius, radius, paint)
+            c.drawRoundRect(photoRect, radius, radius, paint)
             paint.clearShadowLayer()
             c.save()
-            path.reset(); path.addRoundRect(r, radius, radius, Path.Direction.CW); c.clipPath(path)
-            cover(c, img, r, 1.02f + 0.06f * kb, dir * (kb - 0.5f) * 0.5f)
+            path.reset(); path.addRoundRect(photoRect, radius, radius, Path.Direction.CW); c.clipPath(path)
+            cover(c, img, photoRect, 1.02f + 0.06f * kb, dir * (kb - 0.5f) * 0.5f)
             c.restore()
         }
         val a = if (reduceMotion) ((lt - 0.1) / 0.3).coerceIn(0.0, 1.0).toFloat()
         else reelEase(((lt - 0.2) / 0.55).coerceIn(0.0, 1.0)).toFloat()
         val card = cards.getOrNull(i) ?: return
         when (options.look) {
-            ReelLook.YEAR -> bigYear(c, w, h, r, radius, card, a)
-            ReelLook.FILM -> film(c, w, h, r, radius, card, a)
-            ReelLook.CLEAN -> clean(c, w, h, r, card, a)
+            ReelLook.YEAR -> bigYear(c, w, h, photoRect, radius, card, a)
+            ReelLook.FILM -> film(c, w, h, photoRect, radius, card, a)
+            ReelLook.CLEAN -> clean(c, w, h, photoRect, card, a)
         }
     }
 
@@ -299,8 +333,13 @@ class ReelRenderer(
             c.save()
             if (radius > 0) { path.reset(); path.addRoundRect(r, radius, radius, Path.Direction.CW); c.clipPath(path) }
             val top = bottom - ys * 2.2f
+            if (cachedBigGradient == null || cachedBigTop != top || cachedBigBottom != r.bottom) {
+                cachedBigTop = top
+                cachedBigBottom = r.bottom
+                cachedBigGradient = LinearGradient(0f, top, 0f, r.bottom, Color.TRANSPARENT, Color.argb(153, 0, 0, 0), Shader.TileMode.CLAMP)
+            }
             paint.reset()
-            paint.shader = LinearGradient(0f, top, 0f, r.bottom, Color.TRANSPARENT, Color.argb(153, 0, 0, 0), Shader.TileMode.CLAMP)
+            paint.shader = cachedBigGradient
             c.drawRect(r.left, top, r.right, r.bottom, paint)
             paint.shader = null
             c.restore()
@@ -318,7 +357,7 @@ class ReelRenderer(
             text(fonts.bold, ds, Color.argb(230, 255, 255, 255))
             textPaint.textAlign = align
             textPaint.setShadowLayer(w * 0.02f, 0f, 0f, Color.argb(64, 0, 0, 0))
-            c.drawText("${card.date} · ${card.ago}", x, baseline + ds * 1.55f, textPaint)
+            c.drawText(card.bigSubtitle, x, baseline + ds * 1.55f, textPaint)
             textPaint.clearShadowLayer()
         }
     }
@@ -326,30 +365,37 @@ class ReelRenderer(
     private fun clean(c: Canvas, w: Float, h: Float, r: RectF, card: ReelCard, a: Float) {
         val fs = w * 0.037f
         val pad = w * 0.04f
-        val first = card.short
-        val second = "  ·  ${card.ago}"
+        val first = card.cleanFirst
+        val sep = "  ·  "
+        val second = card.cleanSecond
         text(fonts.heavy, fs, Color.WHITE)
         val w1 = textPaint.measureText(first)
         text(fonts.semibold, fs, Color.WHITE)
+        val wSep = textPaint.measureText(sep)
         val w2 = textPaint.measureText(second)
         val ph = fs * 2.1f
-        val pw = min(w1 + w2 + fs * 1.6f, r.width() - pad * 2)
+        val pw = min(w1 + wSep + w2 + fs * 1.6f, r.width() - pad * 2)
         val y = max(r.top + pad, if (options.fill) h * 0.1f else 0f)
         val x = if (rtl) r.right - pad - pw else r.left + pad
         layer(c, w, h, a) {
             paint.reset(); paint.isAntiAlias = true; paint.color = Color.argb(107, 0, 0, 0)
-            c.drawRoundRect(RectF(x, y, x + pw, y + ph), ph / 2, ph / 2, paint)
+            cleanRect.set(x, y, x + pw, y + ph)
+            c.drawRoundRect(cleanRect, ph / 2, ph / 2, paint)
             c.save()
             c.clipRect(x + fs * 0.8f, y, x + pw - fs * 0.8f, y + ph)
             val base = y + ph / 2 + fs * 0.35f
-            // Date first in reading order: on the left, or on the right in a right to left language.
-            text(fonts.heavy, fs, Color.WHITE)
-            textPaint.textAlign = if (rtl) Paint.Align.RIGHT else Paint.Align.LEFT
+            val align = if (rtl) Paint.Align.RIGHT else Paint.Align.LEFT
             val start = if (rtl) x + pw - fs * 0.8f else x + fs * 0.8f
+            // Draw date, separator, and relative age as three explicit spans so RTL never moves the dot.
+            text(fonts.heavy, fs, Color.WHITE)
+            textPaint.textAlign = align
             c.drawText(first, start, base, textPaint)
             text(fonts.semibold, fs, Color.argb(209, 255, 255, 255))
-            textPaint.textAlign = if (rtl) Paint.Align.RIGHT else Paint.Align.LEFT
-            c.drawText(second, if (rtl) start - w1 else start + w1, base, textPaint)
+            textPaint.textAlign = align
+            val sepX = if (rtl) start - w1 else start + w1
+            c.drawText(sep, sepX, base, textPaint)
+            val secondX = if (rtl) start - w1 - wSep else start + w1 + wSep
+            c.drawText(second, secondX, base, textPaint)
             c.restore()
         }
     }
@@ -360,26 +406,32 @@ class ReelRenderer(
         if (radius > 0) { path.reset(); path.addRoundRect(r, radius, radius, Path.Direction.CW); c.clipPath(path) } else c.clipRect(r)
         paint.reset()
         paint.color = Color.rgb(255, 236, 212)
-        paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.MULTIPLY)
+        paint.xfermode = multiplyMode
         c.drawRect(r, paint)
         paint.xfermode = null
-        paint.shader = RadialGradient(
-            r.centerX(), r.centerY(), max(1f, hypot(r.width(), r.height()) * 0.62f),
-            intArrayOf(Color.TRANSPARENT, Color.TRANSPARENT, Color.argb(97, 0, 0, 0)),
-            floatArrayOf(0f, min(r.width(), r.height()) * 0.35f / max(1f, hypot(r.width(), r.height()) * 0.62f), 1f),
-            Shader.TileMode.CLAMP,
-        )
+        val vigCx = r.centerX()
+        val vigCy = r.centerY()
+        val vigRadius = max(1f, hypot(r.width(), r.height()) * 0.62f)
+        val vigStop = (min(r.width(), r.height()) * 0.35f / vigRadius).coerceIn(0f, 1f)
+        if (cachedVignette == null || cachedVigCx != vigCx || cachedVigCy != vigCy || cachedVigRadius != vigRadius || cachedVigStop != vigStop) {
+            cachedVigCx = vigCx
+            cachedVigCy = vigCy
+            cachedVigRadius = vigRadius
+            cachedVigStop = vigStop
+            vignetteStops[1] = vigStop
+            cachedVignette = RadialGradient(vigCx, vigCy, vigRadius, vignetteColors, vignetteStops, Shader.TileMode.CLAMP)
+        }
+        paint.shader = cachedVignette
         c.drawRect(r, paint)
         paint.shader = null
         val tile = 128 * max(1f, w / 540f)
-        val shader = BitmapShader(NOISE, Shader.TileMode.REPEAT, Shader.TileMode.REPEAT)
-        shader.setLocalMatrix(android.graphics.Matrix().apply {
-            setScale(tile / 128, tile / 128)
-            postTranslate(-Random.nextFloat() * tile, -Random.nextFloat() * tile)
-        })
-        paint.shader = shader
+        noiseMatrix.reset()
+        noiseMatrix.setScale(tile / 128f, tile / 128f)
+        noiseMatrix.postTranslate(-Random.nextFloat() * tile, -Random.nextFloat() * tile)
+        noiseShader.setLocalMatrix(noiseMatrix)
+        paint.shader = noiseShader
         paint.alpha = 18
-        paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.OVERLAY)
+        paint.xfermode = overlayMode
         c.drawRect(r, paint)
         paint.reset()
         c.restore()
@@ -413,9 +465,10 @@ class ReelRenderer(
         return x - h * 0.32f
     }
 
-    /** Digits drawn as seven bars each, like a camera's date display. */
+    /** Digits drawn as seven bars each, like a camera's date display, using zero heap allocations. */
     private fun seven(c: Canvas, s: String, x0: Float, y: Float, h: Float) {
         val w = h * 0.52f
+        val halfH = h * 0.5f
         val th = h * 0.13f
         val gap = th * 0.55f
         val adv = w + h * 0.32f
@@ -424,21 +477,29 @@ class ReelRenderer(
             if (ch == ' ') { x += adv * 0.8f; continue }
             if (ch == '\'') {
                 c.drawLine(x + th, y - h * 0.05f, x + th * 0.6f, y + h * 0.22f, paint)
-                x += h * 0.32f; continue
+                x += h * 0.32f
+                continue
             }
-            for (seg in SEGMENTS[ch] ?: "") {
-                val (x1, y1, x2, y2) = when (seg) {
-                    'a' -> floatArrayOf(0f, 0f, w, 0f)
-                    'b' -> floatArrayOf(w, 0f, w, h / 2)
-                    'c' -> floatArrayOf(w, h / 2, w, h)
-                    'd' -> floatArrayOf(0f, h, w, h)
-                    'e' -> floatArrayOf(0f, h / 2, 0f, h)
-                    'f' -> floatArrayOf(0f, 0f, 0f, h / 2)
-                    else -> floatArrayOf(0f, h / 2, w, h / 2)
+            val segs = SEGMENTS[ch] ?: ""
+            for (seg in segs) {
+                var x1 = 0f
+                var y1 = 0f
+                var x2 = 0f
+                var y2 = 0f
+                when (seg) {
+                    'a' -> { x1 = 0f; y1 = 0f; x2 = w; y2 = 0f }
+                    'b' -> { x1 = w; y1 = 0f; x2 = w; y2 = halfH }
+                    'c' -> { x1 = w; y1 = halfH; x2 = w; y2 = h }
+                    'd' -> { x1 = 0f; y1 = h; x2 = w; y2 = h }
+                    'e' -> { x1 = 0f; y1 = halfH; x2 = 0f; y2 = h }
+                    'f' -> { x1 = 0f; y1 = 0f; x2 = 0f; y2 = halfH }
+                    else -> { x1 = 0f; y1 = halfH; x2 = w; y2 = halfH }
                 }
-                val len = max(hypot(x2 - x1, y2 - y1), 0.001f)
-                val ux = (x2 - x1) / len * gap
-                val uy = (y2 - y1) / len * gap
+                val dx = x2 - x1
+                val dy = y2 - y1
+                val len = max(hypot(dx, dy), 0.001f)
+                val ux = dx / len * gap
+                val uy = dy / len * gap
                 c.drawLine(x + x1 + ux, y + y1 + uy, x + x2 - ux, y + y2 - uy, paint)
             }
             x += adv
@@ -469,7 +530,8 @@ class ReelRenderer(
         paint.reset()
         paint.isFilterBitmap = true
         paint.isAntiAlias = true
-        c.drawBitmap(img, null, RectF(left, top, left + dw, top + dh), paint)
+        coverDst.set(left, top, left + dw, top + dh)
+        c.drawBitmap(img, null, coverDst, paint)
     }
 
     companion object {

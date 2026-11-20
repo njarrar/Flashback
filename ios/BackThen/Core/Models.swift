@@ -1,6 +1,6 @@
 import Foundation
 
-enum PhotoSource: String, Codable {
+enum PhotoSource: String, Codable, Sendable {
     /// The phone's Photos library.
     case device
     /// A JPEG in app storage. Only the debug screenshots use these (see Demo.swift).
@@ -10,11 +10,15 @@ enum PhotoSource: String, Codable {
 /// Where the screenshot workflow drops sample JPEGs.
 enum SamplePhotos {
     static let folder = URL.applicationSupportDirectory.appending(path: "samples")
-    static func fileURL(_ name: String) -> URL { folder.appending(path: name) }
+    static func fileURL(_ name: String) -> URL {
+        let clean = URL(fileURLWithPath: name).lastPathComponent
+        let safe = (clean.isEmpty || clean == "." || clean == "..") ? "invalid" : clean
+        return folder.appending(path: safe)
+    }
 }
 
 /// One photo from the phone's library.
-struct Photo: Codable, Hashable, Identifiable {
+struct Photo: Codable, Hashable, Identifiable, Sendable {
     /// Stable key, prefixed by source: "d:<localIdentifier>" or "s:<file name>".
     let key: String
     let source: PhotoSource
@@ -28,7 +32,7 @@ struct Photo: Codable, Hashable, Identifiable {
     var id: String { key }
 }
 
-struct Album: Codable, Hashable, Identifiable {
+struct Album: Codable, Hashable, Identifiable, Sendable {
     let id: String
     var name: String
     var photos: [Photo]
@@ -63,10 +67,35 @@ struct Lossy<T: Decodable>: Decodable {
         items = out
     }
 
-    private struct Skip: Decodable {}
+    private struct Skip: Decodable {
+        init(from decoder: Decoder) throws {
+            if let single = try? decoder.singleValueContainer() {
+                if single.decodeNil() { return }
+                if (try? single.decode(Bool.self)) != nil { return }
+                if (try? single.decode(Int64.self)) != nil { return }
+                if (try? single.decode(Double.self)) != nil { return }
+                if (try? single.decode(String.self)) != nil { return }
+            }
+            if var arr = try? decoder.unkeyedContainer() {
+                while !arr.isAtEnd { _ = try arr.decode(Skip.self) }
+                return
+            }
+            if let obj = try? decoder.container(keyedBy: AnyKey.self) {
+                for key in obj.allKeys { _ = try obj.decode(Skip.self, forKey: key) }
+                return
+            }
+        }
+
+        private struct AnyKey: CodingKey {
+            let stringValue: String
+            let intValue: Int?
+            init?(stringValue: String) { self.stringValue = stringValue; self.intValue = nil }
+            init?(intValue: Int) { self.stringValue = "\(intValue)"; self.intValue = intValue }
+        }
+    }
 }
 
-struct YearGroup: Identifiable {
+struct YearGroup: Identifiable, Sendable {
     let year: Int
     let photos: [Photo]
     var id: Int { year }

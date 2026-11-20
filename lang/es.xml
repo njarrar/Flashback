@@ -102,7 +102,7 @@
     <string name="selected">Seleccionada</string>
     <string name="not_selected">Sin seleccionar</string>
     <string name="select_hint">Toca las fotos para elegirlas</string>
-    <string name="n_selected">Seleccionadas: {photos}</string>
+    <string name="n_selected">Selección: {photos}</string>
     <string name="album">Álbum</string>
     <string name="share_year">Compartir {year}</string>
     <string name="empty_no_sources_title">No hay fotos conectadas</string>
@@ -169,7 +169,7 @@
     <string name="hidden_dates">Fechas ocultas</string>
     <string name="show">Mostrar</string>
     <string name="day_is_hidden">{day} está oculto</string>
-    <string name="hidden_body">No aparecerá sola ni en los recordatorios.</string>
+    <string name="hidden_body">No aparecerá solo ni en los recordatorios.</string>
     <string name="show_it_again">Volver a mostrar</string>
     <string name="toast_day_hidden">{day} oculto</string>
     <string name="toast_day_shown">{day} visible de nuevo</string>
@@ -189,7 +189,7 @@
     <string name="toast_favorited">Añadida a Favoritos</string>
     <string name="toast_unfavorited">Quitada de Favoritos</string>
     <string name="toast_album_created">Álbum creado</string>
-    <string name="toast_added_to">Añadido a {name}</string>
+    <string name="toast_added_to">Se añadió a {name}</string>
     <string name="toast_new_album_hint">Toca Seleccionar, elige fotos y luego toca Álbum</string>
     <string name="toast_allow_save">Permite el acceso a las fotos para guardar</string>
     <string name="toast_saved_photos">Guardado en Fotos</string>
@@ -255,4 +255,33 @@
     </plurals>
     <string name="reel_save">Guardar</string>
     <string name="toast_reel_saved">Guardado en Movies/Flashback</string>
+
+    <!-- Accesibilidad, permisos, selección, álbumes, lugares, reels e información -->
+    <string name="open_settings">Abrir Ajustes</string>
+    <string name="limited_access">Acceso limitado</string>
+    <string name="limited_access_note">Solo se muestran las fotos que elegiste. Añade más cuando quieras.</string>
+    <string name="manage_photos">Gestionar</string>
+    <string name="select_all">Seleccionar todo</string>
+    <string name="clear_selection">Borrar</string>
+    <string name="select_year">Seleccionar año</string>
+    <string name="deselect_year">Deseleccionar</string>
+    <string name="undo">Deshacer</string>
+    <string name="photo_unavailable">Foto no disponible</string>
+    <string name="retry">Reintentar</string>
+    <string name="loading_hd">Cargando foto completa…</string>
+    <string name="remove_from_album">Quitar del álbum</string>
+    <string name="already_in_album">Ya está en {name}</string>
+    <string name="album_empty">Este álbum aún no tiene fotos.</string>
+    <string name="album_deleted">Se eliminó {name}</string>
+    <string name="home_city">Ciudad de origen</string>
+    <string name="change">Cambiar</string>
+    <string name="places_scanning">Analizando tus fotos…</string>
+    <string name="reel_reduce_motion_note">Reducir movimiento está activado: Flash usa un fundido suave.</string>
+    <string name="reel_playing">Reproduciendo</string>
+    <string name="reel_paused">En pausa</string>
+    <string name="day_upcoming">{day}, próximo</string>
+    <string name="share_failed">No se pudo abrir la hoja para compartir.</string>
+    <string name="info">Información</string>
+    <string name="show_this_day">Mostrar este día</string>
+    <string name="licenses">Licencias de código abierto</string>
 </language>

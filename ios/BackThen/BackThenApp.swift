@@ -1,6 +1,5 @@
 import SwiftUI
 import UserNotifications
-import WidgetKit
 
 @main
 struct BackThenApp: App {
@@ -28,13 +27,14 @@ struct BackThenApp: App {
                     if now == .active, store.saved.onboarded, store.saved.sources.device {
                         Task { await store.refreshIndex() }
                     }
-                    // The widget picks again, in case photos changed while the app was open.
-                    if now == .background { WidgetCenter.shared.reloadAllTimelines() }
                 }
                 // A tap on the home screen widget opens Today.
                 .onOpenURL { url in
-                    guard url.scheme == "backthen", url.host == "today" else { return }
+                    guard url.scheme == "backthen" || url.scheme == "flashback", url.host == "today" else { return }
+                    guard store.saved.onboarded else { return }
                     store.viewer = nil
+                    store.reel = nil
+                    store.openAlbumID = nil
                     store.day = .today
                     store.tab = .today
                 }
@@ -44,7 +44,15 @@ struct BackThenApp: App {
 
 /// Opens the right day when someone taps the daily reminder.
 final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
-    @MainActor var store: AppStore?
+    @MainActor var store: AppStore? {
+        didSet {
+            if let store, let pending = pendingDay {
+                pendingDay = nil
+                open(pending, in: store)
+            }
+        }
+    }
+    @MainActor private var pendingDay: MonthDay?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
         UNUserNotificationCenter.current().delegate = self
@@ -57,10 +65,25 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
 
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
         let info = response.notification.request.content.userInfo
-        guard let m = info["month"] as? Int, let d = info["day"] as? Int else { return }
+        guard let m = info["month"] as? Int,
+              let d = info["day"] as? Int,
+              let md = MonthDay(key: "\(m)-\(d)") else { return }
         await MainActor.run {
-            store?.day = MonthDay(month: m, day: d)
-            store?.tab = .today
+            if let store {
+                open(md, in: store)
+            } else {
+                pendingDay = md
+            }
         }
+    }
+
+    @MainActor
+    private func open(_ md: MonthDay, in store: AppStore) {
+        guard store.saved.onboarded else { return }
+        store.viewer = nil
+        store.reel = nil
+        store.openAlbumID = nil
+        store.day = md
+        store.tab = .today
     }
 }

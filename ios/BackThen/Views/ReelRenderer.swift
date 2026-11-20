@@ -1,3 +1,4 @@
+import CoreText
 import UIKit
 
 /// The words one photo shows in a reel, worked out once in the app's language.
@@ -46,7 +47,11 @@ final class ReelRenderer: @unchecked Sendable {
     private static let noise: CGImage? = {
         let side = 128
         var bytes = [UInt8](repeating: 0, count: side * side)
-        for i in bytes.indices { bytes[i] = UInt8.random(in: 0...255) }
+        var seed: UInt64 = 0x5EED_F11A_5BA0_C0DE
+        for i in bytes.indices {
+            seed = seed &* 6364136223846793005 &+ 1442695040888963407
+            bytes[i] = UInt8(truncatingIfNeeded: seed >> 33)
+        }
         guard let provider = CGDataProvider(data: Data(bytes) as CFData) else { return nil }
         return CGImage(width: side, height: side, bitsPerComponent: 8, bitsPerPixel: 8, bytesPerRow: side,
                        space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGBitmapInfo(rawValue: 0),
@@ -104,7 +109,7 @@ final class ReelRenderer: @unchecked Sendable {
         if let b = m.b {
             move(c, W, H, m.a, b, m.progress, time)
         } else {
-            item(c, W, H, m.a, time - m.a.start)
+            item(c, W, H, m.a, time - m.a.start, time)
         }
     }
 
@@ -115,33 +120,33 @@ final class ReelRenderer: @unchecked Sendable {
         case .slide:
             // Photos come in from the side the reading goes toward.
             let dir: CGFloat = rtl ? -1 : 1
-            c.saveGState(); c.translateBy(x: -e * W * dir, y: 0); item(c, W, H, a, ta); c.restoreGState()
-            c.saveGState(); c.translateBy(x: (1 - e) * W * dir, y: 0); item(c, W, H, b, tb); c.restoreGState()
+            c.saveGState(); c.translateBy(x: -e * W * dir, y: 0); item(c, W, H, a, ta, t); c.restoreGState()
+            c.saveGState(); c.translateBy(x: (1 - e) * W * dir, y: 0); item(c, W, H, b, tb, t); c.restoreGState()
         case .zoom:
-            item(c, W, H, b, tb)
+            item(c, W, H, b, tb, t)
             layer(c, 1 - e) {
                 c.translateBy(x: W / 2, y: H / 2); c.scaleBy(x: 1 + 0.22 * e, y: 1 + 0.22 * e); c.translateBy(x: -W / 2, y: -H / 2)
-                item(c, W, H, a, ta)
+                item(c, W, H, a, ta, t)
             }
         case .flash:
-            if p < 0.5 { item(c, W, H, a, ta) } else { item(c, W, H, b, tb) }
+            if p < 0.5 { item(c, W, H, a, ta, t) } else { item(c, W, H, b, tb, t) }
             let white = pow(1 - abs(2 * p - 1), 1.4) * 0.96
             c.setFillColor(UIColor(white: 1, alpha: white).cgColor)
             c.fill(CGRect(x: 0, y: 0, width: W, height: H))
         case .fade:
-            item(c, W, H, a, ta)
-            layer(c, e) { item(c, W, H, b, tb) }
+            item(c, W, H, a, ta, t)
+            layer(c, e) { item(c, W, H, b, tb, t) }
         }
     }
 
-    private func item(_ c: CGContext, _ W: CGFloat, _ H: CGFloat, _ it: ReelPlan.Item, _ lt: Double) {
+    private func item(_ c: CGContext, _ W: CGFloat, _ H: CGFloat, _ it: ReelPlan.Item, _ lt: Double, _ time: Double) {
         c.saveGState()
         c.clip(to: CGRect(x: 0, y: 0, width: W, height: H))
         let u = min(max(lt / it.length, 0), 1)
         switch it.kind {
         case .intro: intro(c, W, H, u)
         case .outro: outro(c, W, H, u)
-        case .photo(let i): photo(c, W, H, i, lt, u)
+        case .photo(let i): photo(c, W, H, i, lt, u, time)
         }
         c.restoreGState()
     }
@@ -200,10 +205,20 @@ final class ReelRenderer: @unchecked Sendable {
             c.translateBy(x: 0, y: (1 - ta) * W * 0.03)
             let ts = W * 0.115
             var title = text(introTitle, font(.black, ts), .white, kern: -0.03 * ts)
-            if title.size().width > W * 0.9 { title = text(introTitle, font(.black, ts * W * 0.9 / title.size().width), .white) }
+            if title.size().width > W * 0.9 {
+                let scaled = ts * W * 0.9 / max(title.size().width, 1)
+                title = text(introTitle, font(.black, scaled), .white, kern: -0.03 * scaled)
+            }
             let ty = cy + pw * 0.75 + ts * 1.15
             drawCentered(title, cx, baseline: ty)
-            drawCentered(text(introSubtitle, font(.bold, W * 0.045), UIColor(white: 1, alpha: 0.82)), cx, baseline: ty + W * 0.075)
+
+            let subSize = W * 0.045
+            var subtitle = text(introSubtitle, font(.bold, subSize), UIColor(white: 1, alpha: 0.82))
+            if subtitle.size().width > W * 0.9 {
+                let scaled = subSize * W * 0.9 / max(subtitle.size().width, 1)
+                subtitle = text(introSubtitle, font(.bold, scaled), UIColor(white: 1, alpha: 0.82))
+            }
+            drawCentered(subtitle, cx, baseline: ty + W * 0.075)
         }
     }
 
@@ -226,11 +241,16 @@ final class ReelRenderer: @unchecked Sendable {
                 c.restoreGState()
             }
             let fs = W * 0.07
-            drawCentered(text(appName, font(.black, fs), .white, kern: -0.03 * fs), cx, baseline: cy + s / 2 + fs * 1.4)
+            var appTitle = text(appName, font(.black, fs), .white, kern: -0.03 * fs)
+            if appTitle.size().width > W * 0.9 {
+                let scaled = fs * W * 0.9 / max(appTitle.size().width, 1)
+                appTitle = text(appName, font(.black, scaled), .white, kern: -0.03 * scaled)
+            }
+            drawCentered(appTitle, cx, baseline: cy + s / 2 + fs * 1.4)
         }
     }
 
-    private func photo(_ c: CGContext, _ W: CGFloat, _ H: CGFloat, _ i: Int, _ lt: Double, _ u: Double) {
+    private func photo(_ c: CGContext, _ W: CGFloat, _ H: CGFloat, _ i: Int, _ lt: Double, _ u: Double, _ time: Double) {
         guard let img = image(i) ?? (i < small.count ? small[i] : nil) else {
             background(c, W, H, i, dark: 0.45)
             return
@@ -266,7 +286,7 @@ final class ReelRenderer: @unchecked Sendable {
         guard i < cards.count else { return }
         switch options.look {
         case .year: bigYear(c, W, H, R, radius, cards[i], a)
-        case .film: film(c, W, H, R, radius, cards[i], a)
+        case .film: film(c, W, H, R, radius, cards[i], a, time)
         case .clean: clean(c, W, H, R, cards[i], a)
         }
     }
@@ -278,8 +298,6 @@ final class ReelRenderer: @unchecked Sendable {
 
     private func bigYear(_ c: CGContext, _ W: CGFloat, _ H: CGFloat, _ R: CGRect, _ radius: CGFloat, _ card: ReelCard, _ a: CGFloat) {
         let ys = W * 0.2, ds = W * 0.046, pad = W * 0.065
-        let yearText = text(card.year, font(.black, ys), .white, kern: -0.035 * ys)
-        let line = text("\(card.date) · \(card.ago)", font(.bold, ds), UIColor(white: 1, alpha: 0.9))
         let below = !options.fill && H * 0.8 - R.maxY > ys * 1.1 + ds * 1.6
         var left: CGFloat, right: CGFloat, baseline: CGFloat
         if below {
@@ -298,6 +316,18 @@ final class ReelRenderer: @unchecked Sendable {
             left = R.minX + pad; right = R.maxX - pad
             baseline = bottom - pad - ds * 1.7
         }
+        let maxW = max(right - left, W * 0.4)
+        var yearText = text(card.year, font(.black, ys), .white, kern: -0.035 * ys)
+        if yearText.size().width > maxW {
+            let scaled = ys * maxW / max(yearText.size().width, 1)
+            yearText = text(card.year, font(.black, scaled), .white, kern: -0.035 * scaled)
+        }
+        let rawLine = "\(card.date) · \(card.ago)"
+        var line = text(rawLine, font(.bold, ds), UIColor(white: 1, alpha: 0.9))
+        if line.size().width > maxW {
+            let scaled = ds * maxW / max(line.size().width, 1)
+            line = text(rawLine, font(.bold, scaled), UIColor(white: 1, alpha: 0.9))
+        }
         layer(c, a) {
             c.translateBy(x: 0, y: (1 - a) * W * 0.035)
             c.setShadow(offset: .zero, blur: W * 0.02, color: UIColor(white: 0, alpha: 0.25).cgColor)
@@ -311,19 +341,19 @@ final class ReelRenderer: @unchecked Sendable {
         let label = NSMutableAttributedString(attributedString: text(card.short, font(.heavy, fs), .white))
         label.append(text("  ·  \(card.ago)", font(.semibold, fs), UIColor(white: 1, alpha: 0.82)))
         let size = label.size()
-        let h = fs * 2.1, w = min(size.width + fs * 1.6, R.width - pad * 2)
+        let h = fs * 2.1, w = min(size.width + fs * 1.6, max(R.width - pad * 2, fs * 3))
         let y = max(R.minY + pad, options.fill ? H * 0.1 : 0)
         let x = rtl ? R.maxX - pad - w : R.minX + pad
         layer(c, a) {
             c.setFillColor(UIColor(white: 0, alpha: 0.42).cgColor)
             c.addPath(UIBezierPath(roundedRect: CGRect(x: x, y: y, width: w, height: h), cornerRadius: h / 2).cgPath); c.fillPath()
-            label.draw(with: CGRect(x: x + fs * 0.8, y: y + (h - size.height) / 2, width: w - fs * 1.6, height: size.height),
+            label.draw(with: CGRect(x: x + fs * 0.8, y: y + (h - size.height) / 2, width: max(w - fs * 1.6, 1), height: size.height),
                        options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], context: nil)
         }
     }
 
-    private func film(_ c: CGContext, _ W: CGFloat, _ H: CGFloat, _ R: CGRect, _ radius: CGFloat, _ card: ReelCard, _ a: CGFloat) {
-        // A warm tint, a dark edge and a little grain, like a print from film.
+    private func film(_ c: CGContext, _ W: CGFloat, _ H: CGFloat, _ R: CGRect, _ radius: CGFloat, _ card: ReelCard, _ a: CGFloat, _ time: Double) {
+        // A warm tint, a dark edge and deterministic grain, like a print from film.
         c.saveGState()
         if radius > 0 { c.addPath(UIBezierPath(roundedRect: R, cornerRadius: radius).cgPath); c.clip() } else { c.clip(to: R) }
         c.setBlendMode(.multiply)
@@ -340,13 +370,24 @@ final class ReelRenderer: @unchecked Sendable {
             c.setAlpha(0.07)
             c.setBlendMode(.overlay)
             let tile = 128 * max(1, W / 540)
-            c.translateBy(x: -CGFloat.random(in: 0..<tile), y: -CGFloat.random(in: 0..<tile))
+            // Deterministic offset keyed by frame index keeps paused frames completely steady.
+            let frameIdx = max(0, Int((time * 15).rounded(.down)))
+            let tileInt = max(Int(tile), 1)
+            let ox = CGFloat((frameIdx &* 73 &+ 19) % tileInt)
+            let oy = CGFloat((frameIdx &* 137 &+ 43) % tileInt)
+            c.translateBy(x: -ox, y: -oy)
             c.draw(noise, in: CGRect(x: 0, y: 0, width: tile, height: tile), byTiling: true)
         }
         c.restoreGState()
 
-        let h = W * 0.052, pad = W * 0.055
-        let width = sevenWidth(card.film, h)
+        let pad = W * 0.055
+        var h = W * 0.052
+        var width = sevenWidth(card.film, h)
+        let maxW = max(R.width - pad * 2, 1)
+        if width > maxW {
+            h *= maxW / max(width, 1)
+            width = sevenWidth(card.film, h)
+        }
         let x = R.maxX - pad - width
         let y = safeBottom(R, H) - pad - h
         layer(c, a) {
@@ -419,17 +460,27 @@ final class ReelRenderer: @unchecked Sendable {
     private enum Weight { case black, heavy, bold, semibold }
 
     private func font(_ weight: Weight, _ size: CGFloat) -> UIFont {
-        let name: String
+        let primary: String
+        let fallback: String
         switch (weight, arabic) {
-        case (.black, false): name = "Nunito-Black"
-        case (.heavy, false): name = "Nunito-ExtraBold"
-        case (.bold, false): name = "Nunito-Bold"
-        case (.semibold, false): name = "Nunito-SemiBold"
-        case (.black, true): name = "Tajawal-Black"
-        case (.heavy, true): name = "Tajawal-ExtraBold"
-        case (.bold, true), (.semibold, true): name = "Tajawal-Bold"
+        case (.black, false): primary = "Nunito-Black"; fallback = "Tajawal-Black"
+        case (.heavy, false): primary = "Nunito-ExtraBold"; fallback = "Tajawal-ExtraBold"
+        case (.bold, false): primary = "Nunito-Bold"; fallback = "Tajawal-Bold"
+        case (.semibold, false): primary = "Nunito-SemiBold"; fallback = "Tajawal-Bold"
+        case (.black, true): primary = "Tajawal-Black"; fallback = "Nunito-Black"
+        case (.heavy, true): primary = "Tajawal-ExtraBold"; fallback = "Nunito-ExtraBold"
+        case (.bold, true): primary = "Tajawal-Bold"; fallback = "Nunito-Bold"
+        case (.semibold, true): primary = "Tajawal-Bold"; fallback = "Nunito-SemiBold"
         }
-        if let f = UIFont(name: name, size: size) { return f }
+        if UIFont(name: primary, size: size) != nil {
+            let fallbackDesc = CTFontDescriptorCreateWithNameAndSize(fallback as CFString, size)
+            let attrs: [CFString: Any] = [
+                kCTFontNameAttribute: primary as CFString,
+                kCTFontCascadeListAttribute: [fallbackDesc] as CFArray,
+            ]
+            let desc = CTFontDescriptorCreateWithAttributes(attrs as CFDictionary)
+            return CTFontCreateWithFontDescriptor(desc, size, nil) as UIFont
+        }
         let w: UIFont.Weight = switch weight {
         case .black: .black
         case .heavy: .heavy
@@ -440,8 +491,15 @@ final class ReelRenderer: @unchecked Sendable {
     }
 
     private func text(_ s: String, _ font: UIFont, _ color: UIColor, kern: CGFloat = 0) -> NSAttributedString {
+        let style = NSMutableParagraphStyle()
+        style.baseWritingDirection = rtl ? .rightToLeft : .leftToRight
         // Arabic letters join, so they keep normal spacing.
-        NSAttributedString(string: s, attributes: [.font: font, .foregroundColor: color, .kern: arabic ? 0 : kern])
+        return NSAttributedString(string: s, attributes: [
+            .font: font,
+            .foregroundColor: color,
+            .kern: arabic ? 0 : kern,
+            .paragraphStyle: style,
+        ])
     }
 
     private func firstFont(_ t: NSAttributedString) -> UIFont {

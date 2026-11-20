@@ -5,28 +5,29 @@ import android.view.HapticFeedbackConstants
 import android.view.View
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.semantics
-import kotlin.math.roundToInt
-import com.njarrar.backthen.core.masonryColumns
-import com.njarrar.backthen.core.tileAspect
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -38,61 +39,89 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.outlined.BrokenImage
 import androidx.compose.material.icons.outlined.Circle
-import androidx.compose.material.icons.outlined.IosShare
-import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.ui.layout.boundsInRoot
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.unit.Constraints
-import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.Layout
-import androidx.compose.ui.layout.layout
-import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.zIndex
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.withStyle
-import androidx.compose.foundation.text.BasicText
-import androidx.compose.foundation.text.TextAutoSize
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.crossfade
+import coil3.size.Precision
+import coil3.size.Size
+import com.njarrar.backthen.ToastKind
+import com.njarrar.backthen.ToastState
 import com.njarrar.backthen.core.COLUMNS
 import com.njarrar.backthen.core.L
 import com.njarrar.backthen.core.MonthDay
@@ -102,7 +131,56 @@ import com.njarrar.backthen.core.formatDate
 import com.njarrar.backthen.core.formatTime
 import com.njarrar.backthen.core.layoutMosaic
 import com.njarrar.backthen.core.localDate
+import com.njarrar.backthen.core.masonryColumns
+import com.njarrar.backthen.core.tileAspect
 import com.njarrar.backthen.core.weekdayOf
+import kotlin.math.roundToInt
+
+/** Builds a size-capped Coil [ImageRequest] so thumbnails never decode full 12–48MP bitmaps. */
+@Composable
+fun rememberThumbnailRequest(uri: String?, maxPx: Int = 512, crossfade: Boolean = true): ImageRequest? {
+    if (uri == null) return null
+    val context = LocalContext.current
+    val reduce = LocalReduceMotion.current
+    return remember(context, uri, maxPx, crossfade, reduce) {
+        ImageRequest.Builder(context)
+            .data(uri)
+            .size(Size(maxPx, maxPx))
+            .precision(Precision.INEXACT)
+            .crossfade(crossfade && !reduce)
+            .build()
+    }
+}
+
+/** Subtle shimmer for skeleton placeholders; falls back to static [base] when Reduce Motion is on. */
+fun Modifier.shimmer(base: Color, highlight: Color): Modifier = composed {
+    if (LocalReduceMotion.current) {
+        this.background(base)
+    } else {
+        val transition = rememberInfiniteTransition(label = "shimmer")
+        val progress by transition.animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(tween(1100, easing = LinearEasing), RepeatMode.Reverse),
+            label = "shimmerAlpha",
+        )
+        this.drawBehind {
+            val blended = Color(
+                red = base.red + (highlight.red - base.red) * progress,
+                green = base.green + (highlight.green - base.green) * progress,
+                blue = base.blue + (highlight.blue - base.blue) * progress,
+                alpha = base.alpha + (highlight.alpha - base.alpha) * progress,
+            )
+            drawRect(blended)
+        }
+    }
+}
+
+/** Isolates an LTR token (numbers, ratios, "+N") inside an RTL string using Unicode LRI/PDI. */
+internal fun ltrIsolate(text: String): String = "\u2066$text\u2069"
+
+/** First-strong BiDi isolate (FSI/PDI) for mixed-script spans. */
+internal fun bidiIsolate(text: String): String = "\u2068$text\u2069"
 
 @Composable
 fun T(
@@ -152,11 +230,12 @@ fun Pill(
         Kind.Primary -> p.ink to p.bg
         Kind.Secondary -> p.surface to p.ink
         Kind.Ghost -> Color.Transparent to p.ink
-        Kind.Accent -> Accent to Color.White
+        Kind.Accent -> AccentFill to Color.White
         Kind.Tint -> p.accTint to p.accInk
     }
     Row(
         modifier
+            .minimumInteractiveComponentSize()
             // Grows past its usual height when large text wraps the label.
             .heightIn(min = height)
             .clip(RoundedCornerShape(50))
@@ -189,7 +268,15 @@ private fun LogoDrawing(size: Dp) {
             .size(size)
             .clip(RoundedCornerShape(size * 0.24f))
             .background(Color(0xFF2E7BFF))
-            .background(Brush.radialGradient(listOf(Color.White.copy(alpha = 0.22f), Color.Transparent), radius = size.value * 1.6f)),
+            .drawBehind {
+                drawRect(
+                    Brush.radialGradient(
+                        colors = listOf(Color.White.copy(alpha = 0.24f), Color.Transparent),
+                        center = Offset(this.size.width * 0.3f, this.size.height * 0.18f),
+                        radius = this.size.width * 0.56f,
+                    ),
+                )
+            },
     ) {
         Box(
             Modifier.offset(u(62f), u(30f)).size(u(86f), u(102f)).rotate(12f)
@@ -216,16 +303,73 @@ private fun LogoDrawing(size: Dp) {
 }
 
 @Composable
-fun Toast(message: String?, modifier: Modifier = Modifier) {
+fun Toast(
+    state: ToastState?,
+    onDismiss: () -> Unit = {},
+    modifier: Modifier = Modifier,
+) {
     val p = LocalPalette.current
-    AnimatedVisibility(visible = message != null, enter = fadeIn(), exit = fadeOut(), modifier = modifier) {
-        Row(
-            Modifier.height(44.dp).clip(RoundedCornerShape(50)).background(p.ink).padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            T("✓", size = 15, weight = FontWeight.Bold, color = p.toastCheck)
-            T(message ?: "", size = 15, weight = FontWeight.SemiBold, color = p.bg)
+    val reduce = LocalReduceMotion.current
+    var last by remember { mutableStateOf<ToastState?>(null) }
+    if (state != null) last = state
+    val shown = state ?: last
+    AnimatedVisibility(
+        visible = state != null,
+        enter = if (reduce) EnterTransition.None else fadeIn(tween(180)) + slideInVertically(tween(180)) { -it / 2 },
+        exit = if (reduce) ExitTransition.None else fadeOut(tween(150)) + slideOutVertically(tween(150)) { -it / 2 },
+        modifier = modifier,
+    ) {
+        if (shown != null) {
+            val icon = when (shown.kind) {
+                ToastKind.Success -> Icons.Filled.CheckCircle
+                ToastKind.Info -> Icons.Outlined.Info
+                ToastKind.Error -> Icons.Outlined.ErrorOutline
+            }
+            val iconTint = when (shown.kind) {
+                ToastKind.Success -> p.toastCheck
+                ToastKind.Info -> p.bg.copy(alpha = 0.85f)
+                ToastKind.Error -> p.toastCheck
+            }
+            Row(
+                Modifier
+                    .padding(horizontal = 16.dp)
+                    .widthIn(max = 520.dp)
+                    .heightIn(min = 44.dp)
+                    .shadow(8.dp, RoundedCornerShape(24.dp))
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(p.ink)
+                    .semantics { liveRegion = LiveRegionMode.Polite }
+                    .padding(start = 16.dp, end = if (shown.undo != null) 8.dp else 16.dp, top = 8.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Icon(icon, null, tint = iconTint, modifier = Modifier.size(18.dp))
+                T(
+                    shown.text,
+                    size = 15,
+                    weight = FontWeight.SemiBold,
+                    color = p.bg,
+                    maxLines = 3,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                val undo = shown.undo
+                val undoLabel = shown.undoLabel
+                if (undo != null && undoLabel != null) {
+                    Box(
+                        Modifier
+                            .minimumInteractiveComponentSize()
+                            .clip(RoundedCornerShape(50))
+                            .clickable(role = Role.Button) {
+                                undo()
+                                onDismiss()
+                            }
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        T(undoLabel, size = 14, weight = FontWeight.ExtraBold, color = p.toastCheck, maxLines = 1)
+                    }
+                }
+            }
         }
     }
 }
@@ -238,6 +382,8 @@ data class Selection(
     /** Long press on a photo while not selecting: start selecting with that photo picked. */
     val start: ((Photo) -> Unit)? = null,
     val toggle: (Photo) -> Unit,
+    /** Batch toggle for selecting/deselecting an entire year in one state update and haptic. */
+    val toggleAll: ((List<Photo>, Boolean) -> Unit)? = null,
 )
 
 @Composable
@@ -248,118 +394,265 @@ fun PhotoTile(
     selection: Selection?,
     onOpen: () -> Unit,
     modifier: Modifier = Modifier,
+    thumbPx: Int = 512,
+    semanticsLabel: String? = null,
+    semanticsState: String? = null,
+    customActionsList: List<CustomAccessibilityAction> = emptyList(),
 ) {
     val p = LocalPalette.current
     val picked = selection?.keys?.contains(photo.key) == true
     val shape = RoundedCornerShape(radius)
     val startSelecting = selection?.takeIf { !it.on }?.start
+    val selectingOn = selection?.on == true
     // Tells a drag across the photos where this one sits.
     val drag = if (selection == null) null else LocalDragSelect.current
     if (drag != null) DisposableEffect(drag, photo.key) { onDispose { drag.forget(photo.key) } }
+    var loadFailed by remember(photo.uri) { mutableStateOf(false) }
+    val request = rememberThumbnailRequest(photo.uri, maxPx = thumbPx)
+    val label = semanticsLabel ?: L.s(
+        if (favorite) "favorite_photo_from" else "photo_from",
+        "date" to formatDate(localDate(photo.time), "yMMMMd"),
+    )
     Box(
         modifier
             .then(if (drag != null) Modifier.onGloballyPositioned { drag.place(photo, it.boundsInRoot()) } else Modifier)
             .clip(shape)
             .background(p.fill)
             .combinedClickable(
-                role = Role.Image,
+                role = if (selectingOn) Role.Checkbox else Role.Button,
                 onLongClickLabel = L.s("select"),
                 onLongClick = startSelecting?.let { start -> { start(photo) } },
-                onClick = { if (selection?.on == true) selection.toggle(photo) else onOpen() },
-            ),
+                onClick = { if (selectingOn) selection.toggle(photo) else onOpen() },
+            )
+            .semantics(mergeDescendants = true) {
+                contentDescription = label
+                if (selectingOn) selected = picked
+                if (semanticsState != null) stateDescription = semanticsState
+                if (customActionsList.isNotEmpty()) customActions = customActionsList
+            },
     ) {
         AsyncImage(
-            model = photo.uri,
-            contentDescription = L.s(if (favorite) "favorite_photo_from" else "photo_from", "date" to formatDate(localDate(photo.time), "yMMMMd")),
+            model = request,
+            contentDescription = null,
             contentScale = ContentScale.Crop,
+            onLoading = { loadFailed = false },
+            onSuccess = { loadFailed = false },
+            onError = { loadFailed = true },
             modifier = Modifier.fillMaxSize(),
         )
-        if (favorite) {
-            // A faint dark wash in the corner and a soft shadow keep the white heart readable on snow or sky.
-            Box(
-                Modifier.align(Alignment.BottomStart).size(64.dp).drawBehind {
-                    val x = if (layoutDirection == LayoutDirection.Rtl) size.width else 0f
-                    drawRect(Brush.radialGradient(listOf(Color.Black.copy(alpha = 0.32f), Color.Transparent), center = Offset(x, size.height), radius = size.width * 0.9f))
-                },
-            )
-            Icon(
-                Icons.Filled.Favorite, null, tint = Color.Black.copy(alpha = 0.45f),
-                modifier = Modifier.align(Alignment.BottomStart).padding(start = 8.dp, bottom = 6.dp).size(16.dp).offset(y = 1.dp).blur(2.dp),
-            )
-            Icon(Icons.Filled.Favorite, null, tint = Color.White, modifier = Modifier.align(Alignment.BottomStart).padding(start = 8.dp, bottom = 7.dp).size(16.dp))
+        if (loadFailed) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Icon(Icons.Outlined.BrokenImage, null, tint = p.muted, modifier = Modifier.size(24.dp))
+            }
         }
-        if (selection?.on == true) {
+        if (favorite) {
+            // Cached radial corner wash + soft circular shadow (works cleanly on API 26–36 without blur).
+            Box(
+                Modifier
+                    .align(Alignment.BottomStart)
+                    .size(64.dp)
+                    .drawWithCache {
+                        val x = if (layoutDirection == LayoutDirection.Rtl) size.width else 0f
+                        val wash = Brush.radialGradient(
+                            colors = listOf(Color.Black.copy(alpha = 0.36f), Color.Transparent),
+                            center = Offset(x, size.height),
+                            radius = size.width * 0.9f,
+                        )
+                        onDrawBehind { drawRect(wash) }
+                    },
+            )
+            Box(
+                Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(start = 5.dp, bottom = 4.dp)
+                    .size(22.dp)
+                    .drawWithCache {
+                        val glow = Brush.radialGradient(
+                            colors = listOf(Color.Black.copy(alpha = 0.45f), Color.Transparent),
+                            center = center,
+                            radius = size.minDimension * 0.5f,
+                        )
+                        onDrawBehind { drawCircle(glow) }
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.Filled.Favorite, null, tint = Color.White, modifier = Modifier.size(16.dp))
+            }
+        }
+        if (selectingOn) {
             Box(
                 Modifier.fillMaxSize()
-                    .background(if (picked) Accent.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.12f))
+                    .background(if (picked) Accent.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.10f))
                     .then(if (picked) Modifier.border(3.dp, Accent, shape) else Modifier),
             )
-            Icon(
-                if (picked) Icons.Filled.CheckCircle else Icons.Outlined.Circle,
-                contentDescription = L.s(if (picked) "selected" else "not_selected"),
-                tint = Color.White,
-                modifier = Modifier.align(Alignment.TopEnd).padding(7.dp).size(22.dp),
-            )
+            Box(
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(6.dp)
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.34f))
+                    .clearAndSetSemantics {},
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    if (picked) Icons.Filled.CheckCircle else Icons.Outlined.Circle,
+                    contentDescription = null,
+                    tint = if (picked) Accent else Color.White,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
         }
     }
 }
 
-private val PinnedBarHeight = 44.dp
+/** Formats "ago · weekday, photos" using the localized template with BiDi-safe bold emphasis on [ago]. */
+@Composable
+internal fun styledAgoSubtitle(template: String, ago: String): androidx.compose.ui.text.AnnotatedString {
+    val p = LocalPalette.current
+    val idx = template.indexOf(ago)
+    return buildAnnotatedString {
+        append(template)
+        if (idx >= 0) {
+            addStyle(SpanStyle(color = p.ink, fontWeight = FontWeight.Bold), idx, idx + ago.length)
+        }
+    }
+}
 
 /**
- * The big year header: year number, how long ago, and a share button. It draws itself over
- * the space of the [YearBar] above it, which stays hidden until that year pins to the top.
+ * The big year header: year number, how long ago, and a share (or select-year) button.
+ * Rendered normally inside its LazyColumn item (no negative layout offset).
  */
 @Composable
-fun YearHeader(year: Int, count: Int, day: MonthDay, onShare: () -> Unit) {
+fun YearHeader(
+    year: Int,
+    count: Int,
+    day: MonthDay,
+    onShare: () -> Unit,
+    selecting: Boolean = false,
+    allPicked: Boolean = false,
+    onToggleYear: (() -> Unit)? = null,
+) {
     val p = LocalPalette.current
+    val ago = agoLabel(year)
+    val subtitle = L.s(
+        "ago_weekday_photos",
+        "ago" to ago,
+        "weekday" to weekdayOf(year, day),
+        "photos" to L.p("photos", count),
+    )
     Column(
         Modifier
-            .layout { measurable, constraints ->
-                val placeable = measurable.measure(constraints)
-                val up = PinnedBarHeight.roundToPx()
-                layout(placeable.width, (placeable.height - up).coerceAtLeast(0)) { placeable.place(0, -up) }
-            }
             .fillMaxWidth()
-            .padding(start = 20.dp, end = 8.dp),
+            .padding(start = 20.dp, end = 8.dp, top = 8.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             T(L.num(year), size = 40, weight = FontWeight.Black, tight = true, modifier = Modifier.weight(1f).semantics { heading() })
-            IconButton(onClick = onShare, modifier = Modifier.size(48.dp)) {
-                Icon(Icons.Outlined.IosShare, L.s("share_year", "year" to year), tint = p.ink, modifier = Modifier.size(22.dp))
+            if (selecting && onToggleYear != null) {
+                Box(
+                    Modifier
+                        .minimumInteractiveComponentSize()
+                        .padding(end = 8.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(if (allPicked) p.accTint else p.fill)
+                        .clickable(role = Role.Button, onClick = onToggleYear)
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    T(
+                        L.s(if (allPicked) "deselect_year" else "select_year"),
+                        size = 13,
+                        weight = FontWeight.Bold,
+                        color = if (allPicked) p.accInk else p.ink,
+                        maxLines = 1,
+                    )
+                }
+            } else {
+                IconButton(onClick = onShare, modifier = Modifier.size(48.dp)) {
+                    Icon(Icons.Outlined.Share, L.s("share_year", "year" to year), tint = p.ink, modifier = Modifier.size(22.dp))
+                }
             }
         }
-        // One line under the year: "1 year ago · Friday, 5 photos".
         Text(
-            buildAnnotatedString {
-                withStyle(SpanStyle(color = p.ink, fontWeight = FontWeight.Bold)) { append(agoLabel(year)) }
-                append(" · " + L.s("weekday_photos", "weekday" to weekdayOf(year, day), "photos" to L.p("photos", count)))
-            },
-            color = p.muted, fontFamily = Nunito, fontSize = 14.sp, lineHeight = (if (L.lang.arabicScript) 22 else 20).sp,
+            styledAgoSubtitle(subtitle, ago),
+            color = p.muted,
+            fontFamily = Nunito,
+            fontSize = 14.sp,
+            lineHeight = (if (L.lang.arabicScript) 22 else 20).sp,
         )
     }
 }
 
-/** Compact year bar that shows while its year is pinned to the top of Today's list. */
+/** Single floating compact year bar shown at the top of Today's list while a year is scrolled past. */
 @Composable
-fun YearBar(year: Int, count: Int, day: MonthDay, pinned: Boolean, onShare: () -> Unit) {
+fun YearBar(
+    year: Int,
+    count: Int,
+    day: MonthDay,
+    pinned: Boolean,
+    onShare: () -> Unit,
+    selecting: Boolean = false,
+    allPicked: Boolean = false,
+    onToggleYear: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
+) {
     val p = LocalPalette.current
-    val alpha by animateFloatAsState(if (pinned) 1f else 0f, tween(150), label = "yearBar")
+    val reduce = LocalReduceMotion.current
+    val alpha by animateFloatAsState(
+        targetValue = if (pinned) 1f else 0f,
+        animationSpec = if (reduce) snap() else tween(150),
+        label = "yearBar",
+    )
+    if (alpha <= 0.01f && !pinned) return
     Box(
-        Modifier.zIndex(1f).fillMaxWidth().height(PinnedBarHeight)
+        modifier
+            .zIndex(1f)
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
             .graphicsLayer { this.alpha = alpha }
-            .background(p.bg.copy(alpha = 0.92f))
+            .background(p.bg.copy(alpha = 0.94f))
             .then(if (pinned) Modifier else Modifier.clearAndSetSemantics {}),
     ) {
         Row(
-            Modifier.fillMaxSize().padding(start = 20.dp, end = 6.dp),
+            Modifier
+                .fillMaxWidth()
+                .heightIn(min = 48.dp)
+                .padding(start = 20.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            T(L.num(year), size = 26, weight = FontWeight.Black, tight = true)
-            T(L.s("ago_weekday_photos", "ago" to agoLabel(year), "weekday" to weekdayOf(year, day), "photos" to L.p("photos", count)), size = 14, weight = FontWeight.Medium, muted = true, maxLines = 1, modifier = Modifier.weight(1f))
-            IconButton(onClick = onShare, enabled = pinned, modifier = Modifier.size(44.dp)) {
-                Icon(Icons.Outlined.IosShare, L.s("share_year", "year" to year), tint = p.ink, modifier = Modifier.size(20.dp))
+            T(L.num(year), size = 24, weight = FontWeight.Black, tight = true, maxLines = 1)
+            T(
+                L.s("ago_weekday_photos", "ago" to agoLabel(year), "weekday" to weekdayOf(year, day), "photos" to L.p("photos", count)),
+                size = 14,
+                weight = FontWeight.Medium,
+                muted = true,
+                maxLines = 1,
+                modifier = Modifier.weight(1f),
+            )
+            if (selecting && onToggleYear != null) {
+                Box(
+                    Modifier
+                        .minimumInteractiveComponentSize()
+                        .padding(end = 6.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(if (allPicked) p.accTint else p.fill)
+                        .clickable(enabled = pinned, role = Role.Button, onClick = onToggleYear)
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    T(
+                        L.s(if (allPicked) "deselect_year" else "select_year"),
+                        size = 13,
+                        weight = FontWeight.Bold,
+                        color = if (allPicked) p.accInk else p.ink,
+                        maxLines = 1,
+                    )
+                }
+            } else {
+                IconButton(onClick = onShare, enabled = pinned, modifier = Modifier.size(48.dp)) {
+                    Icon(Icons.Outlined.Share, L.s("share_year", "year" to year), tint = p.ink, modifier = Modifier.size(20.dp))
+                }
             }
         }
         Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().height(1.dp).background(p.line))
@@ -373,67 +666,95 @@ fun YearMosaic(photos: List<Photo>, favorites: Set<String>, selection: Selection
     if (rows == 0) return
     val gap = 4.dp
     val row = 54.dp
-    Layout(
-        content = {
-            photos.forEachIndexed { i, photo ->
-                Box(Modifier.fillMaxSize()) {
-                    PhotoTile(photo, 12.dp, photo.key in favorites, selection, onOpen = { onOpen(i) }, modifier = Modifier.fillMaxSize())
-                    if (more > 0 && i == photos.lastIndex) {
-                        Box(Modifier.matchParentSize().clip(RoundedCornerShape(12.dp)).background(Chip), contentAlignment = Alignment.Center) {
-                            T("+" + L.num(more), size = 18, weight = FontWeight.ExtraBold, color = ChipInk)
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        Layout(
+            content = {
+                photos.forEachIndexed { i, photo ->
+                    val isMoreTile = more > 0 && i == photos.lastIndex
+                    val fav = photo.key in favorites
+                    val baseLabel = L.s(
+                        if (fav) "favorite_photo_from" else "photo_from",
+                        "date" to formatDate(localDate(photo.time), "yMMMMd"),
+                    )
+                    val tileLabel = if (isMoreTile) "$baseLabel, +${L.p("photos", more)}" else baseLabel
+                    Box(Modifier.fillMaxSize()) {
+                        PhotoTile(
+                            photo = photo,
+                            radius = 12.dp,
+                            favorite = fav,
+                            selection = selection,
+                            onOpen = { onOpen(i) },
+                            semanticsLabel = tileLabel,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                        if (isMoreTile) {
+                            Box(
+                                Modifier
+                                    .matchParentSize()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Chip)
+                                    .clearAndSetSemantics {},
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                T(ltrIsolate("+" + L.num(more)), size = 18, weight = FontWeight.ExtraBold, color = ChipInk)
+                            }
                         }
                     }
                 }
-            }
-        },
-        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 28.dp),
-    ) { measurables, constraints ->
-        // One pass, no subcomposition. Column edges are rounded once so tiles meet both sides exactly.
-        val gapPx = gap.toPx()
-        val rowPx = row.roundToPx()
-        val step = (constraints.maxWidth + gapPx) / COLUMNS
-        fun edge(col: Int) = (col * step).roundToInt()
-        val gapInt = gapPx.roundToInt()
-        val placeables = measurables.mapIndexed { i, measurable ->
-            val t = tiles[i]
-            val w = edge(t.col + t.cols) - gapInt - edge(t.col)
-            val h = rowPx * t.rows + gapInt * (t.rows - 1)
-            measurable.measure(Constraints.fixed(w.coerceAtLeast(0), h.coerceAtLeast(0)))
-        }
-        val height = rowPx * rows + gapInt * (rows - 1)
-        layout(constraints.maxWidth, height.coerceAtLeast(0)) {
-            // placeRelative mirrors the tiles right to left, as the design asks for Arabic.
-            placeables.forEachIndexed { i, placeable ->
+            },
+            modifier = Modifier
+                .widthIn(max = 640.dp)
+                .fillMaxWidth()
+                .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 28.dp),
+        ) { measurables, constraints ->
+            // One pass, no subcomposition. Column edges are rounded once so tiles meet both sides exactly.
+            val gapPx = gap.toPx()
+            val rowPx = row.roundToPx()
+            val step = (constraints.maxWidth + gapPx) / COLUMNS
+            fun edge(col: Int) = (col * step).roundToInt()
+            val gapInt = gapPx.roundToInt()
+            val placeables = measurables.mapIndexed { i, measurable ->
                 val t = tiles[i]
-                placeable.placeRelative(edge(t.col), t.row * (rowPx + gapInt))
+                val w = edge(t.col + t.cols) - gapInt - edge(t.col)
+                val h = rowPx * t.rows + gapInt * (t.rows - 1)
+                measurable.measure(Constraints.fixed(w.coerceAtLeast(0), h.coerceAtLeast(0)))
+            }
+            val height = rowPx * rows + gapInt * (rows - 1)
+            layout(constraints.maxWidth, height.coerceAtLeast(0)) {
+                // placeRelative mirrors the tiles right to left, as the design asks for Arabic.
+                placeables.forEachIndexed { i, placeable ->
+                    val t = tiles[i]
+                    placeable.placeRelative(edge(t.col), t.row * (rowPx + gapInt))
+                }
             }
         }
     }
 }
 
-/** Lazy 3-column square grid rows for Favorites and album pages, so off-screen rows aren't composed at once. */
+/** Lazy square grid rows helper kept for list-based screens; prefer LazyVerticalGrid where possible. */
 fun LazyListScope.squareGridItems(
     photos: List<Photo>,
     favorites: Set<String>,
     showDate: Boolean,
+    columns: Int = 3,
+    selection: Selection? = null,
     onOpen: (Int) -> Unit,
 ) {
-    // Same margin, gap and corners as the photos on Today.
+    val cols = columns.coerceAtLeast(1)
     val gap = 4.dp
-    val rows = photos.chunked(3)
-    itemsIndexed(rows, key = { _, row -> row.first().key }) { r, rowPhotos ->
+    val rows = photos.chunked(cols)
+    itemsIndexed(rows, key = { r, row -> "row-$r-${row.first().key}" }) { r, rowPhotos ->
         Row(
             modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = if (r < rows.lastIndex) gap else 0.dp),
             horizontalArrangement = Arrangement.spacedBy(gap),
         ) {
             rowPhotos.forEachIndexed { c, photo ->
                 Box(Modifier.weight(1f).aspectRatio(1f)) {
-                    PhotoTile(photo, 12.dp, !showDate && photo.key in favorites, null, onOpen = { onOpen(r * 3 + c) }, modifier = Modifier.fillMaxSize())
-                    // Favorites come from many days, so the chip names the whole date.
+                    PhotoTile(photo, 12.dp, !showDate && photo.key in favorites, selection, onOpen = { onOpen(r * cols + c) }, modifier = Modifier.fillMaxSize())
                     if (showDate) DateChip(formatDate(localDate(photo.time), "yMMMd"), Modifier.align(Alignment.BottomStart).padding(6.dp))
                 }
             }
-            repeat(3 - rowPhotos.size) {
+            repeat(cols - rowPhotos.size) {
                 Spacer(Modifier.weight(1f).aspectRatio(1f))
             }
         }
@@ -457,8 +778,15 @@ fun DateChip(text: String, modifier: Modifier = Modifier) {
 @Composable
 fun Print(year: Int, label: String, @DrawableRes drawing: Int, width: Dp, angle: Float, modifier: Modifier = Modifier) {
     val p = LocalPalette.current
+    val shape = RoundedCornerShape(10.dp)
     Column(
-        modifier.width(width).rotate(angle).background(p.surface, RoundedCornerShape(10.dp)).padding(start = 8.dp, end = 8.dp, top = 8.dp),
+        modifier
+            .width(width)
+            .rotate(angle)
+            .shadow(12.dp, shape, ambientColor = Color(0x28141416), spotColor = Color(0x28141416))
+            .background(p.surface, shape)
+            .border(1.dp, p.line, shape)
+            .padding(start = 8.dp, end = 8.dp, top = 8.dp),
     ) {
         Image(
             painterResource(drawing), null, contentScale = ContentScale.Crop,
@@ -492,31 +820,66 @@ fun Gap(h: Dp) = Spacer(Modifier.height(h))
 /** A reminder time in the phone's 12 or 24 hour style. */
 @Composable
 fun timeLabel(hour: Int, minute: Int): String =
-    formatTime(hour, minute, android.text.format.DateFormat.is24HourFormat(androidx.compose.ui.platform.LocalContext.current))
+    formatTime(hour, minute, android.text.format.DateFormat.is24HourFormat(LocalContext.current))
 
-/** Strip layout: a row of year buttons that stays at the top while scrolling. */
+/** Strip layout: a scrollable row of year buttons that stays at the top while scrolling. */
 @Composable
-fun YearPills(years: List<Int>, selected: Int, onPick: (Int) -> Unit) {
+fun YearPills(
+    years: List<Int>,
+    selected: Int,
+    onBounds: ((Rect) -> Unit)? = null,
+    onPick: (Int) -> Unit,
+) {
     val p = LocalPalette.current
-    Row(
-        Modifier.fillMaxWidth().background(p.bg).horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        years.forEach { y ->
-            val on = y == selected
-            Box(
-                Modifier.height(44.dp).clip(RoundedCornerShape(50))
-                    .background(if (on) p.ink else p.surface)
-                    .border(1.dp, if (on) p.ink else p.line, RoundedCornerShape(50))
-                    .clickable(role = Role.Tab) { onPick(y) }
-                    .padding(horizontal = 14.dp),
-                contentAlignment = Alignment.Center,
-            ) { T(L.num(y), size = 14, weight = FontWeight.SemiBold, color = if (on) p.bg else p.ink) }
+    val reduce = LocalReduceMotion.current
+    val listState = rememberLazyListState()
+    LaunchedEffect(selected, years) {
+        val idx = years.indexOf(selected)
+        if (idx >= 0) {
+            if (reduce) listState.scrollToItem(idx) else listState.animateScrollToItem(idx)
         }
+    }
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .background(p.bg)
+            .then(if (onBounds != null) Modifier.onGloballyPositioned { onBounds(it.boundsInRoot()) } else Modifier),
+    ) {
+        LazyRow(
+            state = listState,
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            items(years, key = { it }) { y ->
+                val on = y == selected
+                Box(
+                    Modifier
+                        .heightIn(min = 48.dp)
+                        .clip(RoundedCornerShape(50))
+                        .clickable(role = Role.Tab) { onPick(y) }
+                        .semantics { this.selected = on },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Box(
+                        Modifier
+                            .heightIn(min = 38.dp)
+                            .clip(RoundedCornerShape(50))
+                            .background(if (on) p.ink else p.surface)
+                            .border(1.dp, if (on) p.ink else p.line, RoundedCornerShape(50))
+                            .padding(horizontal = 14.dp, vertical = 6.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        T(L.num(y), size = 14, weight = FontWeight.SemiBold, color = if (on) p.bg else p.ink, maxLines = 1)
+                    }
+                }
+            }
+        }
+        Box(Modifier.fillMaxWidth().height(1.dp).background(p.line))
     }
 }
 
-/** Strip layout: one year, a huge year number, then two columns of photos and buttons to step between years. */
+/** Strip layout: one year, a huge auto-sized year number, two columns of photos, and buttons to step between years. */
 @Composable
 fun StripYear(
     year: Int,
@@ -530,49 +893,78 @@ fun StripYear(
     onShare: () -> Unit,
     onPick: (Int) -> Unit,
 ) {
+    val p = LocalPalette.current
     val weekday = weekdayOf(year, day)
-    Column(Modifier.padding(top = 12.dp)) {
-        Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            T(L.num(year), size = 96, weight = FontWeight.Black, tight = true, modifier = Modifier.semantics { heading() })
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                T(agoLabel(year), size = 15, weight = FontWeight.Medium)
-                T(L.s("weekday_photos", "weekday" to weekday, "photos" to L.p("photos", photos.size)), size = 15, weight = FontWeight.Medium, muted = true)
+    val compactBar = LocalDensity.current.fontScale >= 1.35f || L.lang.arabicScript
+    Column(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(Modifier.widthIn(max = 640.dp).fillMaxWidth()) {
+            Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                BasicText(
+                    text = L.num(year),
+                    maxLines = 1,
+                    style = TextStyle(
+                        color = p.ink,
+                        fontFamily = Nunito,
+                        fontWeight = FontWeight.Black,
+                        letterSpacing = tightSpacing(96).sp,
+                    ),
+                    autoSize = TextAutoSize.StepBased(minFontSize = 48.sp, maxFontSize = 96.sp, stepSize = 2.sp),
+                    modifier = Modifier.fillMaxWidth().semantics { heading() },
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    T(agoLabel(year), size = 15, weight = FontWeight.Medium)
+                    T(L.s("weekday_photos", "weekday" to weekday, "photos" to L.p("photos", photos.size)), size = 15, weight = FontWeight.Medium, muted = true)
+                }
             }
-        }
-        val columns = remember(photos) { masonryColumns(photos.map { tileAspect(it.width, it.height) }) }
-        Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            columns.forEach { col ->
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    col.forEach { i ->
-                        val ph = photos[i]
-                        PhotoTile(
-                            ph, 12.dp, ph.key in favorites, selection, onOpen = { onOpen(i) },
-                            modifier = Modifier.fillMaxWidth().aspectRatio(tileAspect(ph.width, ph.height)),
-                        )
+            val columns = remember(photos) { masonryColumns(photos.map { tileAspect(it.width, it.height) }) }
+            Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                columns.forEach { col ->
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        col.forEach { i ->
+                            val ph = photos[i]
+                            PhotoTile(
+                                ph, 12.dp, ph.key in favorites, selection, onOpen = { onOpen(i) },
+                                modifier = Modifier.fillMaxWidth().aspectRatio(tileAspect(ph.width, ph.height)),
+                            )
+                        }
                     }
                 }
             }
-        }
-        Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Pill(
-                newer?.let(L::num) ?: L.s("newest"), { newer?.let(onPick) }, kind = Kind.Secondary, height = 44.dp, enabled = newer != null,
-                icon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = it, modifier = Modifier.size(15.dp)) },
-            )
-            Spacer(Modifier.weight(1f))
             Row(
-                Modifier.clip(RoundedCornerShape(50)).clickable(role = Role.Button, onClick = onShare).padding(horizontal = 14.dp, vertical = 12.dp),
+                Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Icon(Icons.Outlined.IosShare, null, tint = LocalPalette.current.muted, modifier = Modifier.size(16.dp))
-                T(L.s("share"), size = 15, weight = FontWeight.SemiBold, muted = true)
+                Pill(
+                    newer?.let(L::num) ?: L.s("newest"), { newer?.let(onPick) }, kind = Kind.Secondary, height = 44.dp, enabled = newer != null,
+                    icon = { Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = it, modifier = Modifier.size(15.dp)) },
+                )
+                Spacer(Modifier.weight(1f))
+                if (compactBar) {
+                    IconButton(onClick = onShare, modifier = Modifier.size(48.dp)) {
+                        Icon(Icons.Outlined.Share, L.s("share_year", "year" to year), tint = p.muted, modifier = Modifier.size(20.dp))
+                    }
+                } else {
+                    Row(
+                        Modifier
+                            .minimumInteractiveComponentSize()
+                            .clip(RoundedCornerShape(50))
+                            .clickable(role = Role.Button, onClick = onShare)
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Icon(Icons.Outlined.Share, null, tint = p.muted, modifier = Modifier.size(16.dp))
+                        T(L.s("share"), size = 15, weight = FontWeight.SemiBold, muted = true)
+                    }
+                }
+                Spacer(Modifier.weight(1f))
+                Pill(
+                    older?.let(L::num) ?: L.s("oldest"), { older?.let(onPick) }, kind = Kind.Secondary, height = 44.dp, enabled = older != null,
+                    iconAfter = true,
+                    icon = { Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = it, modifier = Modifier.size(15.dp)) },
+                )
             }
-            Spacer(Modifier.weight(1f))
-            Pill(
-                older?.let(L::num) ?: L.s("oldest"), { older?.let(onPick) }, kind = Kind.Secondary, height = 44.dp, enabled = older != null,
-                iconAfter = true,
-                icon = { Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = it, modifier = Modifier.size(15.dp)) },
-            )
         }
     }
 }

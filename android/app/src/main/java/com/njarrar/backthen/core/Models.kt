@@ -12,7 +12,7 @@ enum class PhotoSource { DEVICE }
 data class Photo(
     /** Stable key: "d:<mediaStoreId>". */
     val key: String,
-    val source: PhotoSource,
+    val source: PhotoSource = PhotoSource.DEVICE,
     val uri: String,
     val width: Int,
     val height: Int,

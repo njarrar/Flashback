@@ -5,6 +5,7 @@ import java.time.LocalDateTime
 import java.time.ZoneId
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class CoreTest {
@@ -25,6 +26,22 @@ class CoreTest {
         assertEquals("1 year ago", agoLabel(2025, 2026))
         assertEquals("10 years ago", agoLabel(2016, 2026))
         assertEquals("Earlier this year", agoLabel(2026, 2026))
+        // Future-dated photos never render negative years ago.
+        assertEquals("Earlier this year", agoLabel(2028, 2026))
+    }
+
+    @Test fun dayRangeHandlesDstAndLeapDays() {
+        val ny = ZoneId.of("America/New_York")
+        // Spring forward (2026-03-08): 23-hour day.
+        val spring = dayRange(2026, MonthDay(2, 8), ny)!!
+        assertEquals(23L * 3_600_000L, spring.second - spring.first)
+        // Fall back (2026-11-01): 25-hour day.
+        val fall = dayRange(2026, MonthDay(10, 1), ny)!!
+        assertEquals(25L * 3_600_000L, fall.second - fall.first)
+        // Non-leap Feb 29 doesn't exist; leap Feb 29 is 24h.
+        assertNull(dayRange(2026, MonthDay(1, 29), ny))
+        val leap = dayRange(2024, MonthDay(1, 29), ny)!!
+        assertEquals(24L * 3_600_000L, leap.second - leap.first)
     }
 
     private val index = buildDayIndex(
@@ -47,22 +64,50 @@ class CoreTest {
         assertEquals(MonthDay(9, 9), after)
     }
 
-    @Test fun swipeSkipsEmptyDaysAndStopsAtTheEnds() {
+    @Test fun swipeSkipsEmptyDaysWrapsAndVisitsPastYearDays() {
         assertEquals(MonthDay(8, 20) to 11, swipeTarget(index, MonthDay(9, 2), -1, today))
         assertEquals(MonthDay(9, 2) to 11, swipeTarget(index, MonthDay(8, 20), 1, today))
-        // Past today is the future; before January 1 is last year.
-        assertEquals(null, swipeTarget(index, MonthDay(9, 2), 1, today))
-        assertEquals(null, swipeTarget(index, MonthDay(8, 20), -1, today))
+        // Oct 9 has 2025 photos, so swiping forward from Oct 2 lands there (6 empty days: Oct 3..8) and back works too.
+        assertEquals(MonthDay(9, 9) to 6, swipeTarget(index, MonthDay(9, 2), 1, today))
+        assertEquals(MonthDay(9, 2) to 6, swipeTarget(index, MonthDay(9, 9), -1, today))
+        // Wraps around the year boundary from Oct 9 forward to Sep 20, and from Sep 20 back to Oct 9.
+        val wrappedForward = swipeTarget(index, MonthDay(9, 9), 1, today)
+        assertEquals(MonthDay(8, 20), wrappedForward?.first)
+        val wrappedBack = swipeTarget(index, MonthDay(8, 20), -1, today)
+        assertEquals(MonthDay(9, 9), wrappedBack?.first)
+        // Single-day index returns null rather than looping back onto itself.
+        val single: DayIndex = mapOf("9-2" to mapOf(2019 to 1))
+        assertNull(swipeTarget(single, MonthDay(9, 2), 1, today))
+        assertNull(swipeTarget(single, MonthDay(9, 2), -1, today))
+        assertNull(swipeTarget(index, MonthDay(9, 2), 0, today))
+    }
+
+    @Test fun swipeSkipsNonLeapFeb29WithoutCountingEmptyDay() {
+        val febMar: DayIndex = mapOf("1-28" to mapOf(2020 to 1), "2-1" to mapOf(2020 to 1))
+        val nonLeap = LocalDate.of(2026, 3, 5)
+        val leap = LocalDate.of(2024, 3, 5)
+        // In 2026 (non-leap), Feb 28 and Mar 1 are adjacent -> 0 empty days skipped.
+        assertEquals(MonthDay(1, 28) to 0, swipeTarget(febMar, MonthDay(2, 1), -1, nonLeap))
+        assertEquals(MonthDay(2, 1) to 0, swipeTarget(febMar, MonthDay(1, 28), 1, nonLeap))
+        // In 2024 (leap), Feb 29 exists and is empty -> 1 empty day skipped.
+        assertEquals(MonthDay(1, 28) to 1, swipeTarget(febMar, MonthDay(2, 1), -1, leap))
+        // If Feb 29 has photos from a past leap year, swiping lands on Feb 29 even in a non-leap year.
+        val withLeapPhoto: DayIndex = febMar + ("1-29" to mapOf(2024 to 2))
+        assertEquals(MonthDay(1, 29) to 0, swipeTarget(withLeapPhoto, MonthDay(2, 1), -1, nonLeap))
     }
 
     @Test fun photoCountAndFavoriteCover() {
         assertEquals(3, photoCount(index, MonthDay(9, 2), today))
-        val time = java.time.LocalDate.of(2020, 10, 2).atTime(12, 0).atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val tokyo = ZoneId.of("Asia/Tokyo")
+        val time = LocalDate.of(2020, 10, 2).atTime(1, 0).atZone(tokyo).toInstant().toEpochMilli()
         val fav = Photo("f", PhotoSource.DEVICE, "content://f", 1, 1, time)
-        assertEquals("f", favoriteCover(listOf(fav), MonthDay(9, 2), listOf(2021, 2020))?.key)
+        assertEquals("f", favoriteCover(listOf(fav), MonthDay(9, 2), listOf(2021, 2020), tokyo)?.key)
+        // Same instant is Oct 1 in New York.
+        assertNull(favoriteCover(listOf(fav), MonthDay(9, 2), listOf(2021, 2020), zone))
+        assertEquals("f", favoriteCover(listOf(fav), MonthDay(9, 1), listOf(2021, 2020), zone)?.key)
         // Not a year the day counts, or another day: no favorite.
-        assertEquals(null, favoriteCover(listOf(fav), MonthDay(9, 2), listOf(2021)))
-        assertEquals(null, favoriteCover(listOf(fav), MonthDay(9, 3), listOf(2020)))
+        assertNull(favoriteCover(listOf(fav), MonthDay(9, 2), listOf(2021), tokyo))
+        assertNull(favoriteCover(listOf(fav), MonthDay(9, 3), listOf(2020), tokyo))
     }
 
     @Test fun laterDaysComeAfter() {
@@ -85,10 +130,12 @@ class CoreTest {
         }
     }
 
-    @Test fun masonryBalancesColumns() {
+    @Test fun masonryBalancesColumnsAndGuardsBadInputs() {
         // A tall photo first, so the next three fit beside it.
         assertEquals(listOf(listOf(0), listOf(1, 2, 3)), masonryColumns(listOf(0.6f, 1.5f, 1.5f, 1f)))
         assertEquals(listOf(emptyList<Int>(), emptyList()), masonryColumns(emptyList()))
+        assertEquals(emptyList(), masonryColumns(listOf(1f, 2f), columns = 0))
+        assertEquals(listOf(listOf(0, 2), listOf(1)), masonryColumns(listOf(Float.NaN, 0f, -1f), columns = 2))
         assertEquals(1f, tileAspect(0, 0))
         assertEquals(1.8f, tileAspect(4000, 1000))
     }
@@ -96,7 +143,7 @@ class CoreTest {
     @Test fun monthDayKeysRoundTrip() {
         assertEquals(MonthDay(9, 2), MonthDay.fromKey(MonthDay(9, 2).key))
         assertEquals(MonthDay(1, 29), MonthDay.fromKey("1-29"))
-        assertEquals(null, MonthDay.fromKey("1-30"))
-        assertEquals(null, MonthDay.fromKey("x"))
+        assertNull(MonthDay.fromKey("1-30"))
+        assertNull(MonthDay.fromKey("x"))
     }
 }

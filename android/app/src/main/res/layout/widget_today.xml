@@ -29,10 +29,16 @@
 
         <TextView
             android:id="@+id/widget_year"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:autoSizeMaxTextSize="28sp"
+            android:autoSizeMinTextSize="16sp"
+            android:autoSizeStepGranularity="2sp"
+            android:autoSizeTextType="uniform"
+            android:ellipsize="end"
             android:fontFamily="sans-serif-black"
             android:includeFontPadding="false"
+            android:maxLines="1"
             android:textColor="#FFFFFFFF"
             android:textSize="28sp" />
 

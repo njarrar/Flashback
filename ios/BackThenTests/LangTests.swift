@@ -24,7 +24,7 @@ final class LangTests: XCTestCase {
     func testAppShipsEveryLanguage() {
         XCTAssertEqual(Set(L.available), ["ar", "en", "es", "fr", "pt", "zh"])
         // The build step makes an .lproj folder per language, which is what tells iOS the app speaks it.
-        for code in ["ar", "en", "es", "fr", "pt", "zh-Hans"] {
+        for code in ["ar", "en", "es", "fr", "pt", "zh-Hans", "zh-Hant"] {
             XCTAssertTrue(Bundle.main.localizations.contains(code), "no \(code).lproj in the app")
         }
     }
@@ -41,9 +41,19 @@ final class LangTests: XCTestCase {
                 XCTAssertEqual(slots(t), slots(text), "\(code) \(key) has different {slots}")
             }
             XCTAssertEqual(Set(lang.strings.keys).subtracting(en.strings.keys), [], "\(code) has words English does not")
+            XCTAssertEqual(Set(lang.plurals.keys).subtracting(en.plurals.keys), [], "\(code) has plurals English does not")
             for (key, forms) in en.plurals {
                 let mine = try XCTUnwrap(lang.plurals[key], "\(code) is missing plurals \(key)")
                 XCTAssertNotNil(mine["other"], "\(code) \(key) has no 'other' form")
+                let required: [String] = switch code {
+                case "ar": key == "ago_years" ? ["one", "two", "few", "many", "other"] : ["zero", "one", "two", "few", "many", "other"]
+                case "es", "fr", "pt": ["one", "other"]
+                case "zh": ["other"]
+                default: ["other"]
+                }
+                for req in required {
+                    XCTAssertNotNil(mine[req], "\(code) \(key) is missing required CLDR form '\(req)'")
+                }
                 let allowed = slots(forms["other"] ?? "")
                 for (form, t) in mine {
                     XCTAssertTrue(slots(t).isSubset(of: allowed), "\(code) \(key) \(form) has unknown {slots}")
@@ -109,7 +119,8 @@ final class LangTests: XCTestCase {
 
     func testPortugueseAndChinese() throws {
         L.use(try load("pt"), locale: Locale(identifier: "pt_BR"))
-        XCTAssertEqual(L.p("photos", 0), "0 foto")
+        XCTAssertEqual(L.p("photos", 0), "0 fotos")
+        XCTAssertEqual(L.p("photos", 1), "1 foto")
         XCTAssertEqual(L.p("photos", 2), "2 fotos")
         XCTAssertEqual(L.p("ago_years", 3), "Há 3 anos")
         XCTAssertEqual(MonthDay(month: 9, day: 16).label, "16 de outubro")
@@ -127,6 +138,20 @@ final class LangTests: XCTestCase {
         L.use(tiny, locale: Locale(identifier: "ar"))
         XCTAssertEqual(L.s("tab_today"), "اليوم")
         XCTAssertEqual(L.s("tab_favorites"), "Favorites")
+    }
+
+    func testPluralFallbackUsesEnglishRuleAndHandlesEdgeCases() {
+        // French treats 0 as "one", so falling back to English must use English's "other" ("0 photos").
+        let partialFr = Strings(code: "fr")
+        L.use(partialFr, locale: Locale(identifier: "fr_FR"))
+        XCTAssertEqual(L.p("photos", 0), "0 photos")
+        XCTAssertEqual(L.p("photos", 1), "1 photo")
+        XCTAssertEqual(pluralForm(0, language: "pt"), "other")
+        XCTAssertEqual(pluralForm(1, language: "pt"), "one")
+        XCTAssertEqual(pluralForm(0, language: "fr"), "one")
+        XCTAssertEqual(pluralForm(2, language: "AR"), "two")
+        XCTAssertEqual(pluralForm(Int.min, language: "en"), "other")
+        XCTAssertEqual(L.fill("{foo {n}", ["n": 3]), "{foo 3")
     }
 
     func testPicksThePhoneLanguage() {
@@ -150,12 +175,19 @@ final class LangTests: XCTestCase {
         }
     }
 
-    /// Every word the Swift code asks for is in en.xml.
+    /// Every word the Swift code asks for (app and widget) is in en.xml.
     func testEveryWordTheCodeUsesExists() throws {
         let en = try load("en")
-        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().appending(path: "BackThen")
-        let files = FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil)?
-            .compactMap { $0 as? URL }.filter { $0.pathExtension == "swift" } ?? []
+        let iosRoot = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+        let appRoot = iosRoot.appending(path: "BackThen")
+        try XCTSkipUnless(FileManager.default.fileExists(atPath: appRoot.path), "Source files unavailable on physical device")
+        let roots = [appRoot, iosRoot.appending(path: "BackThenWidget")]
+        var files: [URL] = []
+        for root in roots {
+            let found = FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil)?
+                .compactMap { $0 as? URL }.filter { $0.pathExtension == "swift" } ?? []
+            files.append(contentsOf: found)
+        }
         XCTAssertFalse(files.isEmpty)
         let call = try NSRegularExpression(pattern: "L\\.(s|p)\\(([^,)]*)")
         let word = try NSRegularExpression(pattern: "\"([a-z0-9_]+)\"")

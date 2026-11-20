@@ -60,7 +60,7 @@
     <string name="privacy_line">你的照片只留在这部手机上。</string>
 
     <!-- Daily reminder, on the welcome screen and in the notification -->
-    <string name="reminder_title_years">{day}有 {years}的照片</string>
+    <string name="reminder_title_years">{day}有 {years} 的照片</string>
     <string name="reminder_title_any">{day}有往年的照片</string>
     <string name="reminder_body_oldest">最早的一张拍于 {year} 年。轻点回顾。</string>
     <string name="reminder_body">轻点回顾。</string>
@@ -133,7 +133,7 @@
     <string name="album_made">{photos} · 创建于 {date}</string>
     <string name="share_album">分享相簿</string>
     <string name="save_to_photos">存储到“照片”</string>
-    <string name="save_to_gallery">保存到相册</string>
+    <string name="save_to_gallery">保存到图库</string>
     <string name="rename">重命名</string>
     <string name="rename_album">重命名相簿</string>
     <string name="album_name">相簿名称</string>
@@ -173,7 +173,7 @@
     <string name="newest">最新</string>
     <string name="oldest">最早</string>
     <string name="save_copies_photos">存储到“照片”中的相簿</string>
-    <string name="save_copies_gallery">将副本保存到 Pictures</string>
+    <string name="save_copies_gallery">将副本保存到图片</string>
 
     <!-- Short messages at the bottom of the screen -->
     <string name="toast_reminder_set">每日提醒时间：{time}</string>
@@ -248,4 +248,33 @@
     </plurals>
     <string name="reel_save">保存</string>
     <string name="toast_reel_saved">已保存到 Movies/Flashback</string>
+
+    <!-- 无障碍、权限、选择、相簿、地点、短片与信息 -->
+    <string name="open_settings">打开设置</string>
+    <string name="limited_access">部分访问权限</string>
+    <string name="limited_access_note">仅显示你选择的照片。随时可以添加更多。</string>
+    <string name="manage_photos">管理</string>
+    <string name="select_all">全选</string>
+    <string name="clear_selection">清除</string>
+    <string name="select_year">选择这一年</string>
+    <string name="deselect_year">取消选择</string>
+    <string name="undo">撤销</string>
+    <string name="photo_unavailable">无法加载照片</string>
+    <string name="retry">重试</string>
+    <string name="loading_hd">正在载入完整照片…</string>
+    <string name="remove_from_album">从相簿中移除</string>
+    <string name="already_in_album">已在“{name}”中</string>
+    <string name="album_empty">这个相簿还没有照片。</string>
+    <string name="album_deleted">已删除“{name}”</string>
+    <string name="home_city">常驻城市</string>
+    <string name="change">更改</string>
+    <string name="places_scanning">正在扫描你的照片…</string>
+    <string name="reel_reduce_motion_note">已开启减弱动态效果，闪光将改为柔和淡入淡出。</string>
+    <string name="reel_playing">正在播放</string>
+    <string name="reel_paused">已暂停</string>
+    <string name="day_upcoming">{day}，尚未到来</string>
+    <string name="share_failed">无法打开分享面板。</string>
+    <string name="info">信息</string>
+    <string name="show_this_day">显示这一天</string>
+    <string name="licenses">开源许可</string>
 </language>

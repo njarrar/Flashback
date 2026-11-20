@@ -102,7 +102,7 @@
     <string name="selected">Selecionada</string>
     <string name="not_selected">Não selecionada</string>
     <string name="select_hint">Toque nas fotos para selecionar</string>
-    <string name="n_selected">{photos} selecionadas</string>
+    <string name="n_selected">Seleção: {photos}</string>
     <string name="album">Álbum</string>
     <string name="share_year">Compartilhar {year}</string>
     <string name="empty_no_sources_title">Nenhuma foto conectada</string>
@@ -179,7 +179,7 @@
     <string name="newest">Mais recentes</string>
     <string name="oldest">Mais antigas</string>
     <string name="save_copies_photos">Salvar num álbum no Fotos</string>
-    <string name="save_copies_gallery">Salvar cópias em Pictures</string>
+    <string name="save_copies_gallery">Salvar cópias em Imagens</string>
 
     <!-- Short messages at the bottom of the screen -->
     <string name="toast_reminder_set">Lembrete diário às {time}</string>
@@ -255,4 +255,33 @@
     </plurals>
     <string name="reel_save">Salvar</string>
     <string name="toast_reel_saved">Salvo em Movies/Flashback</string>
+
+    <!-- Acessibilidade, permissões, seleção, álbuns, lugares, reels e informações -->
+    <string name="open_settings">Abrir Ajustes</string>
+    <string name="limited_access">Acesso limitado</string>
+    <string name="limited_access_note">Mostrando só as fotos que você escolheu. Adicione mais quando quiser.</string>
+    <string name="manage_photos">Gerenciar</string>
+    <string name="select_all">Selecionar tudo</string>
+    <string name="clear_selection">Limpar</string>
+    <string name="select_year">Selecionar ano</string>
+    <string name="deselect_year">Desmarcar</string>
+    <string name="undo">Desfazer</string>
+    <string name="photo_unavailable">Foto indisponível</string>
+    <string name="retry">Tentar de novo</string>
+    <string name="loading_hd">Carregando foto completa…</string>
+    <string name="remove_from_album">Remover do álbum</string>
+    <string name="already_in_album">Já está em {name}</string>
+    <string name="album_empty">Este álbum ainda não tem fotos.</string>
+    <string name="album_deleted">{name} apagado</string>
+    <string name="home_city">Cidade de origem</string>
+    <string name="change">Alterar</string>
+    <string name="places_scanning">Analisando suas fotos…</string>
+    <string name="reel_reduce_motion_note">Reduzir Movimento está ativado — Flash usa um esmaecer suave.</string>
+    <string name="reel_playing">Reproduzindo</string>
+    <string name="reel_paused">Em pausa</string>
+    <string name="day_upcoming">{day}, por vir</string>
+    <string name="share_failed">Não foi possível abrir o menu de compartilhamento.</string>
+    <string name="info">Informações</string>
+    <string name="show_this_day">Mostrar este dia</string>
+    <string name="licenses">Licenças de código aberto</string>
 </language>

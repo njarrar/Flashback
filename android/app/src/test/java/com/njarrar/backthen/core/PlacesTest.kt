@@ -3,7 +3,9 @@ package com.njarrar.backthen.core
 import java.time.LocalDate
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class PlacesTest {
     private val cities = CityList(
@@ -23,6 +25,43 @@ class PlacesTest {
         // Far from every city, or no location at all.
         assertNull(cities.city(45.0, -30.0))
         assertNull(cities.city(0.0, 0.0))
+    }
+
+    @Test
+    fun antimeridianHighLatitudeAndNanCoordinates() {
+        val edgeCities = CityList(
+            sequenceOf(
+                "Taveuni\tFJ\t-16.82\t-179.95\t60000",
+                "Tromso\tNO\t69.65\t18.96\t77000",
+                "BadRow\tXX\tNaN\t10.0\t50000",
+                "ShortRow\tXX",
+            ),
+        )
+        assertEquals(2, edgeCities.cities.size)
+        // Crosses the ±180° antimeridian (~16 km away across 180°).
+        assertTrue(distanceKm(-16.82, 179.90, -16.82, -179.95) < 20.0)
+        assertEquals(0, edgeCities.city(-16.82, 179.90))
+        // High latitude (>69°N): 1.0° longitude is ~38.7 km < 40 km reach.
+        assertTrue(distanceKm(69.65, 19.96, 69.65, 18.96) < CityList.REACH_KM)
+        assertEquals(1, edgeCities.city(69.65, 19.96))
+        // NaN, Infinite, and out-of-range coordinates must never match a city.
+        assertNull(edgeCities.city(Double.NaN, 18.96))
+        assertNull(edgeCities.city(69.65, Double.NaN))
+        assertNull(edgeCities.city(Double.POSITIVE_INFINITY, 0.0))
+        assertNull(edgeCities.city(95.0, 10.0))
+        assertTrue(distanceKm(Double.NaN, 0.0, 0.0, 0.0).isNaN())
+    }
+
+    @Test
+    fun cityListHashChangesWhenDatasetChanges() {
+        val other = CityList(
+            sequenceOf(
+                "London\tGB\t51.508\t-0.126\t8961989",
+                "Paris\tFR\t48.853\t2.349\t2138551",
+            ),
+        )
+        assertTrue(cities.hash.length == 64)
+        assertNotEquals(cities.hash, other.hash)
     }
 
     @Test
@@ -49,5 +88,12 @@ class PlacesTest {
         // Yesterday's photos are this trip, not one before.
         assertEquals(2, card?.trips?.size)
         assertEquals(7, card?.photos)
+        // Custom home city override flips which city is treated as home.
+        assertNull(makePlaceCard(index, 2, cities, today, customHomeCity = 2))
+        val londonCard = makePlaceCard(index, 0, cities, today, customHomeCity = 2)
+        assertEquals("London", londonCard?.city?.name)
+        // Exact 7-day cutoff boundary: a trip ending exactly 7 days ago is excluded (< cutoff).
+        val boundary = pastTrips(mapOf("2026-10-11" to 2, "2026-10-10" to 3), today)
+        assertEquals(listOf(LocalDate.of(2026, 10, 10)), boundary.map { it.end })
     }
 }

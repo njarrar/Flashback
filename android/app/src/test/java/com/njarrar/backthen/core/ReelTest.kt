@@ -87,7 +87,9 @@ class ReelTest {
 
     @Test fun sizes() {
         assertEquals(1080 to 1920, ReelSize.STORY.width to ReelSize.STORY.height)
-        assertEquals(1080 to 1350, ReelSize.PORTRAIT.width to ReelSize.PORTRAIT.height)
+        assertEquals(1088 to 1360, ReelSize.PORTRAIT.width to ReelSize.PORTRAIT.height)
+        assertEquals(0, ReelSize.PORTRAIT.width % 16)
+        assertEquals(0, ReelSize.PORTRAIT.height % 16)
         assertEquals(1080 to 1080, ReelSize.SQUARE.width to ReelSize.SQUARE.height)
     }
 

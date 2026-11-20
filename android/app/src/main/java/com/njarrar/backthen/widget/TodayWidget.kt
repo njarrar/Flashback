@@ -10,7 +10,9 @@ import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.util.SizeF
 import android.widget.RemoteViews
 import com.njarrar.backthen.MainActivity
 import com.njarrar.backthen.R
@@ -24,17 +26,17 @@ import com.njarrar.backthen.core.localDate
 import com.njarrar.backthen.core.startLanguage
 import com.njarrar.backthen.core.yearsForDay
 import com.njarrar.backthen.data.DeviceLibrary
-import com.njarrar.backthen.data.EXTRA_DAY
-import com.njarrar.backthen.data.decodePhoto
-import com.njarrar.backthen.data.EXTRA_MONTH
 import com.njarrar.backthen.data.StateFile
+import com.njarrar.backthen.data.decodePhoto
 import com.njarrar.backthen.data.visibleIndex
-import java.time.LocalDateTime
-import kotlin.math.max
-import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
+import java.time.LocalDateTime
+import kotlin.math.max
+import kotlin.math.roundToInt
+import kotlin.math.sqrt
 
 /**
  * Home screen widget: a photo from this day in a past year, with its year and how long ago.
@@ -46,7 +48,9 @@ class TodayWidget : AppWidgetProvider() {
         val pending = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                runCatching { draw(context.applicationContext, manager, ids) }
+                withTimeoutOrNull(UPDATE_TIMEOUT_MS) {
+                    runCatching { draw(context.applicationContext, manager, ids) }
+                }
             } finally {
                 pending.finish()
             }
@@ -59,6 +63,8 @@ class TodayWidget : AppWidgetProvider() {
     }
 
     companion object {
+        private const val UPDATE_TIMEOUT_MS = 8_000L
+
         /** Redraws every widget on the home screen. Does nothing when there are none. */
         fun refresh(context: Context) {
             val manager = AppWidgetManager.getInstance(context) ?: return
@@ -79,32 +85,58 @@ private sealed interface Shown {
     data object NeedsApp : Shown
     /** No photos from this day, or the day is hidden. */
     data object Empty : Shown
-    data class One(val photo: Photo, val year: Int) : Shown
+    data class Candidates(val photos: List<Pair<Photo, Int>>, val startIndex: Int) : Shown
 }
+
+private data class DecodedCandidate(val photo: Photo, val year: Int, val bitmap: Bitmap)
 
 private suspend fun draw(context: Context, manager: AppWidgetManager, ids: IntArray) {
     startLanguage(context)
     val today = MonthDay.today()
+    // Ask MainActivity to open whatever "today" is when tapped, never a stale cached date.
     val tap = PendingIntent.getActivity(
         context, 2,
         Intent(context, MainActivity::class.java)
-            .putExtra(EXTRA_MONTH, today.month)
-            .putExtra(EXTRA_DAY, today.day)
+            .putExtra(MainActivity.EXTRA_OPEN_TODAY, true)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
     )
+    val rootId = if (Build.VERSION.SDK_INT >= 31) android.R.id.background else R.id.widget_root
     val shown = pick(context, today)
-    for (id in ids) {
-        val views = (shown as? Shown.One)?.let { one ->
-            val (w, h) = sizeOf(context, manager.getAppWidgetOptions(id))
-            load(context, one.photo, w, h)?.let { bitmap -> photoViews(context, one, bitmap) }
-        } ?: messageViews(context, today, shown)
-        views.setOnClickPendingIntent(R.id.widget_root, tap)
-        manager.updateAppWidget(id, views)
+    // Decode once across all widget instances, trying up to 5 candidates before falling back to Empty.
+    val decoded = (shown as? Shown.Candidates)?.let { pickDecoded(context, it) }
+    try {
+        for (id in ids) {
+            runCatching {
+                val views = if (decoded != null) {
+                    val (w, h) = sizeOf(context, manager.getAppWidgetOptions(id))
+                    cropForWidget(decoded.bitmap, w, h)?.let { cropped ->
+                        photoViews(context, decoded.photo, decoded.year, cropped)
+                    } ?: messageViews(context, today, Shown.Empty)
+                } else {
+                    messageViews(context, today, if (shown is Shown.NeedsApp) Shown.NeedsApp else Shown.Empty)
+                }
+                views.setOnClickPendingIntent(rootId, tap)
+                manager.updateAppWidget(id, views)
+            }
+        }
+    } finally {
+        decoded?.bitmap?.recycle()
     }
 }
 
-/** One photo from today in a past year, the same rules as Today: hidden days stay hidden. */
+private fun pickDecoded(context: Context, candidates: Shown.Candidates): DecodedCandidate? {
+    val attempts = minOf(MAX_DECODE_CANDIDATES, candidates.photos.size)
+    for (offset in 0 until attempts) {
+        val idx = (candidates.startIndex + offset) % candidates.photos.size
+        val (photo, year) = candidates.photos[idx]
+        val bmp = decode(context, photo)
+        if (bmp != null) return DecodedCandidate(photo, year, bmp)
+    }
+    return null
+}
+
+/** Candidate photos from today in past years, the same rules as Today: hidden days stay hidden. */
 private suspend fun pick(context: Context, today: MonthDay): Shown {
     val state = StateFile(context).read()
     val library = DeviceLibrary(context)
@@ -113,20 +145,22 @@ private suspend fun pick(context: Context, today: MonthDay): Shown {
     val years = yearsForDay(visibleIndex(state), today)
     if (years.isEmpty()) return Shown.Empty
     val byYear = runCatching { library.photosOn(years, today) }.getOrDefault(emptyMap())
-    val photos = years.flatMap { y -> byYear[y].orEmpty().sortedBy { it.time }.map { it to y } }
+    // Oldest year first (aligned with iOS widget rotation).
+    val photos = years.reversed().flatMap { y -> byYear[y].orEmpty().sortedBy { it.time }.map { it to y } }
     if (photos.isEmpty()) return Shown.Empty
     // A new photo each hour, in a set order through the day.
     val now = LocalDateTime.now()
-    val (photo, year) = photos[((now.toLocalDate().toEpochDay() * 24 + now.hour) % photos.size).toInt()]
-    return Shown.One(photo, year)
+    val hourSlot = now.toLocalDate().toEpochDay() * 24L + now.hour
+    val startIndex = Math.floorMod(hourSlot, photos.size.toLong()).toInt()
+    return Shown.Candidates(photos, startIndex)
 }
 
-private fun photoViews(context: Context, one: Shown.One, bitmap: Bitmap) =
+private fun photoViews(context: Context, photo: Photo, year: Int, bitmap: Bitmap) =
     RemoteViews(context.packageName, R.layout.widget_today).apply {
         setImageViewBitmap(R.id.widget_photo, bitmap)
-        setContentDescription(R.id.widget_photo, L.s("photo_from", "date" to fullDate(one.year, MonthDay.of(localDate(one.photo.time)))))
-        setTextViewText(R.id.widget_year, L.num(one.year))
-        setTextViewText(R.id.widget_ago, agoLabel(one.year))
+        setContentDescription(R.id.widget_photo, L.s("photo_from", "date" to fullDate(year, MonthDay.of(localDate(photo.time)))))
+        setTextViewText(R.id.widget_year, L.num(year))
+        setTextViewText(R.id.widget_ago, agoLabel(year))
     }
 
 private fun messageViews(context: Context, today: MonthDay, shown: Shown) =
@@ -135,35 +169,65 @@ private fun messageViews(context: Context, today: MonthDay, shown: Shown) =
         setTextViewText(R.id.widget_note, L.s(if (shown == Shown.NeedsApp) "widget_open_app" else "widget_empty"))
     }
 
-/** The widget's size in pixels, from what the launcher reports for the current orientation. */
+/** The widget's size in pixels, from OPTION_APPWIDGET_SIZES (API 31+) or min/max launcher bounds. */
 private fun sizeOf(context: Context, options: Bundle): Pair<Int, Int> {
+    val density = context.resources.displayMetrics.density
+    if (Build.VERSION.SDK_INT >= 31) {
+        @Suppress("DEPRECATION")
+        val sizes = if (Build.VERSION.SDK_INT >= 33) {
+            options.getParcelableArrayList(AppWidgetManager.OPTION_APPWIDGET_SIZES, SizeF::class.java)
+        } else {
+            options.getParcelableArrayList<SizeF>(AppWidgetManager.OPTION_APPWIDGET_SIZES)
+        }
+        val best = sizes?.maxByOrNull { it.width * it.height }
+        if (best != null && best.width > 0f && best.height > 0f) {
+            return (best.width * density).roundToInt() to (best.height * density).roundToInt()
+        }
+    }
     val portrait = context.resources.configuration.orientation != Configuration.ORIENTATION_LANDSCAPE
     val wDp = options.getInt(if (portrait) AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH else AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH)
     val hDp = options.getInt(if (portrait) AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT else AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT)
-    val density = context.resources.displayMetrics.density
     val w = (wDp.takeIf { it > 0 } ?: 160) * density
     val h = (hDp.takeIf { it > 0 } ?: 160) * density
     return w.roundToInt() to h.roundToInt()
 }
 
-// Widget pictures cross to the launcher in one message, which can't be much over 1 MB.
-// Cropped to the widget's shape, at most this many pixels on the long side, and 2 bytes a pixel.
+// Widget pictures cross to the launcher in one Binder IPC transaction (shared ~1 MB limit).
+// Keep cropped RGB_565 bitmaps <= 500 KB and <= 640 px on the long side.
 private const val MAX_SIDE = 640
+private const val MAX_BYTES = 500_000
+private const val MAX_DECODE_CANDIDATES = 5
 
-/** The photo cropped to the widget's shape and made small enough to send. Null if it can't be read. */
-private fun load(context: Context, photo: Photo, widgetW: Int, widgetH: Int): Bitmap? = runCatching {
-    val full = decode(context, photo) ?: return null
-    val aspect = widgetW.toFloat() / max(1, widgetH)
-    // Center crop to the widget's aspect.
-    val (cw, ch) = if (full.width.toFloat() / full.height > aspect) {
+/** Crops and scales [full] to the widget's shape within Binder byte budget, recycling intermediates. */
+private fun cropForWidget(full: Bitmap, widgetW: Int, widgetH: Int): Bitmap? = runCatching {
+    if (full.width <= 0 || full.height <= 0) return null
+    val safeW = max(1, widgetW)
+    val safeH = max(1, widgetH)
+    val aspect = safeW.toFloat() / safeH
+    val (rawCw, rawCh) = if (full.width.toFloat() / full.height > aspect) {
         (full.height * aspect).roundToInt() to full.height
     } else {
         full.width to (full.width / aspect).roundToInt()
     }
-    val scale = minOf(1f, MAX_SIDE.toFloat() / max(cw, ch))
+    val cw = rawCw.coerceIn(1, full.width)
+    val ch = rawCh.coerceIn(1, full.height)
+    val targetLong = minOf(MAX_SIDE, max(safeW, safeH).coerceAtLeast(160))
+    var scale = minOf(1f, targetLong.toFloat() / max(cw, ch))
+    val outW = max(1, (cw * scale).roundToInt())
+    val outH = max(1, (ch * scale).roundToInt())
+    val bytes = outW.toLong() * outH.toLong() * 2L
+    if (bytes > MAX_BYTES) {
+        scale *= sqrt(MAX_BYTES.toDouble() / bytes.toDouble()).toFloat()
+    }
     val matrix = Matrix().apply { setScale(scale, scale) }
-    val cropped = Bitmap.createBitmap(full, (full.width - cw) / 2, (full.height - ch) / 2, cw, ch, matrix, true)
-    cropped.copy(Bitmap.Config.RGB_565, false)
+    val x = ((full.width - cw) / 2).coerceIn(0, full.width - cw)
+    val y = ((full.height - ch) / 2).coerceIn(0, full.height - ch)
+    val cropped = Bitmap.createBitmap(full, x, y, cw, ch, matrix, true)
+    try {
+        cropped.copy(Bitmap.Config.RGB_565, false)
+    } finally {
+        if (cropped !== full) cropped.recycle()
+    }
 }.getOrNull()
 
 /** Reads the photo at about twice [MAX_SIDE], turned the right way up. */

@@ -6,6 +6,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.media.MediaCodec
 import android.media.MediaCodecInfo
+import android.media.MediaCodecList
 import android.media.MediaFormat
 import android.media.MediaMuxer
 import android.opengl.EGL14
@@ -37,8 +38,10 @@ import kotlin.coroutines.coroutineContext
 
 /** Writes a reel to an MP4 on the phone, frame by frame. Nothing leaves the phone. */
 object ReelExport {
-    /** Long side of the photos loaded for the video. Enough for a 1080 wide frame with the slow zoom. */
-    const val PHOTO_SIDE = 1600
+    /** Long side of the photos loaded for the video. Crisp on 9:16 fill reels with Ken Burns zoom. */
+    const val PHOTO_SIDE = 2160
+
+    private const val STALE_CACHE_MS = 60L * 60L * 1000L
 
     /**
      * Makes the video in the app's cache and returns it. [progress] gets 0 to 1. Cancelling the
@@ -55,8 +58,9 @@ object ReelExport {
         try {
             return withContext(thread) {
                 val dir = File(context.cacheDir, "reels").apply { mkdirs() }
-                // One reel at a time on disk: old ones went out through the share sheet already.
-                dir.listFiles()?.forEach { it.delete() }
+                // Prune only stale reels (> 1 hour old) so an active share target isn't disrupted.
+                val cutoff = System.currentTimeMillis() - STALE_CACHE_MS
+                dir.listFiles()?.forEach { if (it.lastModified() < cutoff) it.delete() }
                 val file = File(dir, "${fileName()}.mp4")
                 try {
                     write(renderer, file, load, progress)
@@ -71,40 +75,75 @@ object ReelExport {
         }
     }
 
-    /** "Flashback 2026-11-03 19.40": a plain name that sorts by date where the file lands. */
-    fun fileName(now: Date = Date()): String = "Flashback " + SimpleDateFormat("yyyy-MM-dd HH.mm", Locale.ROOT).format(now)
+    /** "Flashback 2026-11-03 19.40.12": a plain name that sorts by date where the file lands. */
+    fun fileName(now: Date = Date()): String = "Flashback " + SimpleDateFormat("yyyy-MM-dd HH.mm.ss", Locale.ROOT).format(now)
+
+    private data class EncoderChoice(val codecName: String?, val width: Int, val height: Int)
+
+    private fun alignDown(value: Int, alignment: Int): Int {
+        val a = maxOf(2, alignment)
+        return maxOf(a, (value / a) * a)
+    }
+
+    /** Picks a supported AVC encoder (hardware first, then software fallback) and aligns dimensions to its capabilities. */
+    private fun chooseEncoder(reqW: Int, reqH: Int): EncoderChoice {
+        val infos = runCatching { MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos }.getOrNull().orEmpty()
+        val avcEncoders = infos.filter { info ->
+            info.isEncoder && info.supportedTypes.any { it.equals(MediaFormat.MIMETYPE_VIDEO_AVC, ignoreCase = true) }
+        }.sortedBy { info ->
+            val name = info.name.lowercase(Locale.ROOT)
+            val sw = if (Build.VERSION.SDK_INT >= 29) info.isSoftwareOnly else (name.startsWith("omx.google.") || name.startsWith("c2.android."))
+            if (sw) 1 else 0
+        }
+        for (info in avcEncoders) {
+            val caps = runCatching { info.getCapabilitiesForType(MediaFormat.MIMETYPE_VIDEO_AVC)?.videoCapabilities }.getOrNull() ?: continue
+            val w = alignDown(reqW, caps.widthAlignment)
+            val h = alignDown(reqH, caps.heightAlignment)
+            if (caps.isSizeSupported(w, h)) {
+                return EncoderChoice(info.name, w, h)
+            }
+        }
+        return EncoderChoice(null, alignDown(reqW, 16), alignDown(reqH, 16))
+    }
 
     private suspend fun write(renderer: ReelRenderer, file: File, load: suspend (Int) -> Bitmap?, progress: (Float) -> Unit) {
-        val w = renderer.options.size.width
-        val h = renderer.options.size.height
+        val choice = chooseEncoder(renderer.options.size.width, renderer.options.size.height)
+        val w = choice.width
+        val h = choice.height
         val plan = renderer.plan
         val frame = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(frame)
-        // Full-size photos, loaded as the reel reaches them and dropped once it has passed.
+        // Full-size photos, loaded as the reel reaches them and recycled once passed.
         val full = HashMap<Int, Bitmap?>()
-        renderer.image = { synchronized(full) { full[it] } }
-        val encoder = Encoder(w, h, file)
+        renderer.image = { full[it] }
+        var encoder: Encoder? = null
         try {
+            encoder = Encoder(choice.codecName, w, h, file)
             val frames = plan.frameCount
+            val evict = ArrayList<Int>(4)
             for (f in 0 until frames) {
                 coroutineContext.ensureActive()
                 val t = f.toDouble() / ReelPlan.FPS
                 val m = plan.moment(t)
-                val needed = listOfNotNull(m.a, m.b).mapNotNull { (it.kind as? ReelPlan.Kind.Photo)?.index }.toSet()
-                for (i in needed) if (synchronized(full) { i !in full }) {
-                    val bmp = load(i)
-                    synchronized(full) { full[i] = bmp }
-                }
-                synchronized(full) { full.keys.filter { it !in needed }.forEach { full.remove(it) } }
+                val idxA = (m.a.kind as? ReelPlan.Kind.Photo)?.index
+                val idxB = (m.b?.kind as? ReelPlan.Kind.Photo)?.index
+                if (idxA != null && idxA !in full) full[idxA] = load(idxA)
+                if (idxB != null && idxB !in full) full[idxB] = load(idxB)
+                evict.clear()
+                for (k in full.keys) if (k != idxA && k != idxB) evict += k
+                for (k in evict) full.remove(k)?.recycle()
                 frame.eraseColor(android.graphics.Color.BLACK)
                 renderer.draw(canvas, w.toFloat(), h.toFloat(), t)
                 encoder.frame(frame, f * 1_000_000_000L / ReelPlan.FPS)
-                progress((f + 1).toFloat() / frames)
+                val pct = (f + 1).toFloat() / frames
+                withContext(Dispatchers.Main.immediate) { progress(pct) }
             }
             encoder.finish()
         } finally {
-            encoder.release()
+            encoder?.release()
             renderer.image = { null }
+            for (bmp in full.values) bmp?.recycle()
+            full.clear()
             frame.recycle()
         }
     }
@@ -124,6 +163,7 @@ object ReelExport {
             try {
                 resolver.openOutputStream(uri)?.use { out -> file.inputStream().use { it.copyTo(out) } } ?: error("no stream")
                 resolver.update(uri, ContentValues().apply { put(MediaStore.Video.Media.IS_PENDING, 0) }, null, null)
+                if (file.parentFile?.name == "reels") runCatching { file.delete() }
                 true
             } catch (e: Exception) {
                 resolver.delete(uri, null, null)
@@ -136,12 +176,14 @@ object ReelExport {
      * H.264 through the phone's video encoder. Frames go in as pictures drawn with OpenGL onto
      * the encoder's input surface, each with its own time, and come out into an MP4.
      */
-    private class Encoder(private val width: Int, private val height: Int, file: File) {
-        private val codec: MediaCodec = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
-        private val muxer = MediaMuxer(file.path, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
-        private val input: Surface
+    private class Encoder(codecName: String?, private val width: Int, private val height: Int, file: File) {
+        private var codec: MediaCodec? = null
+        private var codecStarted = false
+        private var muxer: MediaMuxer? = null
+        private var input: Surface? = null
         private var track = -1
         private var muxing = false
+        private var lastPtsUs = -1L
         private val info = MediaCodec.BufferInfo()
         private var display: EGLDisplay = EGL14.EGL_NO_DISPLAY
         private var context: EGLContext = EGL14.EGL_NO_CONTEXT
@@ -151,23 +193,41 @@ object ReelExport {
         private val quad: ByteBuffer
 
         init {
-            val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, width, height).apply {
-                setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
-                setInteger(MediaFormat.KEY_BIT_RATE, 9_000_000)
-                setInteger(MediaFormat.KEY_FRAME_RATE, ReelPlan.FPS)
-                setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1)
-            }
-            codec.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
-            input = codec.createInputSurface()
-            codec.start()
-            setUpGl()
             // x, y, u, v for two triangles covering the frame. The picture's top row sits at the top.
             val v = floatArrayOf(-1f, -1f, 0f, 1f, 1f, -1f, 1f, 1f, -1f, 1f, 0f, 0f, 1f, 1f, 1f, 0f)
             quad = ByteBuffer.allocateDirect(v.size * 4).order(ByteOrder.nativeOrder()).apply { asFloatBuffer().put(v) }
+            try {
+                val enc = if (codecName != null) {
+                    MediaCodec.createByCodecName(codecName)
+                } else {
+                    MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
+                }
+                codec = enc
+                muxer = MediaMuxer(file.path, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+                val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, width, height).apply {
+                    setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
+                    setInteger(MediaFormat.KEY_BIT_RATE, 9_000_000)
+                    setInteger(MediaFormat.KEY_FRAME_RATE, ReelPlan.FPS)
+                    setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1)
+                    setInteger(MediaFormat.KEY_COLOR_STANDARD, MediaFormat.COLOR_STANDARD_BT709)
+                    setInteger(MediaFormat.KEY_COLOR_TRANSFER, MediaFormat.COLOR_TRANSFER_SDR_VIDEO)
+                    setInteger(MediaFormat.KEY_COLOR_RANGE, MediaFormat.COLOR_RANGE_LIMITED)
+                }
+                enc.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+                input = enc.createInputSurface()
+                enc.start()
+                codecStarted = true
+                setUpGl()
+            } catch (t: Throwable) {
+                release()
+                throw t
+            }
         }
 
         private fun setUpGl() {
-            display = EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY)
+            val dpy = EGL14.eglGetDisplay(EGL14.EGL_DEFAULT_DISPLAY)
+            check(dpy != EGL14.EGL_NO_DISPLAY) { "EGL display" }
+            display = dpy
             val version = IntArray(2)
             check(EGL14.eglInitialize(display, version, 0, version, 1)) { "EGL init" }
             val attribs = intArrayOf(
@@ -183,13 +243,36 @@ object ReelExport {
             check(surface != EGL14.EGL_NO_SURFACE) { "EGL surface" }
             check(EGL14.eglMakeCurrent(display, surface, surface, context)) { "EGL current" }
 
-            program = GLES20.glCreateProgram()
-            GLES20.glAttachShader(program, shader(GLES20.GL_VERTEX_SHADER, VERTEX))
-            GLES20.glAttachShader(program, shader(GLES20.GL_FRAGMENT_SHADER, FRAGMENT))
-            GLES20.glLinkProgram(program)
+            val vert = shader(GLES20.GL_VERTEX_SHADER, VERTEX)
+            val frag = try {
+                shader(GLES20.GL_FRAGMENT_SHADER, FRAGMENT)
+            } catch (t: Throwable) {
+                GLES20.glDeleteShader(vert)
+                throw t
+            }
+            val prog = GLES20.glCreateProgram()
+            try {
+                check(prog != 0) { "GL program" }
+                GLES20.glAttachShader(prog, vert)
+                GLES20.glAttachShader(prog, frag)
+                GLES20.glLinkProgram(prog)
+                val linkStatus = IntArray(1)
+                GLES20.glGetProgramiv(prog, GLES20.GL_LINK_STATUS, linkStatus, 0)
+                if (linkStatus[0] == 0) {
+                    val log = GLES20.glGetProgramInfoLog(prog)
+                    GLES20.glDeleteProgram(prog)
+                    error("GL link failed: $log")
+                }
+                program = prog
+            } finally {
+                GLES20.glDeleteShader(vert)
+                GLES20.glDeleteShader(frag)
+            }
+
             val ids = IntArray(1)
             GLES20.glGenTextures(1, ids, 0)
             texture = ids[0]
+            check(texture != 0) { "GL texture" }
             GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, texture)
             GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR)
             GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR)
@@ -197,9 +280,19 @@ object ReelExport {
             GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE)
         }
 
-        private fun shader(type: Int, source: String): Int = GLES20.glCreateShader(type).also {
-            GLES20.glShaderSource(it, source)
-            GLES20.glCompileShader(it)
+        private fun shader(type: Int, source: String): Int {
+            val id = GLES20.glCreateShader(type)
+            check(id != 0) { "GL shader" }
+            GLES20.glShaderSource(id, source)
+            GLES20.glCompileShader(id)
+            val status = IntArray(1)
+            GLES20.glGetShaderiv(id, GLES20.GL_COMPILE_STATUS, status, 0)
+            if (status[0] == 0) {
+                val log = GLES20.glGetShaderInfoLog(id)
+                GLES20.glDeleteShader(id)
+                error("GL shader compile failed: $log")
+            }
+            return id
         }
 
         private var uploaded = false
@@ -227,15 +320,19 @@ object ReelExport {
         }
 
         fun finish() {
-            codec.signalEndOfInputStream()
+            codec?.signalEndOfInputStream()
             drain(true)
         }
 
         /** Moves finished video out of the encoder into the file. */
         private fun drain(end: Boolean) {
+            val enc = codec ?: return
+            val mux = muxer ?: return
+            val timeoutUs = if (end) 10_000L else 0L
             var waits = 0
             while (true) {
-                val index = codec.dequeueOutputBuffer(info, 10_000)
+                if (end && Thread.interrupted()) throw InterruptedException("reel export interrupted")
+                val index = enc.dequeueOutputBuffer(info, timeoutUs)
                 when {
                     index == MediaCodec.INFO_TRY_AGAIN_LATER -> {
                         if (!end) return
@@ -244,19 +341,23 @@ object ReelExport {
                     }
                     index == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
                         check(!muxing) { "format changed twice" }
-                        track = muxer.addTrack(codec.outputFormat)
-                        muxer.start()
+                        track = mux.addTrack(enc.outputFormat)
+                        mux.start()
                         muxing = true
                     }
                     index >= 0 -> {
-                        val data = codec.getOutputBuffer(index)
+                        val data = enc.getOutputBuffer(index)
                         if (info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG != 0) info.size = 0
                         if (info.size > 0 && muxing && data != null) {
+                            if (info.presentationTimeUs <= lastPtsUs) {
+                                info.presentationTimeUs = lastPtsUs + 1L
+                            }
+                            lastPtsUs = info.presentationTimeUs
                             data.position(info.offset)
                             data.limit(info.offset + info.size)
-                            muxer.writeSampleData(track, data, info)
+                            mux.writeSampleData(track, data, info)
                         }
-                        codec.releaseOutputBuffer(index, false)
+                        enc.releaseOutputBuffer(index, false)
                         if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) return
                     }
                 }
@@ -264,18 +365,48 @@ object ReelExport {
         }
 
         fun release() {
-            runCatching { codec.stop() }
-            runCatching { codec.release() }
+            // Tear down GL objects and EGL surface/context BEFORE stopping/releasing MediaCodec and its input Surface.
             if (display != EGL14.EGL_NO_DISPLAY) {
-                EGL14.eglMakeCurrent(display, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_CONTEXT)
-                EGL14.eglDestroySurface(display, surface)
-                EGL14.eglDestroyContext(display, context)
-                EGL14.eglReleaseThread()
-                EGL14.eglTerminate(display)
+                if (context != EGL14.EGL_NO_CONTEXT && surface != EGL14.EGL_NO_SURFACE) {
+                    runCatching {
+                        EGL14.eglMakeCurrent(display, surface, surface, context)
+                        if (program != 0) {
+                            GLES20.glDeleteProgram(program)
+                            program = 0
+                        }
+                        if (texture != 0) {
+                            GLES20.glDeleteTextures(1, intArrayOf(texture), 0)
+                            texture = 0
+                        }
+                    }
+                }
+                runCatching { EGL14.eglMakeCurrent(display, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_SURFACE, EGL14.EGL_NO_CONTEXT) }
+                if (surface != EGL14.EGL_NO_SURFACE) {
+                    runCatching { EGL14.eglDestroySurface(display, surface) }
+                    surface = EGL14.EGL_NO_SURFACE
+                }
+                if (context != EGL14.EGL_NO_CONTEXT) {
+                    runCatching { EGL14.eglDestroyContext(display, context) }
+                    context = EGL14.EGL_NO_CONTEXT
+                }
+                runCatching { EGL14.eglReleaseThread() }
+                runCatching { EGL14.eglTerminate(display) }
+                display = EGL14.EGL_NO_DISPLAY
             }
-            input.release()
-            runCatching { if (muxing) muxer.stop() }
-            runCatching { muxer.release() }
+            if (codecStarted) {
+                runCatching { codec?.stop() }
+                codecStarted = false
+            }
+            runCatching { codec?.release() }
+            codec = null
+            runCatching { input?.release() }
+            input = null
+            if (muxing) {
+                runCatching { muxer?.stop() }
+                muxing = false
+            }
+            runCatching { muxer?.release() }
+            muxer = null
         }
 
         companion object {
