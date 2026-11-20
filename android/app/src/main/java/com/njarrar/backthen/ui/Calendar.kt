@@ -155,7 +155,7 @@ fun CalendarSheet(
                             Day(
                                 md = md,
                                 index = index,
-                                photo = covers[md.key],
+                                photo = if (md.isAfter(today)) null else covers[md.key],
                                 selected = start == md,
                                 isToday = today == md,
                                 future = md.isAfter(today),
@@ -186,9 +186,9 @@ private fun Day(
     onClick: () -> Unit,
 ) {
     val p = LocalPalette.current
-    val photos = hasPhotos(index, md)
-    // Past-year days after today with photos are unlocked and tappable; only empty upcoming days stay disabled.
-    val upcomingEmpty = future && !photos && !hidden
+    // Days after today stay locked and faint, as in 1.7.
+    val photos = !future && hasPhotos(index, md)
+    val upcomingEmpty = future
     val enabled = !upcomingEmpty
     val shape = RoundedCornerShape(11.dp)
     val request = rememberThumbnailRequest(photo?.uri, maxPx = 160, crossfade = false)

@@ -100,11 +100,11 @@ struct CalendarSheet: View {
         return LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 7), spacing: 0) {
             ForEach(days, id: \.key) { md in
                 let sel = store.day == md
-                let photos = hasPhotos(index, md)
-                let hidden = store.isHidden(md)
                 let future = md.isAfter(today)
-                // Unlock any day with past-year photos; only upcoming empty days stay disabled.
-                let disabled = future && !photos && !hidden
+                // Days after today stay locked and faint, as in 1.7.
+                let photos = !future && hasPhotos(index, md)
+                let hidden = store.isHidden(md)
+                let disabled = future
                 Button { pick(md) } label: {
                     CalendarDay(md: md, photos: photos, hidden: hidden, selected: sel, today: md == today, future: future)
                         .frame(maxWidth: .infinity, minHeight: 50)
