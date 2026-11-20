@@ -233,7 +233,7 @@ final class CoreTests: XCTestCase {
 
     func testSamplePhotosFileURLSanitizesTraversal() {
         let url = SamplePhotos.fileURL("../../state.json")
-        XCTAssertEqual(url.deletingLastPathComponent().standardizedFileURL, SamplePhotos.folder.standardizedFileURL)
+        XCTAssertEqual(url.deletingLastPathComponent().standardizedFileURL.path, SamplePhotos.folder.standardizedFileURL.path)
         XCTAssertEqual(url.lastPathComponent, "state.json")
     }
 
