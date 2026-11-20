@@ -41,7 +41,7 @@ struct RootView: View {
                 OnboardingView()
             }
         }
-        .overlay(alignment: .top) {
+        .overlay(alignment: .bottom) {
             if let toast = store.toast, store.viewer == nil, store.reel == nil {
                 ToastView(
                     message: toast,
@@ -49,7 +49,7 @@ struct RootView: View {
                     undoLabel: store.toastUndoLabel,
                     onUndo: store.toastUndoLabel != nil ? { store.triggerToastUndo() } : nil
                 )
-                .padding(.top, 8)
+                .padding(.bottom, 104)
                 .padding(.horizontal, 16)
             }
         }

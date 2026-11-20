@@ -27,14 +27,10 @@ android {
         ignoreAssetsPattern = "!README.md:!.svn:!.git:!.ds_store:!*.scc:.*:<dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"
     }
 
-    dependenciesInfo {
-        includeInApk = false
-        includeInBundle = false
-    }
-
-    // Release builds sign with the Play upload key when these are set (the Play Store and Build
-    // apps workflows set them from GitHub secrets). Debug builds always use the standard debug
-    // keystore with a separate applicationId so they never share signing identity with production.
+    // Builds sign with the Play upload key when these are set (the Play Store and Build
+    // apps workflows set them from GitHub secrets). Without them the release bundle is
+    // unsigned and debug builds use the usual debug key. Signing debug builds with the
+    // upload key too gives the APK in build/ the same key each run, so a new one installs over the last.
     val uploadKey = System.getenv("UPLOAD_KEYSTORE_FILE")?.let(::file)?.takeIf { it.exists() }
     signingConfigs {
         if (uploadKey != null) {
@@ -49,7 +45,7 @@ android {
 
     buildTypes {
         debug {
-            applicationIdSuffix = ".debug"
+            if (uploadKey != null) signingConfig = signingConfigs.getByName("upload")
         }
         release {
             if (uploadKey != null) {

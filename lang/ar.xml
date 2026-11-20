@@ -308,7 +308,7 @@
     <string name="home_city">المدينة الرئيسية</string>
     <string name="change">تغيير</string>
     <string name="places_scanning">جارٍ فحص صورك…</string>
-    <string name="reel_reduce_motion_note">تقليل الحركة مفعّل — يستخدم الوميض تلاشيًا هادئًا.</string>
+    <string name="reel_reduce_motion_note">تقليل الحركة مفعّل، لذا يستخدم الوميض تلاشيًا هادئًا.</string>
     <string name="reel_playing">قيد التشغيل</string>
     <string name="reel_paused">متوقف مؤقتًا</string>
     <string name="day_upcoming">{day}، قادم</string>

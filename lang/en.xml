@@ -284,7 +284,7 @@
     <string name="home_city">Home city</string>
     <string name="change">Change</string>
     <string name="places_scanning">Scanning your photos…</string>
-    <string name="reel_reduce_motion_note">Reduce Motion is on — Flash uses a gentle fade.</string>
+    <string name="reel_reduce_motion_note">Reduce Motion is on, so Flash uses a gentle fade.</string>
     <string name="reel_playing">Playing</string>
     <string name="reel_paused">Paused</string>
     <string name="day_upcoming">{day}, upcoming</string>

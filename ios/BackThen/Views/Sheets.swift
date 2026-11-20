@@ -582,7 +582,7 @@ struct SettingsSheet: View {
         .alert(L.s("licenses"), isPresented: $showLicenses) {
             Button(L.s("close"), role: .cancel) {}
         } message: {
-            Text("GeoNames — CC BY 4.0\nNunito & Tajawal — SIL Open Font License 1.1")
+            Text("GeoNames: CC BY 4.0\nNunito & Tajawal: SIL Open Font License 1.1")
         }
     }
 

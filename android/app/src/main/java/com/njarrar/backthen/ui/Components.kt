@@ -80,6 +80,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
@@ -469,7 +470,7 @@ fun PhotoTile(
                     .drawWithCache {
                         val glow = Brush.radialGradient(
                             colors = listOf(Color.Black.copy(alpha = 0.45f), Color.Transparent),
-                            center = center,
+                            center = Offset(size.width / 2f, size.height / 2f),
                             radius = size.minDimension * 0.5f,
                         )
                         onDrawBehind { drawCircle(glow) }

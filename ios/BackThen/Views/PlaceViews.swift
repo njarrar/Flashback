@@ -162,7 +162,7 @@ struct TripSection: View {
                     }
                     if !all.isEmpty {
                         Button {
-                            shareFor = ShareRequest(title: "\(city.name) — \(tripTitle)", photos: all)
+                            shareFor = ShareRequest(title: "\(city.name) · \(tripTitle)", photos: all)
                         } label: {
                             Image(systemName: "square.and.arrow.up").font(.system(size: 18)).foregroundStyle(Palette.ink)
                                 .frame(width: 44, height: 44).contentShape(Rectangle())

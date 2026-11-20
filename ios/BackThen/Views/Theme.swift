@@ -18,10 +18,10 @@ private func dynamic(_ light: UIColor, _ dark: UIColor, lightHigh: UIColor? = ni
 }
 
 enum Palette {
-    /// Adaptive WCAG AA coral accent for icons, text, rings, and active tab labels.
-    static let accent = dynamic(ui(0xC93B25), ui(0xFF6B53), lightHigh: ui(0xA62A17), darkHigh: ui(0xFF8874))
-    /// Solid WCAG AA coral fill behind white text (e.g., accent pills in both Light and Dark Mode).
-    static let accentFill = dynamic(ui(0xC93B25), ui(0xC93B25), lightHigh: ui(0xA62A17), darkHigh: ui(0xD64028))
+    /// Coral accent (high contrast variants for Increase Contrast) for icons, text, rings, and active tab labels.
+    static let accent = dynamic(ui(0xE5533D), ui(0xE5533D), lightHigh: ui(0xA62A17), darkHigh: ui(0xFF8874))
+    /// Coral fill behind white text (e.g., accent pills in both Light and Dark Mode).
+    static let accentFill = dynamic(ui(0xE5533D), ui(0xE5533D), lightHigh: ui(0xA62A17), darkHigh: ui(0xD64028))
     static let bg = dynamic(ui(0xF6F6F3), ui(0x121213), lightHigh: ui(0xFFFFFF), darkHigh: ui(0x000000))
     static let surface = dynamic(ui(0xFFFFFF), ui(0x1C1C1E), lightHigh: ui(0xFFFFFF), darkHigh: ui(0x141416))
     static let surface2 = dynamic(ui(0xF3F2EE), ui(0x242426), lightHigh: ui(0xEDEDEA), darkHigh: ui(0x1E1E20))
