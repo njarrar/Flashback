@@ -67,7 +67,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Add
@@ -728,31 +727,6 @@ fun TodayScreen(
                                 ),
                             )
                             Icon(Icons.Filled.ArrowDropDown, L.s("pick_another_day"), tint = Accent)
-                        }
-                        if (!selecting && (neighbors.first != null || neighbors.second != null)) {
-                            Spacer(Modifier.width(4.dp))
-                            IconButton(
-                                onClick = { neighbors.first?.let(::land) },
-                                enabled = neighbors.first != null,
-                                modifier = Modifier.size(48.dp),
-                            ) {
-                                Icon(
-                                    Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                                    L.s("previous_day_photos"),
-                                    tint = p.ink.copy(alpha = if (neighbors.first != null) 0.72f else 0.25f),
-                                )
-                            }
-                            IconButton(
-                                onClick = { neighbors.second?.let(::land) },
-                                enabled = neighbors.second != null,
-                                modifier = Modifier.size(48.dp),
-                            ) {
-                                Icon(
-                                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                    L.s("next_day_photos"),
-                                    tint = p.ink.copy(alpha = if (neighbors.second != null) 0.72f else 0.25f),
-                                )
-                            }
                         }
                     }
                 },

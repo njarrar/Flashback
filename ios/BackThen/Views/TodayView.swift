@@ -222,9 +222,6 @@ struct TodayView: View {
                 Text(summary).font(.nunito(15)).foregroundStyle(Palette.muted)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 4)
-                if !selecting && (neighbors.back != nil || neighbors.forward != nil) {
-                    daySteppers
-                }
             }
             if day != today {
                 Pill(label: L.s("back_to_today"), systemImage: "arrow.uturn.backward", kind: .tint, height: 44) { go(today) }
@@ -338,42 +335,6 @@ struct TodayView: View {
         if groups.isEmpty { return store.indexing ? L.s("today_loading") : L.s("today_none") }
         let parts: [String: Any] = ["photos": L.p("photos", total), "years": L.p("years", groups.count)]
         return L.s("photos_from_years", parts)
-    }
-
-    private var daySteppers: some View {
-        HStack(spacing: 4) {
-            Button {
-                if let back = neighbors.back {
-                    turn(to: back, leaving: direction == .rightToLeft ? -pageWidth : pageWidth)
-                }
-            } label: {
-                Image(systemName: "chevron.backward")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(neighbors.back != nil ? Palette.ink : Palette.faint)
-                    .frame(width: 34, height: 32)
-                    .background(Palette.fill, in: Capsule())
-                    .frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
-            }
-            .buttonStyle(PressStyle())
-            .disabled(neighbors.back == nil)
-            .accessibilityLabel(L.s("previous_day_photos"))
-
-            Button {
-                if let forward = neighbors.forward {
-                    turn(to: forward, leaving: direction == .rightToLeft ? pageWidth : -pageWidth)
-                }
-            } label: {
-                Image(systemName: "chevron.forward")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(neighbors.forward != nil ? Palette.ink : Palette.faint)
-                    .frame(width: 34, height: 32)
-                    .background(Palette.fill, in: Capsule())
-                    .frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
-            }
-            .buttonStyle(PressStyle())
-            .disabled(neighbors.forward == nil)
-            .accessibilityLabel(L.s("next_day_photos"))
-        }
     }
 
     private func accessBanner(
