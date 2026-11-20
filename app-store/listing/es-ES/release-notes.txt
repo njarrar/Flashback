@@ -1,1 +1,1 @@
-Flashback ya está en portugués y chino (simplificado), además de inglés, francés, español y árabe. La app usa el idioma de tu teléfono.
+Una gran ronda de arreglos. El widget, los reels y los álbumes guardados son más fiables, y las fechas siguen bien cuando viajas. Si el acceso a fotos está desactivado, Abrir Ajustes te lleva allí. Hoy suma Seleccionar todo y Deshacer tras ocultar una fecha. Las fotos de iCloud muestran una vista previa mientras cargan. Puedes quitar una foto de un álbum o crear un reel con él. El texto se lee mejor y los botones son más fáciles de tocar.

@@ -1,1 +1,1 @@
-Flashback now speaks Portuguese and Chinese (simplified), on top of English, French, Spanish and Arabic. The app follows your phone's language.
+A big round of fixes. The widget, reels and saved albums are more reliable, and dates stay right when you travel. If photo access is off, Open Settings takes you there. Today adds Select all and Undo after Hide date. iCloud photos show a preview while they load. You can remove a photo from an album or make a reel from one. Text is easier to read and buttons are easier to tap.
