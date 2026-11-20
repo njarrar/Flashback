@@ -41,19 +41,17 @@ struct TodayView: View {
         let day = store.day
         let groups = result?.day == day ? result?.groups : nil
         let today = MonthDay.today
-        let total = groups?.reduce(0) { $0 + $1.photos.count } ?? 0
+        let total: Int = groups?.reduce(0) { $0 + $1.photos.count } ?? 0
         let hidden = store.isHidden(day)
         let canSelect = !hidden && total > 0
-        let stackHeader = textSize >= .accessibility1 || capsuleWidth > pageWidth * 0.42
+        let stackHeader: Bool = textSize >= .accessibility1 || capsuleWidth > pageWidth * 0.42
         // Strict non-overlapping opacity handoff: large title fades out completely by 0.45;
         // compact title fades in only after 0.55 so both can never overlap.
-        let largeTitleOpacity = max(0, min(1, 1 - scrolled / 0.45))
-        let compactTitleOpacity = max(0, min(1, (scrolled - 0.55) / 0.45))
-        let barBgOpacity = max(0, min(1, (scrolled - 0.1) / 0.6))
+        let largeTitleOpacity: CGFloat = max(0, min(1, 1 - scrolled / 0.45))
+        let compactTitleOpacity: CGFloat = max(0, min(1, (scrolled - 0.55) / 0.45))
+        let barBgOpacity: CGFloat = max(0, min(1, (scrolled - 0.1) / 0.6))
 
-        let summary = hidden ? L.s("you_hid_date") : groups == nil ? L.s("today_loading")
-            : groups!.isEmpty ? (store.indexing ? L.s("today_loading") : L.s("today_none"))
-            : L.s("photos_from_years", ["photos": L.p("photos", total), "years": L.p("years", groups!.count)])
+        let summary = summaryText(hidden: hidden, groups: groups, total: total)
 
         let activeStripGroup: YearGroup? = {
             guard store.saved.layout == .strip, let groups, !groups.isEmpty else { return nil }
@@ -91,142 +89,9 @@ struct TodayView: View {
         ScrollViewReader { scroll in
             ScrollView {
                 Group {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Button { calendar = true } label: {
-                            HStack(spacing: 8) {
-                                Text(day.label).font(.nunito(34, .bold)).tight(34).foregroundStyle(Palette.ink)
-                                    .lineLimit(1).minimumScaleFactor(0.6)
-                                Image(systemName: "chevron.down").font(.system(size: 16, weight: .bold)).foregroundStyle(Palette.accent)
-                            }
-                        }
-                        // Share the top bar row at normal text sizes; stack cleanly below at AX1+ or when capsule is wide.
-                        .padding(.trailing, stackHeader ? 0 : capsuleWidth + 8)
-                        .opacity(largeTitleOpacity)
-                        .allowsHitTesting(largeTitleOpacity > 0.1)
-                        .accessibilityHidden(largeTitleOpacity < 0.1)
-                        .accessibilityAddTraits(.isHeader)
-                        .accessibilityHint(L.s("pick_another_day"))
-                        .accessibilityActions {
-                            if let t = neighbors.back { Button(L.s("previous_day_photos")) { land(on: t) } }
-                            if let t = neighbors.forward { Button(L.s("next_day_photos")) { land(on: t) } }
-                        }
-                        .onGeometryChange(for: CGFloat.self) { proxy in
-                            let frame = proxy.frame(in: .global)
-                            let refBar: CGFloat = stackHeader
-                                ? barBottom + 20
-                                : (barBottom - barHeight + 8 + frame.height) + 8
-                            return Self.progress(bar: refBar, title: frame.maxY)
-                        } action: { scrolled = $0 }
+                    headerView(day: day, today: today, stackHeader: stackHeader, largeTitleOpacity: largeTitleOpacity, summary: summary)
 
-                        HStack(alignment: .center, spacing: 8) {
-                            Text(summary).font(.nunito(15)).foregroundStyle(Palette.muted)
-                                .fixedSize(horizontal: false, vertical: true)
-                            Spacer(minLength: 4)
-                            if !selecting && (neighbors.back != nil || neighbors.forward != nil) {
-                                daySteppers
-                            }
-                        }
-                        if day != today {
-                            Pill(label: L.s("back_to_today"), systemImage: "arrow.uturn.backward", kind: .tint, height: 44) { go(today) }
-                                .fixedSize().padding(.top, 6)
-                        }
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.top, stackHeader ? 4 : 8 - barHeight)
-                    .padding(.bottom, 12)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .id("top")
-
-                    if store.photoAccessRevoked && !selecting {
-                        accessBanner(
-                            icon: "exclamationmark.triangle.fill",
-                            title: L.s("empty_no_sources_title"),
-                            body: L.s("toast_allow_access"),
-                            actionLabel: L.s("open_settings"),
-                            dismissible: false
-                        ) {
-                            if let url = URL(string: UIApplication.openSettingsURLString) {
-                                UIApplication.shared.open(url)
-                            }
-                        }
-                    } else if PhotoLibrary.isLimited && !limitedBannerDismissed && !selecting {
-                        accessBanner(
-                            icon: "photo.badge.plus",
-                            title: L.s("limited_access"),
-                            body: L.s("limited_access_note"),
-                            actionLabel: L.s("manage_photos"),
-                            dismissible: true
-                        ) {
-                            PhotoLibrary.presentLimitedPicker()
-                        }
-                    }
-
-                    if let card = store.placeCard, !selecting {
-                        PlaceCardView(card: card) { placeOpen = card.city }
-                            .padding(.horizontal, 16)
-                            .padding(.bottom, 22)
-                    }
-
-                    if hidden {
-                        HiddenDay(day: day) { store.setHidden(day, false) }
-                    } else if let groups {
-                        if groups.isEmpty && store.indexing {
-                            Skeleton(layout: store.saved.layout)
-                        } else if groups.isEmpty {
-                            EmptyDay(
-                                day: day,
-                                noSources: !store.saved.sources.device || store.photoAccessRevoked,
-                                isLimited: PhotoLibrary.isLimited,
-                                near: nearbyDays(store.index, day),
-                                go: go,
-                                connect: {
-                                    if store.photoAccessRevoked || PhotoLibrary.isDenied {
-                                        if let url = URL(string: UIApplication.openSettingsURLString) {
-                                            UIApplication.shared.open(url)
-                                        }
-                                    } else {
-                                        settings = true
-                                    }
-                                },
-                                manageLimited: { PhotoLibrary.presentLimitedPicker() }
-                            )
-                        } else if store.saved.layout == .cards {
-                            YearCards(groups: groups, day: day, selection: selection, height: max(360, pageHeight * 0.64)) { g in
-                                shareFor = ShareRequest(title: fullDate(year: g.year, day), photos: g.photos)
-                            }
-                            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { cardsFrame = $0 }
-                        } else if store.saved.layout == .strip, let g = activeStripGroup {
-                            let years = groups.map(\.year)
-                            let at = years.firstIndex(of: g.year) ?? 0
-                            LazyVStack(spacing: 0, pinnedViews: .sectionHeaders) {
-                                Section {
-                                    StripYear(group: g, day: day, selection: selection,
-                                              newer: at > 0 ? years[at - 1] : nil, older: at + 1 < years.count ? years[at + 1] : nil,
-                                              share: { shareFor = ShareRequest(title: fullDate(year: g.year, day), photos: g.photos) },
-                                              pick: { stripPick = $0 })
-                                } header: {
-                                    YearPills(years: years, selected: g.year) { stripPick = $0 }
-                                        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { pillsFrame = $0 }
-                                }
-                            }
-                        } else {
-                            LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
-                                ForEach(groups) { g in
-                                    Section {
-                                        YearSection(group: g, day: day, selection: selection) {
-                                            shareFor = ShareRequest(title: fullDate(year: g.year, day), photos: g.photos)
-                                        }
-                                    } header: {
-                                        PinnedYear(group: g, day: day, barBottom: barBottom, pinned: $pinnedYears, selection: selection) {
-                                            shareFor = ShareRequest(title: fullDate(year: g.year, day), photos: g.photos)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        Skeleton(layout: store.saved.layout)
-                    }
+                    dayContent(day: day, groups: groups, hidden: hidden, selection: selection, activeStripGroup: activeStripGroup)
                     Color.clear.frame(height: 120)
                 }
                 .background(
@@ -322,6 +187,157 @@ struct TodayView: View {
         #if DEBUG
         .task(id: result?.groups.first?.year) { demoScene() }
         #endif
+    }
+
+    @ViewBuilder
+    private func headerView(day: MonthDay, today: MonthDay, stackHeader: Bool, largeTitleOpacity: CGFloat, summary: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Button { calendar = true } label: {
+                HStack(spacing: 8) {
+                    Text(day.label).font(.nunito(34, .bold)).tight(34).foregroundStyle(Palette.ink)
+                        .lineLimit(1).minimumScaleFactor(0.6)
+                    Image(systemName: "chevron.down").font(.system(size: 16, weight: .bold)).foregroundStyle(Palette.accent)
+                }
+            }
+            // Share the top bar row at normal text sizes; stack cleanly below at AX1+ or when capsule is wide.
+            .padding(.trailing, stackHeader ? 0 : capsuleWidth + 8)
+            .opacity(largeTitleOpacity)
+            .allowsHitTesting(largeTitleOpacity > 0.1)
+            .accessibilityHidden(largeTitleOpacity < 0.1)
+            .accessibilityAddTraits(.isHeader)
+            .accessibilityHint(L.s("pick_another_day"))
+            .accessibilityActions {
+                if let t = neighbors.back { Button(L.s("previous_day_photos")) { land(on: t) } }
+                if let t = neighbors.forward { Button(L.s("next_day_photos")) { land(on: t) } }
+            }
+            .onGeometryChange(for: CGFloat.self) { proxy in
+                let frame = proxy.frame(in: .global)
+                let refBar: CGFloat = stackHeader
+                    ? barBottom + 20
+                    : (barBottom - barHeight + 8 + frame.height) + 8
+                return Self.progress(bar: refBar, title: frame.maxY)
+            } action: { scrolled = $0 }
+
+            HStack(alignment: .center, spacing: 8) {
+                Text(summary).font(.nunito(15)).foregroundStyle(Palette.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 4)
+                if !selecting && (neighbors.back != nil || neighbors.forward != nil) {
+                    daySteppers
+                }
+            }
+            if day != today {
+                Pill(label: L.s("back_to_today"), systemImage: "arrow.uturn.backward", kind: .tint, height: 44) { go(today) }
+                    .fixedSize().padding(.top, 6)
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, stackHeader ? 4 : 8 - barHeight)
+        .padding(.bottom, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .id("top")
+    }
+
+    @ViewBuilder
+    private func dayContent(day: MonthDay, groups: [YearGroup]?, hidden: Bool, selection: Selection, activeStripGroup: YearGroup?) -> some View {
+        if store.photoAccessRevoked && !selecting {
+            accessBanner(
+                icon: "exclamationmark.triangle.fill",
+                title: L.s("empty_no_sources_title"),
+                body: L.s("toast_allow_access"),
+                actionLabel: L.s("open_settings"),
+                dismissible: false
+            ) {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }
+        } else if PhotoLibrary.isLimited && !limitedBannerDismissed && !selecting {
+            accessBanner(
+                icon: "photo.badge.plus",
+                title: L.s("limited_access"),
+                body: L.s("limited_access_note"),
+                actionLabel: L.s("manage_photos"),
+                dismissible: true
+            ) {
+                PhotoLibrary.presentLimitedPicker()
+            }
+        }
+
+        if let card = store.placeCard, !selecting {
+            PlaceCardView(card: card) { placeOpen = card.city }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 22)
+        }
+
+        if hidden {
+            HiddenDay(day: day) { store.setHidden(day, false) }
+        } else if let groups {
+            if groups.isEmpty && store.indexing {
+                Skeleton(layout: store.saved.layout)
+            } else if groups.isEmpty {
+                EmptyDay(
+                    day: day,
+                    noSources: !store.saved.sources.device || store.photoAccessRevoked,
+                    isLimited: PhotoLibrary.isLimited,
+                    near: nearbyDays(store.index, day),
+                    go: go,
+                    connect: {
+                        if store.photoAccessRevoked || PhotoLibrary.isDenied {
+                            if let url = URL(string: UIApplication.openSettingsURLString) {
+                                UIApplication.shared.open(url)
+                            }
+                        } else {
+                            settings = true
+                        }
+                    },
+                    manageLimited: { PhotoLibrary.presentLimitedPicker() }
+                )
+            } else if store.saved.layout == .cards {
+                YearCards(groups: groups, day: day, selection: selection, height: max(360, pageHeight * 0.64)) { g in
+                    shareFor = ShareRequest(title: fullDate(year: g.year, day), photos: g.photos)
+                }
+                .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { cardsFrame = $0 }
+            } else if store.saved.layout == .strip, let g = activeStripGroup {
+                let years = groups.map(\.year)
+                let at = years.firstIndex(of: g.year) ?? 0
+                LazyVStack(spacing: 0, pinnedViews: .sectionHeaders) {
+                    Section {
+                        StripYear(group: g, day: day, selection: selection,
+                                  newer: at > 0 ? years[at - 1] : nil, older: at + 1 < years.count ? years[at + 1] : nil,
+                                  share: { shareFor = ShareRequest(title: fullDate(year: g.year, day), photos: g.photos) },
+                                  pick: { stripPick = $0 })
+                    } header: {
+                        YearPills(years: years, selected: g.year) { stripPick = $0 }
+                            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { pillsFrame = $0 }
+                    }
+                }
+            } else {
+                LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
+                    ForEach(groups) { g in
+                        Section {
+                            YearSection(group: g, day: day, selection: selection) {
+                                shareFor = ShareRequest(title: fullDate(year: g.year, day), photos: g.photos)
+                            }
+                        } header: {
+                            PinnedYear(group: g, day: day, barBottom: barBottom, pinned: $pinnedYears, selection: selection) {
+                                shareFor = ShareRequest(title: fullDate(year: g.year, day), photos: g.photos)
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            Skeleton(layout: store.saved.layout)
+        }
+    }
+
+    private func summaryText(hidden: Bool, groups: [YearGroup]?, total: Int) -> String {
+        if hidden { return L.s("you_hid_date") }
+        guard let groups else { return L.s("today_loading") }
+        if groups.isEmpty { return store.indexing ? L.s("today_loading") : L.s("today_none") }
+        let parts: [String: Any] = ["photos": L.p("photos", total), "years": L.p("years", groups.count)]
+        return L.s("photos_from_years", parts)
     }
 
     private var daySteppers: some View {

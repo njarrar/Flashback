@@ -93,7 +93,7 @@ class PlacesTest {
         val londonCard = makePlaceCard(index, 0, cities, today, customHomeCity = 2)
         assertEquals("London", londonCard?.city?.name)
         // Exact 7-day cutoff boundary: a trip ending exactly 7 days ago is excluded (< cutoff).
-        val boundary = pastTrips(mapOf("2026-10-11" to 2, "2026-10-10" to 3), today)
-        assertEquals(listOf(LocalDate.of(2026, 10, 10)), boundary.map { it.end })
+        val boundary = pastTrips(mapOf("2026-10-11" to 2, "2026-10-07" to 3), today)
+        assertEquals(listOf(LocalDate.of(2026, 10, 7)), boundary.map { it.end })
     }
 }

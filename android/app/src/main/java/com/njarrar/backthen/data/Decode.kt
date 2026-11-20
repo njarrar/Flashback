@@ -73,7 +73,7 @@ fun decodePhoto(
         val transformed = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
         if (transformed !== bitmap) bitmap.recycle()
         transformed
-    } catch (_: Exception) {
+    } catch (_: Throwable) {
         null
     }
 }

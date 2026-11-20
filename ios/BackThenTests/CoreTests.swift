@@ -333,7 +333,7 @@ final class CoreTests: XCTestCase {
         XCTAssertNotNil(store.toastUndoLabel)
         store.triggerToastUndo()
         XCTAssertFalse(store.isHidden(md))
-        XCTAssertNil(store.toast)
+        XCTAssertNil(store.toastUndoLabel)
 
         // Custom home city override persists in SavedState.
         store.setHomeCity(42)

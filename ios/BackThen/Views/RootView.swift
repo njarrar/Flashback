@@ -15,7 +15,7 @@ struct RootView: View {
                     }
                     .tabItem {
                         Label(L.s("tab_today"), systemImage: "clock.arrow.circlepath")
-                            .symbolVariants(.none)
+                            .environment(\.symbolVariants, .none)
                     }
                     .tag(AppTab.today)
 
@@ -24,14 +24,14 @@ struct RootView: View {
                     }
                     .tabItem {
                         Label(L.s("tab_favorites"), systemImage: store.tab == .favorites ? "heart.fill" : "heart")
-                            .symbolVariants(.none)
+                            .environment(\.symbolVariants, .none)
                     }
                     .tag(AppTab.favorites)
 
                     AlbumsView()
                         .tabItem {
                             Label(L.s("tab_albums"), systemImage: store.tab == .albums ? "photo.on.rectangle.fill" : "photo.on.rectangle")
-                                .symbolVariants(.none)
+                                .environment(\.symbolVariants, .none)
                         }
                         .tag(AppTab.albums)
                 }

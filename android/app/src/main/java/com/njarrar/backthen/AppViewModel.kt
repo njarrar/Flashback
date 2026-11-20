@@ -72,7 +72,12 @@ class AppViewModel(
     private val _saved = MutableStateFlow(stateFile.read())
     val saved: StateFlow<SavedState> = _saved.asStateFlow()
 
-    val day = MutableStateFlow(savedStateHandle.get<String>(KEY_DAY)?.let(MonthDay::fromKey) ?: MonthDay.today())
+    // A day restored after the process was killed only counts if it was saved today.
+    val day = MutableStateFlow(
+        savedStateHandle.get<String>(KEY_DAY)
+            ?.takeIf { savedStateHandle.get<String>(KEY_SAVED_ON) == MonthDay.today().key }
+            ?.let(MonthDay::fromKey) ?: MonthDay.today()
+    )
     /** What today was when the app last checked, so it can tell when midnight has passed. */
     private var lastToday = MonthDay.today()
     val indexing = MutableStateFlow(false)
@@ -138,12 +143,16 @@ class AppViewModel(
             for (ignored in persistTrigger) {
                 val snapshot = _saved.value
                 val refreshWidget = pendingWidgetRefresh.getAndSet(false)
-                stateFile.write(snapshot)
+                // The reminder worker writes lastNotifiedEpochDay on its own; keep its value.
+                stateFile.update { disk -> snapshot.copy(lastNotifiedEpochDay = disk.lastNotifiedEpochDay ?: snapshot.lastNotifiedEpochDay) }
                 if (refreshWidget) TodayWidget.refresh(getApplication())
             }
         }
         viewModelScope.launch {
-            day.collect { savedStateHandle[KEY_DAY] = it.key }
+            day.collect {
+                savedStateHandle[KEY_DAY] = it.key
+                savedStateHandle[KEY_SAVED_ON] = MonthDay.today().key
+            }
         }
         viewModelScope.launch(Dispatchers.IO) {
             places.checkCitiesAvailable()
@@ -222,7 +231,8 @@ class AppViewModel(
                     }
                 }
             } finally {
-                indexing.value = false
+                // A forced refresh cancels this job after the new one has set indexing; leave it on then.
+                if (refreshJob == null || refreshJob === coroutineContext[Job]) indexing.value = false
             }
             if (_saved.value.places.on) refreshPlaces()
         }
@@ -554,5 +564,6 @@ class AppViewModel(
 
     private companion object {
         const val KEY_DAY = "day"
+        const val KEY_SAVED_ON = "dayRestoredOn"
     }
 }

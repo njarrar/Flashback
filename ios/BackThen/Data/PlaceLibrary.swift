@@ -75,10 +75,17 @@ final class Locator: NSObject, CLLocationManagerDelegate {
                 if accessWaiters.count == 1 {
                     manager.requestWhenInUseAuthorization()
                     accessTimeoutTask?.cancel()
+                    // Checks now and then in case the answer came without a callback.
+                    // While the prompt is still up, keep waiting: people can take their time.
                     accessTimeoutTask = Task { @MainActor [weak self] in
-                        try? await Task.sleep(for: timeout)
-                        guard !Task.isCancelled else { return }
-                        self?.finishAccess(self?.allowed ?? false)
+                        while !Task.isCancelled {
+                            try? await Task.sleep(for: timeout)
+                            guard !Task.isCancelled, let self else { return }
+                            if self.manager.authorizationStatus != .notDetermined {
+                                self.finishAccess(self.allowed)
+                                return
+                            }
+                        }
                     }
                 }
             }

@@ -51,6 +51,8 @@ struct SavedState: Codable, Sendable {
     var customHomeCity: Int? = nil
     /// Checksum of `cities.tsv` when `placeIndex` was built, so TSV updates trigger a rebuild.
     var citiesHash: String? = nil
+    /// The time zone `deviceIndex` was counted in. A new zone means a full count.
+    var indexZone: String? = nil
 
     init() {}
 
@@ -73,6 +75,7 @@ struct SavedState: Codable, Sendable {
         placeDismissed = try? c.decodeIfPresent(Int.self, forKey: .placeDismissed)
         customHomeCity = try? c.decodeIfPresent(Int.self, forKey: .customHomeCity)
         citiesHash = try? c.decodeIfPresent(String.self, forKey: .citiesHash)
+        indexZone = try? c.decodeIfPresent(String.self, forKey: .indexZone)
     }
 
     /// Photo counts per day in the phone's library, leaving out hidden days.
@@ -354,7 +357,8 @@ final class AppStore {
     private func runRefreshPass(force: Bool) async {
         if saved.deviceIndex.isEmpty || force { indexing = true }
         // Usually only a few photos were added since last time: count just those.
-        if !force, !saved.deviceIndex.isEmpty, let token = saved.changeToken,
+        if !force, !saved.deviceIndex.isEmpty, saved.indexZone == TimeZone.autoupdatingCurrent.identifier,
+           let token = saved.changeToken,
            let added = await PhotoLibrary.newPhotos(since: token) {
             // Load CityList BEFORE snapshotting `saved` so concurrent @MainActor edits are never clobbered.
             let cities: CityList? = saved.places.on ? await CityList.load() : nil
@@ -388,6 +392,11 @@ final class AppStore {
         var changed = false
         if token != next.changeToken {
             next.changeToken = token
+            changed = true
+        }
+        let zone = TimeZone.autoupdatingCurrent.identifier
+        if next.indexZone != zone {
+            next.indexZone = zone
             changed = true
         }
         if let fresh, next.deviceIndex != fresh.index || next.librarySignature != fresh.signature {
