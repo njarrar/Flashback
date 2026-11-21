@@ -79,8 +79,8 @@ const clip = (lang: string, name: string) => staticFile(`shots/${lang}/${name}-t
 // Sound effects made by sfx.py (public/sfx).
 // Music level, and effect levels set so each effect peaks about 4 dB under the music.
 // Keep the effects under the music: if MUSIC changes, scale SFX by the same amount.
-const MUSIC = 0.15;
-const SFX: Record<string, number> = { whoosh: 0.07, tap: 0.075, pop: 0.045, chime: 0.04 };
+const MUSIC = 0.09;
+const SFX: Record<string, number> = { whoosh: 0.05, tap: 0.056, pop: 0.032, chime: 0.03 };
 const Sfx: React.FC<{ name: string }> = ({ name }) =>
   <Audio src={staticFile(`sfx/${name}.wav`)} volume={SFX[name]} />;
 
