@@ -33,17 +33,43 @@ function captions(lang) {
 }
 
 // Keeps the last 4.5 seconds of each screen recording, once the scene has settled.
+// The simulator writes a frame only when the screen changes, so a still scene can end
+// long before the recording does. The clip is first made a steady 30 fps and held on its
+// last frame, then cut. A clip that still comes out empty is left out, and the cut uses
+// the screenshot instead.
+function frameCount(file) {
+  try {
+    return Number(execFileSync("ffprobe", ["-v", "error", "-select_streams", "v:0", "-count_frames",
+      "-show_entries", "stream=nb_read_frames", "-of", "csv=p=0", file]).toString().trim()) || 0;
+  } catch {
+    return 0;
+  }
+}
 function tails(lang) {
   const clips = {};
   for (const s of SCENES) {
     const src = path.join(shots, lang, `${s}.mp4`);
+    const held = path.join(shots, lang, `${s}-held.mp4`);
     const out = path.join(shots, lang, `${s}-tail.mp4`);
     if (!fs.existsSync(src)) continue;
     if (!fs.existsSync(out)) {
-      execFileSync("ffmpeg", ["-v", "error", "-y", "-sseof", "-4.5", "-i", src, "-an", "-vf", "fps=30,scale=1320:-2",
-        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18", out]);
+      try {
+        execFileSync("ffmpeg", ["-v", "error", "-y", "-i", src, "-an",
+          "-vf", "fps=30,tpad=stop_mode=clone:stop_duration=5,scale=1320:-2",
+          "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18", held]);
+        execFileSync("ffmpeg", ["-v", "error", "-y", "-sseof", "-4.5", "-i", held, "-c:v", "libx264",
+          "-pix_fmt", "yuv420p", "-crf", "18", out]);
+      } catch (e) {
+        console.warn(`${lang}/${s}.mp4: ${e.message}`);
+      }
+      fs.rmSync(held, { force: true });
     }
-    clips[s] = true;
+    const n = fs.existsSync(out) ? frameCount(out) : 0;
+    if (n >= 120) clips[s] = true;
+    else {
+      console.warn(`${lang}/${s}: recording gave ${n} frames, using the screenshot.`);
+      fs.rmSync(out, { force: true });
+    }
   }
   return clips;
 }
