@@ -303,7 +303,7 @@ const SocialShot: React.FC<{ k: string; frames: number; p: AdProps }> = ({ k, fr
 };
 
 const Music: React.FC<{ on: boolean; frames: number }> = ({ on, frames }) =>
-  on ? <Audio src={staticFile("music.mp3")} volume={(f) => interpolate(f, [0, 18, frames - 75, frames], [0, 0.5, 0.5, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })} /> : null;
+  on ? <Audio src={staticFile("music.mp3")} volume={(f) => interpolate(f, [0, 18, frames - 75, frames], [0, 0.35, 0.35, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })} /> : null;
 
 export const Social: React.FC<AdProps> = (p) => {
   const shots = CUTS[p.cut ?? "ad30"];
