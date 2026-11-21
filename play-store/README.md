@@ -116,6 +116,9 @@ App, Free. Tick the declarations.
   `pt`, `zh` ones for each translation)
 - **Phone screenshots:** all six from `screenshots/en/` (and each language's
   folder for its translation). They are 1080 x 1920, which Play asks for.
+- **Promo video:** Play takes only a YouTube link. Upload `flashback-ad-30s-<lang>.mp4`
+  from the `video-ad` release to YouTube (public or unlisted, ads off), put the link in
+  `listing/<locale>/video.txt`, and run the Play Store workflow with the listing on.
 - **Category:** Photography. **Tags:** Photography, Photo gallery, Memories.
 - **Contact details:** your email. A website is optional; the GitHub page works.
 

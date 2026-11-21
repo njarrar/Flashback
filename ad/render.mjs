@@ -97,7 +97,9 @@ for (const props of all) {
     const composition = await selectComposition({ serveUrl, id, inputProps, browserExecutable });
     const outputLocation = path.join(here, "out", props.lang, `${NAMES[id]}-${props.lang}.mp4`);
     await renderMedia({
-      composition, serveUrl, codec: "h264", inputProps, outputLocation, crf: 18, browserExecutable,
+      composition, serveUrl, codec: "h264", inputProps, outputLocation, browserExecutable,
+      // Apple asks app previews for about 10 Mbps video and 256 kbps stereo sound.
+      ...(id === "preview" ? { videoBitrate: "10M", audioBitrate: "256k" } : { crf: 18 }),
       // App Store Connect wants a sound track, so silent cuts still get one.
       enforceAudioTrack: true,
     });

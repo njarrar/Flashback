@@ -34,15 +34,28 @@ captions come from the App Store screenshot captions
 
 ## Sound
 
-Soft sound effects play on each cut, on the heart tap and on the end card. They are
-made from scratch by [sfx.py](sfx.py) (`python3 sfx.py` writes `public/sfx/`), so
-there are no rights to clear.
+Soft background music plays under every cut, with soft sound effects on each cut, on the
+heart tap and on the end card. [music.py](music.py) makes the music
+(`public/music.mp3`) and [sfx.py](sfx.py) makes the effects (`public/sfx/`), both from
+scratch, so there are no rights to clear.
 
 The effects always play quieter than the music: `SFX` and `MUSIC` in
 [src/Ad.tsx](src/Ad.tsx) set each effect about 4 dB under the music. Change both together.
+To use other music, replace `public/music.mp3` with a track you have the rights to.
 
-There is no music by default. To add music, put a track you have the rights to at
-`public/music.mp3` (it is not checked in) and render again. It fades in and out.
+## Store specs
+
+- App Store app preview: 886 × 1920, 30 fps, 15 to 30 seconds, H.264 at about 10 Mbps,
+  stereo AAC at 256 kbps. The "App Store review" workflow puts
+  `flashback-app-store-preview-<lang>.mp4` from the `video-ad` release on each store
+  language (6.9" iPhone).
+- Google Play takes a YouTube link only. Put the link in
+  `play-store/listing/<locale>/video.txt` and run the Play Store workflow with the listing on.
+
+## When the app changes a lot
+
+After a big update, run the Screenshots, App Store and Video ad workflows again so the
+store screenshots and videos show the new app, then send the listing to both stores.
 
 ## Run it on a computer
 

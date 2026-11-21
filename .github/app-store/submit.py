@@ -24,6 +24,8 @@ The App Review notes come from app-store/review-notes.txt.
                                             Review details, in place of any attached before
     SCREENSHOTS                             "true" puts app-store/screenshots/<lang>/ on the version,
                                             in place of the iPhone screenshots there
+    PREVIEWS                                a folder of flashback-app-store-preview-<lang>.mp4 files (from
+                                            the video-ad release) to put on the version as app previews
 
 The build must already be uploaded. Apple says what is
 still missing when the submission fails.
@@ -49,6 +51,7 @@ LISTING = ROOT / "app-store" / "listing"
 SHOTS = ROOT / "app-store" / "screenshots"
 # 6.9" and 6.7" iPhones share this type. Apple scales it down for smaller iPhones.
 SHOT_TYPE = "APP_IPHONE_67"
+PREVIEW_TYPE = "IPHONE_67"
 # Versions Apple has released, or approved for release.
 RELEASED = {"READY_FOR_SALE", "READY_FOR_DISTRIBUTION", "PROCESSING_FOR_DISTRIBUTION", "PENDING_DEVELOPER_RELEASE",
             "PENDING_APPLE_RELEASE", "ACCEPTED", "REPLACED_WITH_NEW_VERSION", "REMOVED_FROM_SALE",
@@ -129,6 +132,9 @@ def check(app, version):
             show(f"screenshots {s['attributes']['screenshotDisplayType']}", len(shots))
         if not sets:
             show("screenshots", 0)
+        for s in call("GET", f"/v1/appStoreVersionLocalizations/{loc['id']}/appPreviewSets")["data"]:
+            videos = call("GET", f"/v1/appPreviewSets/{s['id']}/appPreviews")["data"]
+            print(f"  app previews {s['attributes']['previewType']}: {len(videos)}")
     return ok
 
 
@@ -271,11 +277,11 @@ def whats_new(app, version):
     print("What's New, description, keywords and promotional text set.")
 
 
-def upload(path, kind, relationship):
+def upload(path, kind, relationship, **extra):
     """Reserves, sends and commits one file with Apple's upload operations."""
     data = path.read_bytes()
     a = call("POST", f"/v1/{kind}", {"data": {
-        "type": kind, "attributes": {"fileName": path.name, "fileSize": len(data)},
+        "type": kind, "attributes": {"fileName": path.name, "fileSize": len(data), **extra},
         "relationships": relationship}})["data"]
     for op in a["attributes"]["uploadOperations"]:
         part = data[op["offset"]:op["offset"] + op["length"]]
@@ -287,8 +293,8 @@ def upload(path, kind, relationship):
     return a
 
 
-def wait(kind, ids, name):
-    for _ in range(40):
+def wait(kind, ids, name, tries=40):
+    for _ in range(tries):
         states = [(call("GET", f"/v1/{kind}/{i}")["data"]["attributes"].get("assetDeliveryState") or {}).get("state")
                   for i in ids]
         if "FAILED" in states:
@@ -334,6 +340,36 @@ def screenshots(version):
         print(f"Put {len(ids)} screenshots on {locale}.")
 
 
+def previews(version, folder):
+    """Puts each language's app preview video on the version, in place of the one there.
+    A language whose preview is already the same is left alone."""
+    for loc in call("GET", f"/v1/appStoreVersions/{version['id']}/appStoreVersionLocalizations")["data"]:
+        locale = loc["attributes"]["locale"]
+        video = folder / f"flashback-app-store-preview-{locale.split('-')[0]}.mp4"
+        if not video.exists():
+            print(f"No app preview for {locale}, so its previews stay.")
+            continue
+        sets = call("GET", f"/v1/appStoreVersionLocalizations/{loc['id']}/appPreviewSets")["data"]
+        mine = next((s for s in sets if s["attributes"]["previewType"] == PREVIEW_TYPE), None)
+        if mine:
+            now = call("GET", f"/v1/appPreviewSets/{mine['id']}/appPreviews")["data"]
+            if [x["attributes"].get("sourceFileChecksum") for x in now] == [hashlib.md5(video.read_bytes()).hexdigest()]:
+                print(f"App preview for {locale} is already up to date.")
+                continue
+            for x in now:
+                call("DELETE", f"/v1/appPreviews/{x['id']}")
+        else:
+            mine = call("POST", "/v1/appPreviewSets", {"data": {
+                "type": "appPreviewSets", "attributes": {"previewType": PREVIEW_TYPE},
+                "relationships": {"appStoreVersionLocalization": {
+                    "data": {"type": "appStoreVersionLocalizations", "id": loc["id"]}}}}})["data"]
+        # The poster frame: the Today screen, a few seconds in.
+        a = upload(video, "appPreviews", {"appPreviewSet": {"data": {"type": "appPreviewSets", "id": mine["id"]}}},
+                   mimeType="video/mp4", previewFrameTimeCode="00:00:02:00")
+        wait("appPreviews", [a["id"]], f"the {locale} app preview", tries=80)
+        print(f"Put the app preview on {locale}.")
+
+
 def attach(detail, path):
     """Attaches a file to the App Review details, in place of any attached before."""
     for old in call("GET", f"/v1/appStoreReviewDetails/{detail['id']}/appStoreReviewAttachments")["data"]:
@@ -356,6 +392,8 @@ def main():
     whats_new(app, version)
     if os.environ.get("SCREENSHOTS") == "true":
         screenshots(version)
+    if os.environ.get("PREVIEWS"):
+        previews(version, pathlib.Path(os.environ["PREVIEWS"]))
 
     name = os.environ.get("REVIEW_NAME", "").split(" ", 1)
     details = {

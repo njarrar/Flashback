@@ -131,8 +131,12 @@ rather than take shots without real photos.
   simulator with the sample photos, then [ad/](ad/README.md) (a small
   [Remotion](https://www.remotion.dev/) project) lays out captions and motion and renders
   a 30 second and a 15 second cut for Reels, TikTok and Shorts, and a 25 second App Store
-  preview. Run it from the Actions tab; the videos land on the `video-ad` release. The
-  apps themselves don't change in this version.
+  preview. Run it from the Actions tab; the videos land on the `video-ad` release. Soft
+  music made from scratch plays under every cut, with quieter sound effects on top.
+- **Videos on the stores.** The App Store review workflow now puts the App Store preview
+  on each store language. Google Play takes a YouTube link: put it in
+  `play-store/listing/<locale>/video.txt` and the Play Store workflow adds it.
+- The apps themselves don't change in this version.
 
 ## What's new in 1.24
 
