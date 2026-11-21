@@ -30,12 +30,15 @@ captions come from the App Store screenshot captions
   on the heart.
 - The App Store preview shows only app footage under a caption: no phone frame, no
   opening question, no store badges, as Apple asks.
-- Every cut has a sound track (silent unless there is music), since App Store Connect
-  wants one.
+- Every cut has a sound track, since App Store Connect wants one.
 
-## Music
+## Sound
 
-The ad is silent by default. To add music, put a track you have the rights to at
+Soft sound effects play on each cut, on the heart tap and on the end card. They are
+made from scratch by [sfx.py](sfx.py) (`python3 sfx.py` writes `public/sfx/`), so
+there are no rights to clear.
+
+There is no music by default. To add music, put a track you have the rights to at
 `public/music.mp3` (it is not checked in) and render again. It fades in and out.
 
 ## Run it on a computer

@@ -76,6 +76,10 @@ const LOCALES: Record<string, string> = {
 const shot = (lang: string, name: string) => staticFile(`shots/${lang}/${name}.png`);
 const clip = (lang: string, name: string) => staticFile(`shots/${lang}/${name}-tail.mp4`);
 
+// Sound effects made by sfx.py (public/sfx).
+const Sfx: React.FC<{ name: string; volume?: number }> = ({ name, volume = 1 }) =>
+  <Audio src={staticFile(`sfx/${name}.wav`)} volume={volume} />;
+
 // Plays every shot back to back.
 const Shots: React.FC<{ shots: Shot[]; render: (k: string, frames: number) => React.ReactNode }> = ({ shots, render }) => {
   let from = 0;
@@ -84,9 +88,17 @@ const Shots: React.FC<{ shots: Shot[]; render: (k: string, frames: number) => Re
       {shots.map((s, i) => {
         const frames = Math.round(s.d * FPS);
         const el = (
-          <Sequence key={i} from={from} durationInFrames={frames} name={s.k}>
-            {render(s.k, frames)}
-          </Sequence>
+          <React.Fragment key={i}>
+            <Sequence from={from} durationInFrames={frames} name={s.k}>
+              {render(s.k, frames)}
+            </Sequence>
+            {/* A soft whoosh that peaks on each cut. */}
+            {i > 0 ? (
+              <Sequence from={Math.max(0, from - 7)} durationInFrames={14} name="whoosh">
+                <Sfx name="whoosh" volume={0.3} />
+              </Sequence>
+            ) : null}
+          </React.Fragment>
         );
         from += frames;
         return el;
@@ -159,6 +171,8 @@ const HeartTap: React.FC<{ lang: string; at: number }> = ({ lang, at }) => {
   const pop = spring({ frame: frame - at, fps, config: { damping: 9, stiffness: 180 } });
   return (
     <>
+      <Sequence from={at - 2} layout="none"><Sfx name="tap" volume={0.5} /></Sequence>
+      <Sequence from={at} layout="none"><Sfx name="pop" volume={0.6} /></Sequence>
       <div style={{ position: "absolute", left: `${x * 100}%`, top: `${y * 100}%`, width: 120, height: 120, marginLeft: -60, marginTop: -60,
         borderRadius: "50%", background: "rgba(255,255,255,0.35)", border: "4px solid rgba(255,255,255,0.9)", opacity: ring, transform: `scale(${0.6 + ring * 0.4})` }} />
       <svg viewBox="0 0 24 24" style={{ position: "absolute", left: `${x * 100}%`, top: `${y * 100}%`, width: 62, height: 62, marginLeft: -31, marginTop: -40,
@@ -200,6 +214,7 @@ const End: React.FC<{ p: AdProps; badges?: boolean }> = ({ p, badges = true }) =
   const a = useRise(0, 80), b = useRise(5, 80), c = useRise(10, 80), d = useRise(15, 80);
   return (
     <AbsoluteFill style={{ background: BLUE, alignItems: "center", justifyContent: "center", color: WHITE, gap: 40 }}>
+      <Sequence from={4} layout="none"><Sfx name="chime" volume={0.45} /></Sequence>
       <Img src={staticFile("icon.png")} style={{ ...a, width: 300, height: 300, borderRadius: 68, boxShadow: "0 30px 70px rgba(0,0,0,0.28)" }} />
       <div style={{ ...b, fontFamily: nunito, fontWeight: 900, fontSize: 132, lineHeight: 1 }}>Flashback</div>
       <div style={{ ...c, fontFamily: f.body, fontWeight: 500, fontSize: 46, direction: p.lang === "ar" ? "rtl" : "ltr" }}>{p.text.end}</div>
