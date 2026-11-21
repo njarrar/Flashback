@@ -38,6 +38,9 @@ Soft sound effects play on each cut, on the heart tap and on the end card. They 
 made from scratch by [sfx.py](sfx.py) (`python3 sfx.py` writes `public/sfx/`), so
 there are no rights to clear.
 
+The effects always play quieter than the music: `SFX` and `MUSIC` in
+[src/Ad.tsx](src/Ad.tsx) set each effect about 4 dB under the music. Change both together.
+
 There is no music by default. To add music, put a track you have the rights to at
 `public/music.mp3` (it is not checked in) and render again. It fades in and out.
 
