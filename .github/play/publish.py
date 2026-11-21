@@ -10,7 +10,8 @@ Settings come from the environment:
 The bundle goes to TRACK with listing/<locale>/release-notes.txt as its notes. If Play
 already has a bundle with this versionCode (say it went to closed test before), that
 bundle moves to TRACK instead, so a tested build can go to production as is. The listing
-sends title, short and full description per locale, plus the icon, feature graphic and
+sends title, short and full description per locale, the YouTube promo video
+link in video.txt if there is one, plus the icon, feature graphic and
 phone screenshots. Everything goes in one edit, so Play gets all of it or none of it.
 """
 import json
@@ -56,12 +57,16 @@ def send(api, aab, store, track, send_bundle, send_listing, status):
     if send_listing:
         for l in locales:
             d = store / "listing" / l
-            edits.listings().update(**ids, language=l, body={
+            body = {
                 "language": l,
                 "title": read(d / "title.txt"),
                 "shortDescription": read(d / "short-description.txt"),
                 "fullDescription": read(d / "full-description.txt"),
-            }).execute()
+            }
+            # Play shows a promo video only from YouTube.
+            if (d / "video.txt").exists():
+                body["video"] = read(d / "video.txt")
+            edits.listings().update(**ids, language=l, body=body).execute()
             lang = l.split("-")[0]
             images = [("icon", store / "graphics/icon-512.png"),
                       ("featureGraphic", store / "graphics" / lang / "feature-graphic.png")]

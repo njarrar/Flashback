@@ -1,0 +1,8 @@
+{
+  "en": {"hook": "What were you doing on this day?", "reel": "Turn a day into a reel", "reelSub": "Pick photos, get a short video to share.", "cards": "Flip through the years", "cardsSub": "One card for each year.", "langs": "In 6 languages", "end": "On iPhone and Android"},
+  "fr": {"hook": "Que faisiez-vous ce jour-là ?", "reel": "Faites un reel de la journée", "reelSub": "Choisissez des photos, obtenez une courte vidéo à partager.", "cards": "Feuilletez les années", "cardsSub": "Une carte pour chaque année.", "langs": "En 6 langues", "end": "Sur iPhone et Android"},
+  "es": {"hook": "¿Qué hacías este día?", "reel": "Haz un reel del día", "reelSub": "Elige fotos y obtén un vídeo corto para compartir.", "cards": "Pasa los años", "cardsSub": "Una tarjeta por cada año.", "langs": "En 6 idiomas", "end": "En iPhone y Android"},
+  "ar": {"hook": "ماذا كنت تفعل في هذا اليوم؟", "reel": "حوّل يومًا إلى ريل", "reelSub": "اختر الصور واحصل على فيديو قصير تشاركه.", "cards": "تنقّل بين السنين", "cardsSub": "بطاقة لكل سنة.", "langs": "بـ 6 لغات", "end": "على iPhone وAndroid"},
+  "pt": {"hook": "O que você fazia neste dia?", "reel": "Faça um reel do dia", "reelSub": "Escolha fotos e ganhe um vídeo curto para compartilhar.", "cards": "Passe pelos anos", "cardsSub": "Um cartão para cada ano.", "langs": "Em 6 idiomas", "end": "No iPhone e no Android"},
+  "zh": {"hook": "这一天，你在做什么？", "reel": "把这一天做成短片", "reelSub": "选几张照片，生成可分享的短视频。", "cards": "翻看每一年", "cardsSub": "每年一张卡片。", "langs": "支持 6 种语言", "end": "iPhone 和 Android 均可使用"}
+}

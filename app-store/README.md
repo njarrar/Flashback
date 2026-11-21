@@ -11,6 +11,7 @@ Steps 1 to 6 happen once.
 | Version | 1.19 (build 21) |
 | Store text, six languages | [`listing/`](listing) |
 | iPhone screenshots, six languages | [`screenshots/`](screenshots), made by the workflow |
+| App preview videos, six languages | `video-ad` release, made by the [Video ad](../ad/README.md) workflow; the App Store review workflow puts them on the version |
 | Privacy policy | [`../play-store/privacy-policy.md`](../play-store/privacy-policy.md) (covers both apps) |
 
 ## 1. Join the Apple Developer Program

@@ -19,6 +19,10 @@ on:
         description: Put the screenshots in app-store/screenshots on the version
         type: boolean
         default: true
+      previews:
+        description: Put the app preview videos from the video-ad release on the version
+        type: boolean
+        default: true
       attachment:
         description: Wait for a sealed file (such as a screen recording) to attach for App Review
         type: boolean
@@ -66,6 +70,14 @@ jobs:
           done
           echo "::error::No sealed file came in 20 minutes."
           exit 1
+      - name: Get the app preview videos
+        if: inputs.previews
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          mkdir -p "$RUNNER_TEMP/previews"
+          gh release download video-ad -R "$GITHUB_REPOSITORY" -p 'flashback-app-store-preview-*.mp4' -D "$RUNNER_TEMP/previews"
+          echo "PREVIEWS=$RUNNER_TEMP/previews" >> "$GITHUB_ENV"
+          ls -la "$RUNNER_TEMP/previews"
       - name: Send for review
         shell: bash
         env:
