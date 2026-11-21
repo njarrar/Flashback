@@ -5,8 +5,6 @@
 # screenshot taken at its end (<scene>.png), in shots/<lang>/.
 set -ex
 LANGS=${1:-en fr es ar pt zh}
-DEVICE=$(xcrun simctl list devices available | grep -E "iPhone [0-9]+ Pro Max \(" | sort -V | tail -1 | grep -oE "[0-9A-F-]{36}")
-[ -n "$DEVICE" ] || { xcrun simctl list devices available; exit 1; }
 APP=com.njarrar.backthen
 # limit <seconds> <command...>: runs a command, and kills it if it takes longer. A
 # simulator call that hangs once stalled a whole run for an hour.
@@ -22,14 +20,16 @@ limit() {
   kill $guard 2>/dev/null || true
   return $rc
 }
-# Booting once hung for an hour, so give it five minutes, then wipe the simulator and try again.
-xcrun simctl boot "$DEVICE" || true
-if ! limit 300 xcrun simctl bootstatus "$DEVICE" -b; then
-  xcrun simctl shutdown "$DEVICE" || true
-  xcrun simctl erase "$DEVICE"
-  xcrun simctl boot "$DEVICE"
-  limit 300 xcrun simctl bootstatus "$DEVICE" -b
-fi
+# Some runners never finish booting a given simulator, so try each Pro Max, newest first,
+# with four minutes each, and use the first that boots.
+DEVICE=""
+for d in $(xcrun simctl list devices available | grep -E "iPhone [0-9]+ Pro Max \(" | sort -rV | grep -oE "[0-9A-F-]{36}"); do
+  xcrun simctl boot "$d" || true
+  if limit 240 xcrun simctl bootstatus "$d" -b; then DEVICE=$d; break; fi
+  echo "::warning::Simulator $d did not boot; trying the next one."
+  xcrun simctl shutdown "$d" || true
+done
+[ -n "$DEVICE" ] || { xcrun simctl list devices available; echo "::error::No Pro Max simulator booted."; exit 1; }
 xcrun simctl status_bar "$DEVICE" override --time "9:41" --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3
 BUILT="/tmp/dd/Build/Products/Debug-iphonesimulator/Back Then.app"
 locale() { case $1 in en) echo en_US;; fr) echo fr_FR;; es) echo es_ES;; ar) echo ar_SA;; pt) echo pt_BR;; zh) echo zh_CN;; esac; }
