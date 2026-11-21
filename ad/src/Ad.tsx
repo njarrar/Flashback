@@ -244,7 +244,13 @@ const SocialShot: React.FC<{ k: string; frames: number; p: AdProps }> = ({ k, fr
         </AbsoluteFill>
       );
     }
-    case "calendar": return <AbsoluteFill style={{ background: BLUE }}>{cap(1)}{one(shot(L, "calendar"))}</AbsoluteFill>;
+    // Smaller, so the calendar sheet at the bottom of the screen shows.
+    case "calendar": return (
+      <AbsoluteFill style={{ background: BLUE }}>
+        {cap(1)}
+        <Phone x={250} y={560} w={580}><Screen src={shot(L, "calendar")} /></Phone>
+      </AbsoluteFill>
+    );
     case "album": return (
       <AbsoluteFill style={{ background: BLUE }}>
         {cap(4)}
