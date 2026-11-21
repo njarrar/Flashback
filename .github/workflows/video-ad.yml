@@ -39,6 +39,7 @@ jobs:
             -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/dd \
             CODE_SIGNING_ALLOWED=NO build -quiet
       - name: Record the screens
+        timeout-minutes: 75
         run: bash .github/video-ad/capture.sh "$LANGS"
       - uses: actions/upload-artifact@v4
         with: { name: video-ad-screens, path: shots }
