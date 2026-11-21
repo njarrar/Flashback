@@ -185,7 +185,11 @@ struct TodayView: View {
         .onChange(of: store.demoCalendar) { _, on in if on { calendar = true } }
         .onDisappear { drag.cancel() }
         #if DEBUG
-        .task(id: result?.groups.first?.year) { demoScene() }
+        .task(id: result?.groups.first?.year) {
+            // The calendar scene can be set before Today shows, when onChange misses it.
+            if store.demoCalendar, result?.groups.first != nil { calendar = true }
+            demoScene()
+        }
         #endif
     }
 

@@ -124,6 +124,16 @@ rather than take shots without real photos.
   that grows with the system text size; a large top app bar and navigation bar on
   Android. Light and dark mode.
 
+## What's new in 1.25
+
+- **Video ad.** A new [Video ad](.github/workflows/video-ad.yml) workflow makes an ad for
+  the app from the real iPhone app, in all six languages. It records each screen on the
+  simulator with the sample photos, then [ad/](ad/README.md) (a small
+  [Remotion](https://www.remotion.dev/) project) lays out captions and motion and renders
+  a 30 second and a 15 second cut for Reels, TikTok and Shorts, and a 25 second App Store
+  preview. Run it from the Actions tab; the videos land on the `video-ad` release. The
+  apps themselves don't change in this version.
+
 ## What's new in 1.24
 
 A large round of fixes across both apps. Nothing here sends anything off the phone.
