@@ -13,8 +13,8 @@ android {
         applicationId = "com.njarrar.backthen"
         minSdk = 26
         targetSdk = 36
-        versionCode = 25
-        versionName = "1.24.0"
+        versionCode = 26
+        versionName = "1.25.0"
         resourceConfigurations += listOf("en", "ar", "es", "fr", "pt", "zh")
     }
 

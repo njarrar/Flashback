@@ -1,0 +1,74 @@
+name: Video ad
+
+# Makes the Flashback video ad from the real iPhone app (see ad/README.md):
+#   flashback-ad-30s-<lang>.mp4             1080 x 1920, for Reels, TikTok and Shorts
+#   flashback-ad-15s-<lang>.mp4             1080 x 1920, for paid ads
+#   flashback-app-store-preview-<lang>.mp4  886 x 1920, the App Store app preview
+# Run it from the Actions tab (Video ad, Run workflow). The videos land on the
+# "video-ad" release. A push that changes the ad makes English and Arabic only.
+on:
+  workflow_dispatch:
+    inputs:
+      langs:
+        description: Languages
+        default: en fr es ar pt zh
+  push:
+    paths: ["ad/**", ".github/video-ad/**", ".github/workflows/video-ad.yml"]
+
+env:
+  LANGS: ${{ github.event_name == 'workflow_dispatch' && inputs.langs || 'en ar' }}
+
+jobs:
+  capture:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pick Xcode 26
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | grep -vi beta | sort -V | tail -1)
+          [ -n "$XCODE" ] || { echo "::error::No Xcode 26 on this runner."; exit 1; }
+          sudo xcode-select -s "$XCODE"
+      - name: Make sample photos
+        run: |
+          python3 -m venv /tmp/venv && /tmp/venv/bin/pip install -q pillow piexif
+          /tmp/venv/bin/python .github/screenshots/make_photos.py /tmp/photos --real
+      - name: Build
+        working-directory: ios
+        run: |
+          xcodebuild -project BackThen.xcodeproj -scheme BackThen -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/dd \
+            CODE_SIGNING_ALLOWED=NO build -quiet
+      - name: Record the screens
+        run: bash .github/video-ad/capture.sh "$LANGS"
+      - uses: actions/upload-artifact@v4
+        with: { name: video-ad-screens, path: shots }
+
+  render:
+    needs: capture
+    runs-on: ubuntu-latest
+    permissions: { contents: write }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: ad/package-lock.json }
+      - name: Chinese font and ffmpeg
+        run: sudo apt-get update -q && sudo apt-get install -y -q fonts-noto-cjk ffmpeg
+      - uses: actions/download-artifact@v4
+        with: { name: video-ad-screens, path: ad/public/shots }
+      - name: Render
+        working-directory: ad
+        run: |
+          npm ci --no-audit --no-fund
+          node render.mjs --langs "$(echo $LANGS | tr ' ' ',')"
+          ls -lR out
+      - uses: actions/upload-artifact@v4
+        with: { name: video-ad, path: ad/out }
+      - name: Put the videos on the video-ad release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          gh release view video-ad >/dev/null 2>&1 || gh release create video-ad --prerelease \
+            --title "Video ad" --notes "The Flashback video ad. The Video ad workflow replaces these files each run."
+          gh release upload video-ad ad/out/*/*.mp4 --clobber
+          echo "Videos from $BRANCH are on the video-ad release." >> "$GITHUB_STEP_SUMMARY"
