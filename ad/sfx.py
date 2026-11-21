@@ -2,7 +2,7 @@
 
     python3 sfx.py
 
-whoosh.wav  soft air sweep on each cut
+whoosh.wav  low, soft air sweep on each cut
 tap.wav     a light tap on the Favorite button
 pop.wav     the heart filling
 chime.wav   two soft notes on the end card
@@ -43,21 +43,21 @@ def lowpass(x, cutoff):
 
 
 def whoosh():
-    s = t(0.45)
-    sweep = 300 + 2600 * np.sin(np.pi * s / s[-1]) ** 2
-    noise = lowpass(lowpass(rng.standard_normal(len(s)), sweep), sweep)
-    return noise * np.sin(np.pi * s / s[-1]) ** 1.5
+    s = t(0.7)
+    sweep = 200 + 900 * np.sin(np.pi * s / s[-1]) ** 2
+    noise = lowpass(lowpass(lowpass(rng.standard_normal(len(s)), sweep), sweep), sweep)
+    return noise * np.sin(np.pi * s / s[-1]) ** 2.5
 
 
 def tap():
-    s = t(0.06)
-    return (np.sin(2 * np.pi * 1800 * s) + 0.4 * rng.standard_normal(len(s))) * np.exp(-s * 90)
+    s = t(0.12)
+    return np.sin(2 * np.pi * 900 * s) * np.minimum(1, s / 0.004) * np.exp(-s * 45)
 
 
 def pop():
-    s = t(0.18)
-    freq = 380 + 520 * np.exp(-s * 30)
-    return np.sin(2 * np.pi * np.cumsum(freq) / RATE) * np.exp(-s * 22)
+    s = t(0.35)
+    freq = 520 + 260 * np.exp(-s * 25)
+    return np.sin(2 * np.pi * np.cumsum(freq) / RATE) * np.minimum(1, s / 0.01) * np.exp(-s * 12)
 
 
 def chime():
@@ -66,7 +66,7 @@ def chime():
     for start, f in [(0.0, 784.0), (0.18, 1174.7)]:
         k = s >= start
         u = s[k] - start
-        out[k] += (np.sin(2 * np.pi * f * u) + 0.3 * np.sin(4 * np.pi * f * u)) * np.exp(-u * 3.2)
+        out[k] += (np.sin(2 * np.pi * f * u) + 0.1 * np.sin(4 * np.pi * f * u)) * np.minimum(1, u / 0.02) * np.exp(-u * 2.5)
     return out
 
 
