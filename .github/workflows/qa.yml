@@ -1,0 +1,21 @@
+name: Quick checks
+
+# Gate 1 of docs/QA.md: checks that need no build, on every push and pull request.
+# Versions agree on both apps and the README, store text exists in every language and
+# fits the store limits, Android asks for no new permission, and code asks for no word
+# that lang/en.xml lacks.
+on:
+  workflow_dispatch:
+  push:
+  pull_request:
+
+jobs:
+  release-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch main, to compare the city list
+        run: git fetch -q --depth=1 origin main || true
+      - name: Quick release checks
+        shell: bash  # with pipefail, so a failed check fails the step despite tee
+        run: python3 .github/qa/release_check.py | tee -a "$GITHUB_STEP_SUMMARY"

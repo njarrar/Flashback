@@ -23,7 +23,15 @@ on:
     paths: [".github/workflows/app-store.yml"]
 
 jobs:
+  # Release QA (docs/QA.md, gates 1 to 3): quick checks, unit tests, and every screen in every
+  # language on iOS 18 and 26. The build below waits for it, so nothing goes to Apple unless
+  # it passes.
+  qa:
+    uses: ./.github/workflows/release-qa.yml
+    with: { platform: ios }
+
   build:
+    needs: qa
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
