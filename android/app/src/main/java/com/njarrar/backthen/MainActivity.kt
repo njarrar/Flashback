@@ -1,7 +1,6 @@
 package com.njarrar.backthen
 
 import android.content.Intent
-import android.content.pm.ApplicationInfo
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -20,9 +19,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val debuggable = applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
+        // Debug and QA builds take launch options: `--es lang ar` and `--es scene today`, for
+        // screenshots and release QA. Store builds ignore them.
+        val debuggable = BuildConfig.TEST_HOOKS
         // Again here, since a language change in Settings restarts the screen but not the app.
-        // Debug builds also take `--es lang ar`, for the Arabic screenshots.
         startLanguage(this, intent?.getStringExtra("lang")?.takeIf { debuggable })
         enableEdgeToEdge()
         // Only on a fresh start: after a rotation the intent is the same, and the day may have moved on.

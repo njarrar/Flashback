@@ -124,6 +124,28 @@ rather than take shots without real photos.
   that grows with the system text size; a large top app bar and navigation bar on
   Android. Light and dark mode.
 
+## What's new in 1.27
+
+- **Release QA in six gates.** Every update now passes the checks in [docs/QA.md](docs/QA.md)
+  before it reaches a store. No one needs a test phone: emulators, simulators and Google's
+  lab phones do the checking.
+  - **Quick checks** on every push ([release_check.py](.github/qa/release_check.py)): both
+    apps carry the same version, the README has its "What's new", store text exists in
+    every language and fits each store's limits, Android asks for no new permission, and every word the code asks for is in `lang/en.xml`.
+  - **Screen sweep** ([Release QA](.github/workflows/release-qa.yml)): a new Android "qa"
+    build (the release build, shrunk by R8 the same way, plus the launch options that open
+    each screen) opens every screen in all six languages, and in dark mode in English and
+    Arabic, on Android 8 and Android 16. A screen fails when it shows a raw text key or draws
+    nothing, and the run fails on any crash or freeze.
+  - **iPhone screen sweep**: the optimized Release build, with the same screen launch options,
+    opens every screen in all six languages and in dark mode on iOS 18 (iPhone SE) and iOS 26
+    (iPhone 17 Pro Max). The simulator has no text tree, so Apple's Vision text reader
+    ([ocr.swift](.github/qa/ocr.swift)) reads each screenshot and the run fails on a raw key,
+    a blank screen or a crash report. iOS 17 stays supported but GitHub's Macs can't run it.
+  - The Play Store workflow runs the Android half of Release QA and the App Store workflow the
+    iPhone half. Neither uploads unless its half passes.
+  - Android store builds ignore the screen launch options; only debug and QA builds take them.
+
 ## What's new in 1.26
 
 - **Android shows its words again.** Since 1.24 the Android app showed text keys such as

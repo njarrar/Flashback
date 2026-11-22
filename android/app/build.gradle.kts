@@ -13,8 +13,8 @@ android {
         applicationId = "com.njarrar.backthen"
         minSdk = 26
         targetSdk = 36
-        versionCode = 27
-        versionName = "1.26.0"
+        versionCode = 28
+        versionName = "1.27.0"
         resourceConfigurations += listOf("en", "ar", "es", "fr", "pt", "zh")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -47,6 +47,7 @@ android {
     buildTypes {
         debug {
             if (uploadKey != null) signingConfig = signingConfigs.getByName("upload")
+            buildConfigField("boolean", "TEST_HOOKS", "true")
         }
         release {
             if (uploadKey != null) {
@@ -59,6 +60,15 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            buildConfigField("boolean", "TEST_HOOKS", "false")
+        }
+        // Release QA only (docs/QA.md, gate 3): the release build, shrunk by R8 the same way,
+        // plus the launch options that open each screen with a set language. Never uploaded.
+        create("qa") {
+            initWith(getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += "release"
+            buildConfigField("boolean", "TEST_HOOKS", "true")
         }
     }
     compileOptions {
@@ -67,6 +77,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
