@@ -13,9 +13,10 @@ android {
         applicationId = "com.njarrar.backthen"
         minSdk = 26
         targetSdk = 36
-        versionCode = 26
-        versionName = "1.25.0"
+        versionCode = 27
+        versionName = "1.26.0"
         resourceConfigurations += listOf("en", "ar", "es", "fr", "pt", "zh")
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     // The language files in lang/ at the top of the repo ship as app assets (en.xml, ar.xml, ...).
@@ -95,4 +96,10 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
 
     testImplementation(kotlin("test"))
+
+    // On-phone checks (src/androidTest), run on an emulator by CI before every store upload.
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test:rules:1.6.1")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.work:work-testing:2.10.1")
 }

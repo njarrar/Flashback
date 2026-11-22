@@ -1,6 +1,7 @@
 package com.njarrar.backthen.core
 
 import android.content.Context
+import android.util.Log
 import java.util.Locale
 
 @Volatile private var cachedAvailable: List<String>? = null
@@ -20,8 +21,11 @@ fun startLanguage(context: Context, only: String? = null) {
     val (code, tag) = L.pick(preferred, available)
     val key = code to tag
     if (loadedKey == key && L.english.strings.isNotEmpty() && L.lang.code == code) return
-    fun load(c: String) = runCatching { assets.open("$c.xml").use { Strings.parse(c, it) } }.getOrNull()
+    fun load(c: String) = runCatching { assets.open("$c.xml").use { Strings.parse(c, it) } }
+        .onFailure { Log.w("Flashback", "Could not read lang/$c.xml", it) }
+        .getOrNull()
     val english = load("en") ?: Strings("en")
     L.use(english, if (code == "en") english else load(code) ?: english, Locale.forLanguageTag(tag))
-    loadedKey = key
+    // Only remember a good load, so the next call tries again after a failure.
+    loadedKey = if (english.strings.isNotEmpty()) key else null
 }
