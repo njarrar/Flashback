@@ -24,7 +24,7 @@ on:
         description: Play track ("alpha" is the first closed test)
         default: alpha
   push:
-    paths: [".github/workflows/play.yml", ".github/play/**"]
+    paths: [".github/workflows/play.yml", ".github/play/**", ".github/qa/**"]
 
 jobs:
   bundle:
@@ -62,6 +62,47 @@ jobs:
           fi
       - uses: actions/upload-artifact@v4
         with: { name: bundle, path: out }
+
+  # Release QA, the same as the Android workflow's release job. Nothing goes to Play unless
+  # it passes: on-phone tests in all six languages, the real reminder job, and the release
+  # build on an emulator with no raw text keys on screen.
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Unit tests
+        working-directory: android
+        run: ./gradlew testDebugUnitTest --stacktrace
+      - name: Make sample photos
+        run: |
+          python3 -m venv /tmp/venv && /tmp/venv/bin/pip install -q pillow piexif
+          /tmp/venv/bin/python .github/screenshots/make_photos.py /tmp/photos
+      - name: Build release APK
+        working-directory: android
+        run: ./gradlew assembleRelease -PsignReleaseWithDebugKey --stacktrace
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+      - name: Release QA
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          disable-animations: true
+          script: bash .github/qa/android-device.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release-qa
+          path: |
+            shots/qa
+            android/app/build/reports/androidTests
 
   screenshots:
     runs-on: ubuntu-latest
@@ -112,7 +153,7 @@ jobs:
         with: { name: store, path: out }
 
   commit:
-    needs: [bundle, screenshots]
+    needs: [bundle, screenshots, qa]
     runs-on: ubuntu-latest
     permissions: { contents: write }
     steps:
@@ -142,7 +183,7 @@ jobs:
           gh release upload latest-build /tmp/out/bundle/BackThen-Android.aab --clobber
 
   google-play:
-    needs: [commit]
+    needs: [commit, qa]
     # Only from the Run workflow button, never on a push.
     if: github.event_name == 'workflow_dispatch' && (inputs.send_bundle || inputs.send_listing)
     runs-on: ubuntu-latest

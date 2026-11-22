@@ -65,15 +65,26 @@ enum Reminders {
             let md = MonthDay.of(when, calendar: cal)
             // Judge "past years" as of that day, not today.
             let years = yearsForDay(index, md, today: when, calendar: cal)
-            guard let oldest = years.last else { continue }
+            // Never schedule keys such as "reminder_title_years" if the words failed to load.
+            guard let words = text(for: md, years: years) else { continue }
             let content = UNMutableNotificationContent()
-            content.title = L.s("reminder_title_years", ["day": md.label, "years": L.p("years", years.count)])
-            content.body = L.s("reminder_body_oldest", ["year": oldest])
+            content.title = words.title
+            content.body = words.body
             content.sound = .default
             content.userInfo = ["month": md.month, "day": md.day]
             let trigger = UNCalendarNotificationTrigger(dateMatching: triggerComps, repeats: false)
             try? await center.add(UNNotificationRequest(identifier: "day-\(k)", content: content, trigger: trigger))
         }
+    }
+
+    /// The title and text for a day with photos from `years` (newest first), in the app's
+    /// language. Nil when the words are missing, so a raw key never reaches the phone.
+    static func text(for md: MonthDay, years: [Int]) -> (title: String, body: String)? {
+        guard let oldest = years.last,
+              L.english.strings["reminder_title_years"] != nil,
+              L.english.strings["reminder_body_oldest"] != nil else { return nil }
+        return (L.s("reminder_title_years", ["day": md.label, "years": L.p("years", years.count)]),
+                L.s("reminder_body_oldest", ["year": oldest]))
     }
 
     static func cancel() {

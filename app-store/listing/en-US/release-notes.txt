@@ -1,1 +1,1 @@
-A big round of fixes. The widget, reels and saved albums are more reliable, and dates stay right when you travel. If photo access is off, Open Settings takes you there. Today adds Select all and Undo after Hide date. iCloud photos show a preview while they load. You can remove a photo from an album or make a reel from one. Text is easier to read and buttons are easier to tap.
+Small fixes. The daily reminder now checks its text before it is set, and every release is checked in all six languages before it ships.

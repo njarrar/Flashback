@@ -212,4 +212,39 @@ final class LangTests: XCTestCase {
         }
         XCTAssertGreaterThan(seen, 80)
     }
+    /// Every word, read through L.s and L.p as the screens read it, in every language the app ships.
+    func testEveryWordShowsRealTextInEveryLanguage() throws {
+        let en = try load("en")
+        for code in L.available {
+            let lang = try load(code)
+            L.use(lang, locale: Locale(identifier: code))
+            for key in en.strings.keys {
+                XCTAssertNotEqual(L.s(key), key, "\(code) \(key) shows as its key")
+            }
+            for key in en.plurals.keys {
+                for n in [0, 1, 2, 3, 11, 100] {
+                    XCTAssertNotEqual(L.p(key, n), key, "\(code) plural \(key) for \(n) shows as its key")
+                }
+            }
+        }
+    }
+
+    /// The daily reminder's text in every language: real words, every slot filled.
+    func testReminderTextInEveryLanguage() throws {
+        let en = try load("en")
+        let keys = Array(en.strings.keys) + Array(en.plurals.keys)
+        let day = MonthDay(month: 10, day: 22)
+        for code in L.available {
+            L.use(try load(code), locale: Locale(identifier: code))
+            for years in [[2024], [2025, 2019], Array((2015...2025).reversed())] {
+                let words = try XCTUnwrap(Reminders.text(for: day, years: years), "\(code) has no reminder text")
+                for text in [words.title, words.body] {
+                    XCTAssertFalse(text.contains("{"), "\(code) reminder has an unfilled slot: \(text)")
+                    for key in keys where key.contains("_") {
+                        XCTAssertFalse(text.contains(key), "\(code) reminder shows the key \(key)")
+                    }
+                }
+            }
+        }
+    }
 }

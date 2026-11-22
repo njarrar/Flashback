@@ -6,6 +6,7 @@
 set -ex
 sleep 30
 PKG=com.njarrar.backthen
+source .github/qa/screen-text.sh
 adb install -r android/app/build/outputs/apk/debug/app-debug.apk
 adb shell mkdir -p /sdcard/DCIM/Camera
 for f in /tmp/photos/*.jpg; do adb push "$f" /sdcard/DCIM/Camera/ >/dev/null; done
@@ -19,6 +20,7 @@ shoot() {
   adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS || true
   sleep 1
   adb exec-out screencap -p > "$1"
+  qa_check "$1"
 }
 run() { # folder font_scale density
   OUT="shots/$1"; mkdir -p "$OUT"
@@ -58,3 +60,4 @@ reel_check
 run huge-font-2.0 2.0 420
 adb shell wm density reset
 adb shell settings put system font_scale 1.0
+qa_finish

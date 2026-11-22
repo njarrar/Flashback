@@ -124,6 +124,29 @@ rather than take shots without real photos.
   that grows with the system text size; a large top app bar and navigation bar on
   Android. Light and dark mode.
 
+## What's new in 1.26
+
+- **Android shows its words again.** Since 1.24 the Android app showed text keys such as
+  `reminder_title_years` in place of words, on every screen and in the daily reminder.
+  1.24 had added a setting to the XML reader that Android's own reader refuses, so no
+  file in `lang/` loaded. Each setting is now tried on its own, a failed load is logged
+  and tried again, and the reminder skips a day before it would ever post a key. The
+  iPhone app was not hit; its reminder now makes the same check before it is set.
+- **Release QA.** The desktop tests read `lang/` with a different XML reader, so they
+  passed. Now the checks run where the apps run:
+  - [On-phone tests](android/app/src/androidTest/java/com/njarrar/backthen/OnPhoneTextTest.kt)
+    on an Android emulator: every language file loads with Android's reader, every word
+    and plural comes out as text, the reminder text is right in all six languages, and
+    the real reminder job posts real words.
+  - A raw key check ([.github/qa/](.github/qa/)) reads the text of every screen the
+    emulator scripts open (release smoke test, store screenshots, text check) and fails
+    the run if any screen shows a key.
+  - iPhone unit tests read every word and the reminder text in all six languages on a
+    simulator.
+  - The Play Store workflow runs the Android checks before anything goes to Play, and
+    the App Store workflow runs the iPhone tests before anything goes to Apple. A failed
+    check stops the upload.
+
 ## What's new in 1.25
 
 - **Video ad.** A new [Video ad](.github/workflows/video-ad.yml) workflow makes an ad for

@@ -31,8 +31,10 @@ class Strings(
                 runCatching { setFeature("http://apache.org/xml/features/disallow-doctype-decl", true) }
                 runCatching { setFeature("http://xml.org/sax/features/external-general-entities", false) }
                 runCatching { setFeature("http://xml.org/sax/features/external-parameter-entities", false) }
-                isXIncludeAware = false
-                isExpandEntityReferences = false
+                // Android's parser throws on setXIncludeAware, so each setting is tried on its own.
+                // A throw here once left every lang file unread and the app showed raw keys (1.24).
+                runCatching { isXIncludeAware = false }
+                runCatching { isExpandEntityReferences = false }
             }
             val root = factory.newDocumentBuilder().parse(input).documentElement
             fun children(parent: Element, tag: String) = parent.getElementsByTagName(tag).let { list ->
@@ -104,6 +106,12 @@ object L {
 
     /** Increments on every [use] call so Compose UI can observe language switches reactively. */
     val version = MutableStateFlow(0)
+
+    /** True once English has loaded, so [s] can never fall back to printing a key. */
+    val ready: Boolean get() = state.english.strings.isNotEmpty()
+
+    /** True when [key] has words in the current language or in English. */
+    fun has(key: String): Boolean = state.lang.strings.containsKey(key) || state.english.strings.containsKey(key)
 
     val english: Strings get() = state.english
     val lang: Strings get() = state.lang

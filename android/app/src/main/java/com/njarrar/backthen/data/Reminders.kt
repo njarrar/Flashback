@@ -67,6 +67,18 @@ object Reminders {
     }
 }
 
+/**
+ * The reminder's title and text for a day with photos from [years] (newest first), in the
+ * app's language. Null when the words are missing, so a raw key never reaches the phone.
+ */
+fun reminderText(day: MonthDay, years: List<Int>): Pair<String, String>? {
+    if (years.isEmpty() || !L.ready) return null
+    if (!L.has("reminder_title_years") || !L.has("reminder_body_oldest")) return null
+    val title = L.s("reminder_title_years", "day" to day.label(), "years" to L.p("years", years.size))
+    val body = L.s("reminder_body_oldest", "year" to years.last())
+    return title to body
+}
+
 class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         val ctx = applicationContext
@@ -91,6 +103,9 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
             if (years.isEmpty()) return Result.success()
 
             startLanguage(ctx)
+            if (!L.ready) startLanguage(ctx)
+            // Never post keys such as "reminder_title_years". Skip the day; the next run tries again.
+            val (title, body) = reminderText(today, years) ?: return Result.success()
             val manager = ctx.getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(NotificationChannel(CHANNEL, L.s("daily_reminder"), NotificationManager.IMPORTANCE_DEFAULT))
             val open = Intent(ctx, MainActivity::class.java)
@@ -101,8 +116,8 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
             val note = NotificationCompat.Builder(ctx, CHANNEL)
                 .setSmallIcon(R.drawable.ic_notification)
                 .setColor(0xFFE5533D.toInt())
-                .setContentTitle(L.s("reminder_title_years", "day" to today.label(), "years" to L.p("years", years.size)))
-                .setContentText(L.s("reminder_body_oldest", "year" to years.last()))
+                .setContentTitle(title)
+                .setContentText(body)
                 .setContentIntent(tap)
                 .setAutoCancel(true)
                 .build()

@@ -34,6 +34,15 @@ jobs:
           [ -n "$XCODE" ] || { echo "::error::No Xcode 26 on this runner."; exit 1; }
           sudo xcode-select -s "$XCODE"
           xcodebuild -version
+      # Release QA: nothing goes to Apple unless every unit test passes on a simulator,
+      # including every word and the reminder text in all six languages.
+      - name: Release QA
+        working-directory: ios
+        run: |
+          DEVICE=$(xcrun simctl list devices available | grep -E "^ +iPhone [0-9]+ Pro \(" | tail -1 | grep -oE "[0-9A-F-]{36}")
+          [ -n "$DEVICE" ] || DEVICE=$(xcrun simctl list devices available | grep -E "^ +iPhone" | head -1 | grep -oE "[0-9A-F-]{36}")
+          xcodebuild -project BackThen.xcodeproj -scheme BackThen \
+            -destination "id=$DEVICE" CODE_SIGNING_ALLOWED=NO test -quiet
       - name: Load the signing key and certificates
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
