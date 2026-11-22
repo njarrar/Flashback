@@ -114,7 +114,14 @@ class OnPhoneTextTest {
             val worker = TestListenableWorkerBuilder<ReminderWorker>(ctx).build()
             val result = runBlocking { worker.doWork() }
             assertEquals(ListenableWorker.Result.success(), result)
-            val posted = manager.activeNotifications.firstOrNull { it.id == 1 }
+            assertEquals("the reminder job did not mark today as sent", today.toEpochDay(), stateFile.read().lastNotifiedEpochDay)
+            // notify() hands the post to the system on another thread, so wait for it to show.
+            var posted = manager.activeNotifications.firstOrNull { it.id == 1 }
+            val until = System.currentTimeMillis() + 10_000
+            while (posted == null && System.currentTimeMillis() < until) {
+                Thread.sleep(200)
+                posted = manager.activeNotifications.firstOrNull { it.id == 1 }
+            }
             assertNotNull("the reminder job posted nothing", posted)
             val extras = posted!!.notification.extras
             val title = extras.getCharSequence(NotificationCompat.EXTRA_TITLE).toString()
