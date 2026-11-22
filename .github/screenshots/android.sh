@@ -4,6 +4,7 @@ set -ex
 # Let the launcher settle so it does not show an "isn't responding" dialog.
 sleep 30
 PKG=com.njarrar.backthen
+source .github/qa/screen-text.sh
 adb install -r android/app/build/outputs/apk/debug/app-debug.apk
 adb shell mkdir -p /sdcard/DCIM/Camera
 for f in /tmp/photos/*.jpg; do adb push "$f" /sdcard/DCIM/Camera/ >/dev/null; done
@@ -27,6 +28,7 @@ shoot() {
   adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS || true
   sleep 1
   adb exec-out screencap -p > "shots/android/$1.png"
+  qa_check "shots/android/$1.png"
 }
 # Languages to shoot. English files have no prefix, others start with the code (ar-today).
 # The Play Store workflow sets LANGS="en fr es ar pt zh". Debug builds take the language as a
@@ -47,3 +49,4 @@ for l in $LANGS; do
     shoot "$(pre $l)$scene"
   done
 done
+qa_finish
