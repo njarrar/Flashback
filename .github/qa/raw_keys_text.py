@@ -15,6 +15,7 @@ en_path, problems_path, *texts = sys.argv[1:]
 en = ET.parse(en_path).getroot()
 keys = [e.get("name") for e in en.iter() if e.tag in ("string", "plurals") and "_" in (e.get("name") or "")]
 patterns = [(k, re.compile(rf"(?<![A-Za-z0-9_]){re.escape(k)}(?![A-Za-z0-9_])", re.I)) for k in keys]
+slot_re = re.compile(r"\{[a-z][a-z0-9_]*\}")
 
 hits, read = [], 0
 for t in texts:
@@ -24,6 +25,8 @@ for t in texts:
     for k, p in patterns:
         if p.search(body):
             hits.append(f"{Path(t).with_suffix('.png')}: shows the raw key \"{k}\"")
+    for m in slot_re.finditer(body):
+        hits.append(f"{Path(t).with_suffix('.png')}: shows unfilled slot \"{m.group(0)}\"")
 
 with open(problems_path, "a", encoding="utf-8") as f:
     if hits:

@@ -28,6 +28,9 @@ on:
         type: boolean
         default: false
 
+permissions:
+  contents: read
+
 jobs:
   review:
     runs-on: ubuntu-latest
@@ -60,10 +63,23 @@ jobs:
             git -c http.extraheader="$AUTH" fetch -q "$REMOTE" review-attachment
             if git cat-file -e FETCH_HEAD:sealed.bin 2>/dev/null; then
               git checkout -q FETCH_HEAD -- sealed.bin sealed.key name.txt
-              NAME=$(basename "$(cat name.txt)")
+              if [ "$(wc -l < name.txt)" -gt 1 ]; then
+                echo "::error::name.txt must be a single-line filename."
+                exit 1
+              fi
+              RAW_NAME=$(tr -d '\r\n' < name.txt)
+              NAME=$(basename -- "$RAW_NAME")
+              if [[ ! "$NAME" =~ ^[A-Za-z0-9._-]+$ ]]; then
+                echo "::error::Invalid attachment filename in name.txt."
+                exit 1
+              fi
               openssl pkeyutl -decrypt -inkey "$RUNNER_TEMP/private.pem" -in sealed.key -out "$RUNNER_TEMP/file.key"
               openssl enc -d -aes-256-cbc -pbkdf2 -pass "file:$RUNNER_TEMP/file.key" -in sealed.bin -out "$RUNNER_TEMP/$NAME"
-              echo "ATTACHMENT=$RUNNER_TEMP/$NAME" >> "$GITHUB_ENV"
+              {
+                echo "ATTACHMENT<<__FLASHBACK_EOF__"
+                printf '%s\n' "$RUNNER_TEMP/$NAME"
+                echo "__FLASHBACK_EOF__"
+              } >> "$GITHUB_ENV"
               echo "Got $NAME ($(stat -c %s "$RUNNER_TEMP/$NAME") bytes)."
               exit 0
             fi

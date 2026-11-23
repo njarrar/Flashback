@@ -18,6 +18,9 @@ on:
 env:
   LANGS: ${{ github.event_name == 'workflow_dispatch' && inputs.langs || 'en ar' }}
 
+permissions:
+  contents: read
+
 jobs:
   capture:
     runs-on: macos-15

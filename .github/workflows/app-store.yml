@@ -22,6 +22,9 @@ on:
   push:
     paths: [".github/workflows/app-store.yml"]
 
+permissions:
+  contents: read
+
 jobs:
   # Release QA (docs/QA.md, gates 1 to 3): quick checks, unit tests, and every screen in every
   # language on iOS 18 and 26. The build below waits for it, so nothing goes to Apple unless

@@ -65,7 +65,9 @@ def send(api, aab, store, track, send_bundle, send_listing, status):
             }
             # Play shows a promo video only from YouTube.
             if (d / "video.txt").exists():
-                body["video"] = read(d / "video.txt")
+                video_url = read(d / "video.txt")
+                if video_url:
+                    body["video"] = video_url
             edits.listings().update(**ids, language=l, body=body).execute()
             lang = l.split("-")[0]
             images = [("icon", store / "graphics/icon-512.png"),

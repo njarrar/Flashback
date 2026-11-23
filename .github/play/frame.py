@@ -9,7 +9,7 @@ Play Store accepts for phones and needs for its larger app cards.
 import pathlib
 import sys
 
-from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from PIL import Image, ImageDraw, ImageFilter, ImageFont, features
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 FONTS = ROOT / "android/app/src/main/res/font"
@@ -66,7 +66,7 @@ def wrap(draw, text, f, width, lang):
     return list(min(splits, key=lambda t: max(draw.textlength(x, font=f, **kw) for x in t)))
 
 
-def frame(shot, caption, lang):
+def frame(shot, caption, lang, scene=""):
     canvas = Image.new("RGB", (W, H), BG)
     draw = ImageDraw.Draw(canvas)
     rtl = lang == "ar"
@@ -80,12 +80,24 @@ def frame(shot, caption, lang):
         y += 104
     draw.rounded_rectangle(((W - 90) / 2, y + 14, (W + 90) / 2, y + 26), 6, fill=RED)
 
-    # The phone screen, rounded, with a soft shadow, running off the bottom edge.
-    top = 470
     sh = Image.open(shot).convert("RGB")
-    sw = 860
-    sh = sh.resize((sw, round(sh.height * sw / sh.width)), Image.LANCZOS)
-    radius = 56
+    # Keep the full screen inside the 1080x1920 frame for Welcome (privacy line + CTA) and
+    # Calendar (bottom sheet days 15-31) so nothing important is ever cropped off the bottom.
+    if scene in ("1-welcome", "calendar"):
+        top = max(y + 52, 400)
+        max_h = H - top - 32
+        sh_h = max_h
+        sw = round(sh.width * sh_h / sh.height)
+        if sw > 860:
+            sw = 860
+            sh_h = round(sh.height * sw / sh.width)
+        sh = sh.resize((sw, sh_h), Image.LANCZOS)
+        radius = 44
+    else:
+        top = 470
+        sw = 860
+        sh = sh.resize((sw, round(sh.height * sw / sh.width)), Image.LANCZOS)
+        radius = 56
     mask = Image.new("L", sh.size, 0)
     ImageDraw.Draw(mask).rounded_rectangle((0, 0, *sh.size), radius, fill=255)
     shadow = Image.new("L", (W, H), 0)
@@ -102,6 +114,8 @@ def frame(shot, caption, lang):
 
 
 def main(src, out):
+    if not features.check("raqm"):
+        sys.exit("Pillow has no raqm, so Arabic would come out in the wrong order.")
     src, out = pathlib.Path(src), pathlib.Path(out)
     for lang, caps in CAPTIONS.items():
         pre = "" if lang == "en" else f"{lang}-"
@@ -112,7 +126,7 @@ def main(src, out):
                 continue
             dest = out / lang / f"phone-{i}-{scene.removeprefix('1-')}.png"
             dest.parent.mkdir(parents=True, exist_ok=True)
-            frame(shot, cap, lang).save(dest, optimize=True)
+            frame(shot, cap, lang, scene=scene).save(dest, optimize=True)
             print("made", dest)
 
 
