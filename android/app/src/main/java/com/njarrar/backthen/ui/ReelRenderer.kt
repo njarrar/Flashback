@@ -253,20 +253,27 @@ class ReelRenderer(
             val cx = w / 2
             val cy = h * 0.44f
             outroRect.set(cx - s / 2, cy - s / 2, cx + s / 2, cy + s / 2)
-            paint.reset(); paint.isAntiAlias = true; paint.color = Color.WHITE
-            paint.setShadowLayer(w * 0.025f, 0f, w * 0.015f, Color.argb(102, 0, 0, 0))
+            // Soft shadow behind the opaque rounded app icon without a white halo artifact.
+            paint.reset(); paint.isAntiAlias = true; paint.color = Color.argb(64, 0, 0, 0)
+            paint.setShadowLayer(w * 0.025f, 0f, w * 0.015f, Color.argb(115, 0, 0, 0))
             c.drawRoundRect(outroRect, s * 0.23f, s * 0.23f, paint)
             paint.clearShadowLayer()
             fonts.icon?.takeIf { !it.isRecycled }?.let { icon ->
                 c.save()
                 path.reset(); path.addRoundRect(outroRect, s * 0.23f, s * 0.23f, Path.Direction.CW); c.clipPath(path)
-                paint.isFilterBitmap = true
+                paint.reset(); paint.isAntiAlias = true; paint.isFilterBitmap = true
                 c.drawBitmap(icon, null, outroRect, paint)
                 c.restore()
             }
             val fs = fitText(fonts.black, w * 0.07f, Color.WHITE, appName, w * 0.9f, -0.03f)
             textPaint.textAlign = Paint.Align.CENTER
-            c.drawText(appName, cx, cy + s / 2 + fs * 1.4f, textPaint)
+            val titleY = cy + s / 2 + fs * 1.4f
+            c.drawText(appName, cx, titleY, textPaint)
+            if (introSubtitle.isNotBlank()) {
+                fitText(fonts.semibold, w * 0.038f, Color.argb(204, 245, 242, 236), introSubtitle, w * 0.86f)
+                textPaint.textAlign = Paint.Align.CENTER
+                c.drawText(introSubtitle, cx, titleY + w * 0.068f, textPaint)
+            }
         }
     }
 
@@ -376,9 +383,15 @@ class ReelRenderer(
         val y = max(r.top + pad, if (options.fill) h * 0.1f else 0f)
         val x = if (rtl) r.right - pad - pw else r.left + pad
         layer(c, w, h, a) {
-            paint.reset(); paint.isAntiAlias = true; paint.color = Color.argb(107, 0, 0, 0)
+            // Warm darkroom scrim (#181615 @ 64%) + subtle hairline border for WCAG AA over bright skies.
+            paint.reset(); paint.isAntiAlias = true; paint.color = Color.argb(164, 24, 22, 21)
             cleanRect.set(x, y, x + pw, y + ph)
             c.drawRoundRect(cleanRect, ph / 2, ph / 2, paint)
+            paint.style = Paint.Style.STROKE
+            paint.strokeWidth = max(1f, w * 0.0014f)
+            paint.color = Color.argb(46, 255, 255, 255)
+            c.drawRoundRect(cleanRect, ph / 2, ph / 2, paint)
+            paint.style = Paint.Style.FILL
             c.save()
             c.clipRect(x + fs * 0.8f, y, x + pw - fs * 0.8f, y + ph)
             val base = y + ph / 2 + fs * 0.35f
@@ -442,9 +455,15 @@ class ReelRenderer(
         var sh = w * 0.052f
         val rawStampW = sevenWidth(card.film, sh)
         if (rawStampW > maxStampW) sh *= maxStampW / rawStampW
-        val x = r.right - pad - sevenWidth(card.film, sh)
+        val stampW = sevenWidth(card.film, sh)
+        val x = r.right - pad - stampW
         val y = safeBottom(r, h) - pad - sh
         layer(c, w, h, a) {
+            // Soft dark backing behind the orange LED digits so they stay legible on bright snow/sky.
+            paint.reset(); paint.isAntiAlias = true
+            paint.color = Color.argb(115, 24, 22, 21)
+            cleanRect.set(x - sh * 0.35f, y - sh * 0.28f, x + stampW + sh * 0.35f, y + sh * 1.28f)
+            c.drawRoundRect(cleanRect, sh * 0.35f, sh * 0.35f, paint)
             // Leans right like the real thing.
             c.translate((y + sh) * 0.1f, 0f)
             c.skew(-0.1f, 0f)

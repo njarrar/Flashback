@@ -39,6 +39,7 @@ private struct EmptyNote: View {
 
 struct FavoritesView: View {
     @Environment(AppStore.self) private var store
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var selecting = false
     @State private var picked: [Photo] = []
     @State private var newestFirst = true
@@ -46,8 +47,40 @@ struct FavoritesView: View {
     @State private var albumFor: [Photo]?
     @State private var drag = DragSelect()
 
+    private struct FavYearGroup: Identifiable {
+        let year: Int
+        let offset: Int
+        let photos: [Photo]
+        var id: Int { year }
+    }
+
+    private func groupedByYear(_ favs: [Photo]) -> [FavYearGroup] {
+        var out: [FavYearGroup] = []
+        var currentYear: Int?
+        var currentOffset = 0
+        var bucket: [Photo] = []
+        for (i, p) in favs.enumerated() {
+            let y = yearOf(p.time)
+            if currentYear == y {
+                bucket.append(p)
+            } else {
+                if let cy = currentYear, !bucket.isEmpty {
+                    out.append(FavYearGroup(year: cy, offset: currentOffset, photos: bucket))
+                }
+                currentYear = y
+                currentOffset = i
+                bucket = [p]
+            }
+        }
+        if let cy = currentYear, !bucket.isEmpty {
+            out.append(FavYearGroup(year: cy, offset: currentOffset, photos: bucket))
+        }
+        return out
+    }
+
     var body: some View {
         let favs = store.saved.favorites.sorted { newestFirst ? $0.time > $1.time : $0.time < $1.time }
+        let groups = groupedByYear(favs)
         let pickedKeys = Set(picked.map(\.key))
         let allSelected = !favs.isEmpty && favs.allSatisfy { pickedKeys.contains($0.key) }
         let selection = Selection(
@@ -79,6 +112,16 @@ struct FavoritesView: View {
             ) {
                 if !favs.isEmpty {
                     HStack(spacing: 0) {
+                        if favs.count >= 2 && !selecting {
+                            Button { startReel(favs) } label: {
+                                Image(systemName: "play.rectangle")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundStyle(Palette.accent)
+                                    .frame(width: 44, height: 40).contentShape(Rectangle())
+                            }
+                            .accessibilityLabel(L.s("make_reel"))
+                            Palette.line.frame(width: 1, height: 20)
+                        }
                         Button {
                             if selecting { stopSelecting() } else { selecting = true }
                         } label: {
@@ -113,13 +156,35 @@ struct FavoritesView: View {
             if favs.isEmpty {
                 EmptyNote(icon: "heart", title: L.s("favorites_empty_title"), text: L.s("favorites_empty_body"))
             } else {
-                SquareGrid(
-                    photos: favs,
-                    showDate: true,
-                    selection: selection,
-                    removeLabel: L.s("unfavorite"),
-                    onRemove: { photo in store.toggleFavorite(photo) }
-                )
+                LazyVStack(alignment: .leading, spacing: 20) {
+                    ForEach(groups) { group in
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                Text(L.num(group.year))
+                                    .font(.nunito(26, .black, maxSize: 34))
+                                    .tight(26)
+                                    .foregroundStyle(Palette.ink)
+                                    .accessibilityAddTraits(.isHeader)
+                                Text(L.p("photos", group.photos.count))
+                                    .font(.nunito(13, .semibold, maxSize: 16))
+                                    .foregroundStyle(Palette.muted)
+                                Spacer()
+                            }
+                            .padding(.horizontal, 20)
+
+                            SquareGrid(
+                                photos: group.photos,
+                                showDate: true,
+                                compactDate: true,
+                                selection: selection,
+                                removeLabel: L.s("unfavorite"),
+                                onRemove: { photo in store.toggleFavorite(photo) },
+                                viewerPhotos: favs,
+                                viewerOffset: group.offset
+                            )
+                        }
+                    }
+                }
                 .background(
                     DragSelectHook(
                         drag: drag,
@@ -146,14 +211,16 @@ struct FavoritesView: View {
                     reel: { startReel(picked) }
                 )
                 .padding(.bottom, 4)
+                .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
             }
         }
+        .animation(reduceMotion ? nil : .spring(response: 0.32, dampingFraction: 0.84), value: selecting)
         .sheet(item: $shareFor) { ShareSheetView(request: $0) }
         .sheet(isPresented: Binding(get: { albumFor != nil }, set: { if !$0 { albumFor = nil } })) {
             AlbumSheet(photos: albumFor ?? [], created: { album in store.openAlbumID = album.id }, done: stopSelecting)
         }
         .toolbar(selecting ? .hidden : .visible, for: .tabBar)
-        .sensoryFeedback(.selection, trigger: picked.count) { _, _ in selecting }
+        .sensoryFeedback(.selection, trigger: picked.count) { old, new in selecting && !(old == 0 && new == 1) }
         .onChange(of: store.tab) { _, _ in stopSelecting() }
         .onChange(of: favs.count) { _, n in if n == 0 && selecting { stopSelecting() } }
         .onDisappear { drag.cancel() }
@@ -217,12 +284,13 @@ private struct AlbumCover: View {
 
 struct AlbumsView: View {
     @Environment(AppStore.self) private var store
-    @State private var path: [String] = []
+    @State private var path = NavigationPath()
     @State private var creatingAlbum = false
     @State private var renameTarget: Album?
     @State private var renameText = ""
     @State private var deleteTarget: Album?
     @State private var shareFor: ShareRequest?
+    @State private var cityList: CityList?
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -233,19 +301,47 @@ struct AlbumsView: View {
                         AlbumDetailView(album: album)
                     }
                 }
+                .navigationDestination(for: City.self) { city in
+                    PlacePage(city: city)
+                }
         }
         // Back button and menu stay ink; coral is kept for the active tab.
         .tint(Palette.ink)
         // Other screens ask for an album by setting openAlbumID; turn that into a push.
         .task(id: store.openAlbumID) {
             guard let id = store.openAlbumID else { return }
-            path = [id]
+            path = NavigationPath([id])
             store.openAlbumID = nil
         }
+        .task(id: store.saved.places.on) {
+            guard store.saved.places.on, CityList.available else { cityList = nil; return }
+            cityList = await CityList.load()
+        }
+    }
+
+    private var visitedCities: [(city: City, trips: [Trip])] {
+        guard store.saved.places.on, let cities = cityList, !store.saved.placeIndex.isEmpty else { return [] }
+        let home = store.saved.customHomeCity ?? homeCity(store.saved.placeIndex)
+        return store.saved.placeIndex
+            .compactMap { id, days -> (city: City, trips: [Trip])? in
+                guard id != home, cities.cities.indices.contains(id), !days.isEmpty else { return nil }
+                let cityTrips = trips(days)
+                guard !cityTrips.isEmpty else { return nil }
+                return (cities.cities[id], cityTrips)
+            }
+            .sorted {
+                let aPhotos = $0.trips.reduce(0) { $0 + $1.photos }
+                let bPhotos = $1.trips.reduce(0) { $0 + $1.photos }
+                if $0.trips.count != $1.trips.count { return $0.trips.count > $1.trips.count }
+                return aPhotos > bPhotos
+            }
+            .prefix(12)
+            .map { $0 }
     }
 
     private var list: some View {
         let albums = store.saved.albums
+        let places = visitedCities
         return ScrollView {
             Header(title: L.s("tab_albums"), subtitle: L.p("albums", albums.count)) {
                 Pill(label: L.s("new_album"), systemImage: "plus", height: 44) {
@@ -253,6 +349,52 @@ struct AlbumsView: View {
                 }
                 .fixedSize()
             }
+
+            if !places.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(L.s("places_title"))
+                        .font(.nunito(14, .bold))
+                        .foregroundStyle(Palette.muted)
+                        .padding(.horizontal, 20)
+                        .accessibilityAddTraits(.isHeader)
+
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 10) {
+                            ForEach(places, id: \.city.id) { item in
+                                Button { path.append(item.city) } label: {
+                                    HStack(spacing: 10) {
+                                        Image(systemName: "mappin.and.ellipse")
+                                            .font(.system(size: 15, weight: .semibold))
+                                            .foregroundStyle(Palette.brandCobaltInk)
+                                            .frame(width: 34, height: 34)
+                                            .background(Palette.brandCobaltTint, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                            .accessibilityHidden(true)
+                                        VStack(alignment: .leading, spacing: 1) {
+                                            Text(item.city.name)
+                                                .font(.nunito(15, .bold))
+                                                .foregroundStyle(Palette.ink)
+                                                .lineLimit(1)
+                                            Text(tripsAndPhotos(item.trips))
+                                                .font(.nunito(12, .medium))
+                                                .foregroundStyle(Palette.muted)
+                                                .lineLimit(1)
+                                        }
+                                    }
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 10)
+                                    .frame(minHeight: 54)
+                                    .background(Palette.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                                    .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Palette.line, lineWidth: 1))
+                                }
+                                .buttonStyle(PressStyle())
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                    }
+                }
+                .padding(.bottom, 16)
+            }
+
             if albums.isEmpty {
                 EmptyNote(icon: "photo.on.rectangle", title: L.s("albums_empty_title"), text: L.s("albums_empty_body"))
             }
@@ -371,7 +513,7 @@ private struct NewAlbumSheet: View {
                     .padding(.vertical, 12)
                     .frame(minHeight: 48)
                     .background(Palette.bg, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(focused ? Palette.accent : Palette.line, lineWidth: 1))
+                    .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(focused ? Palette.brandCobaltFill : Palette.borderControl, lineWidth: focused ? 1.5 : 1))
 
                 PhotosPicker(selection: $pickerItems, maxSelectionCount: 100, matching: .images, photoLibrary: .shared()) {
                     HStack(spacing: 10) {
@@ -386,7 +528,7 @@ private struct NewAlbumSheet: View {
                     .padding(.horizontal, 14)
                     .frame(minHeight: 48)
                     .background(Palette.bg, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Palette.line, lineWidth: 1))
+                    .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Palette.borderControl, lineWidth: 1))
                 }
                 .task(id: pickerItems) {
                     let ids = pickerItems.compactMap(\.itemIdentifier)
@@ -506,31 +648,69 @@ struct AlbumDetailView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 20).padding(.top, 4).padding(.bottom, 16)
-            // Side by side, or one above the other once large text no longer fits both.
-            let buttons = textSize >= .xxLarge ? AnyLayout(VStackLayout(spacing: 10)) : AnyLayout(HStackLayout(spacing: 10))
-            buttons {
-                Pill(label: L.s("share_album"), systemImage: "square.and.arrow.up", height: 46, wide: true) {
+            // Unified single-row action bar: Share (Cobalt primary) + Make a reel (Coral tint, >= 2) + 48x48 circular Save icon.
+            let stacked = textSize >= .xxLarge
+            let actionLayout = stacked ? AnyLayout(VStackLayout(spacing: 10)) : AnyLayout(HStackLayout(spacing: 8))
+            actionLayout {
+                Pill(
+                    label: L.s("share"),
+                    systemImage: "square.and.arrow.up",
+                    kind: .primary,
+                    height: 48,
+                    wide: true,
+                    singleLine: !stacked
+                ) {
                     shareFor = ShareRequest(title: album.name, photos: album.photos)
                 }
                 .disabled(album.photos.isEmpty)
-                Pill(label: L.s("save_to_photos"), systemImage: "square.and.arrow.down", kind: .secondary, height: 46, wide: true, busy: saving) {
-                    guard !saving else { return }
-                    saving = true
-                    Task {
-                        await store.saveToPhotos(name: album.name, photos: album.photos)
-                        saving = false
+
+                if album.photos.count >= 2 {
+                    Pill(
+                        label: L.s("make_reel"),
+                        systemImage: "play.rectangle",
+                        kind: .tint,
+                        height: 48,
+                        wide: true,
+                        singleLine: !stacked
+                    ) {
+                        store.reel = ReelRequest(photos: album.photos)
                     }
                 }
-                .disabled(album.photos.isEmpty)
-            }
-            .padding(.horizontal, 16).padding(.bottom, album.photos.count >= 2 ? 10 : 16)
 
-            if album.photos.count >= 2 {
-                Pill(label: L.s("make_reel"), systemImage: "play.rectangle", kind: .tint, height: 46, wide: true) {
-                    store.reel = ReelRequest(photos: album.photos)
+                if stacked {
+                    Pill(
+                        label: L.s("save_to_photos"),
+                        systemImage: "square.and.arrow.down",
+                        kind: .secondary,
+                        height: 48,
+                        wide: true,
+                        busy: saving
+                    ) {
+                        saveAlbumToPhotos()
+                    }
+                    .disabled(album.photos.isEmpty)
+                } else {
+                    Button { saveAlbumToPhotos() } label: {
+                        Group {
+                            if saving {
+                                ProgressView().tint(Palette.ink)
+                            } else {
+                                Image(systemName: "square.and.arrow.down")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundStyle(Palette.ink)
+                            }
+                        }
+                        .frame(width: 48, height: 48)
+                        .background(Palette.surface, in: Circle())
+                        .overlay(Circle().stroke(Palette.borderControl, lineWidth: 1))
+                        .opacity(album.photos.isEmpty ? 0.4 : 1)
+                    }
+                    .buttonStyle(PressStyle())
+                    .disabled(album.photos.isEmpty || saving)
+                    .accessibilityLabel(L.s("save_to_photos"))
                 }
-                .padding(.horizontal, 16).padding(.bottom, 16)
             }
+            .padding(.horizontal, 16).padding(.bottom, 16)
 
             if album.photos.isEmpty {
                 EmptyNote(icon: "photo.on.rectangle", title: L.s("album_empty"), text: L.s("albums_empty_body"))
@@ -578,6 +758,15 @@ struct AlbumDetailView: View {
             }
         } message: {
             Text(L.s("delete_album_note"))
+        }
+    }
+
+    private func saveAlbumToPhotos() {
+        guard !saving else { return }
+        saving = true
+        Task {
+            await store.saveToPhotos(name: album.name, photos: album.photos)
+            saving = false
         }
     }
 }

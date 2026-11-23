@@ -14,6 +14,7 @@ import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
@@ -217,9 +218,35 @@ fun ViewerScreen(
                 .drawBehind {
                     val pull = (dragY.value.coerceAtLeast(0f) / fullPull).coerceIn(0f, 1f)
                     val combined = maxOf(pull, backProgress * 0.6f)
-                    drawRect(ViewerBg.copy(alpha = (1f - combined).coerceIn(0f, 1f)))
+                    val bgAlpha = (1f - combined).coerceIn(0f, 1f)
+                    drawRect(ViewerBg.copy(alpha = bgAlpha))
+                    // Subtle warm darkroom ambient glow behind framed photos.
+                    drawRect(
+                        Brush.radialGradient(
+                            colors = listOf(Color(0xFF2B241E).copy(alpha = 0.34f * bgAlpha), Color.Transparent),
+                            center = Offset(size.width / 2f, size.height * 0.45f),
+                            radius = size.maxDimension * 0.65f,
+                        ),
+                    )
                 },
         )
+        if (!reduce) {
+            val ambientReq = rememberThumbnailRequest(photo.uri, maxPx = 48, crossfade = true)
+            AsyncImage(
+                model = ambientReq,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        val pull = (dragY.value.coerceAtLeast(0f) / fullPull).coerceIn(0f, 1f)
+                        val combined = maxOf(pull, backProgress * 0.6f)
+                        alpha = 0.14f * (1f - combined).coerceIn(0f, 1f)
+                        scaleX = 1.25f
+                        scaleY = 1.25f
+                    },
+            )
+        }
         HorizontalPager(
             state = pager,
             key = { photos[it].key },
@@ -433,8 +460,19 @@ fun ViewerScreen(
                         }
                         Spacer(Modifier.height(18.dp))
                     }
+                    val heartScale by animateFloatAsState(
+                        targetValue = if (fav) 1.15f else 1f,
+                        animationSpec = if (reduce) snap() else spring(dampingRatio = 0.42f, stiffness = 520f),
+                        label = "viewerHeart",
+                    )
                     Row(
-                        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 10.dp)
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(Color(0xC71B1A19))
+                            .border(0.5.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(24.dp))
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
                         horizontalArrangement = Arrangement.SpaceAround,
                     ) {
                         Action(
@@ -442,8 +480,12 @@ fun ViewerScreen(
                             L.s("favorite_short"),
                             L.s(if (fav) "unfavorite" else "favorite"),
                             tint = if (fav) ViewerHeart else ViewerInk,
+                            iconScale = if (fav) heartScale else 1f,
                             enabled = chrome,
-                        ) { if (!fav) Haptics.confirm(view); onFavorite(photo) }
+                        ) {
+                            if (!fav) Haptics.confirm(view) else Haptics.tick(view)
+                            onFavorite(photo)
+                        }
                         Action(
                             Icons.Outlined.Share,
                             L.s("share"),
@@ -603,7 +645,15 @@ private fun InfoRow(icon: ImageVector, primary: String, secondary: String?) {
 
 /** An icon with a short word under it. */
 @Composable
-private fun Action(icon: ImageVector, word: String, label: String, tint: Color = ViewerInk, enabled: Boolean, onClick: () -> Unit) {
+private fun Action(
+    icon: ImageVector,
+    word: String,
+    label: String,
+    tint: Color = ViewerInk,
+    iconScale: Float = 1f,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
     Column(
         Modifier
             .widthIn(min = 68.dp)
@@ -615,12 +665,19 @@ private fun Action(icon: ImageVector, word: String, label: String, tint: Color =
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Icon(icon, null, tint = tint, modifier = Modifier.size(26.dp))
+        Icon(
+            icon,
+            null,
+            tint = tint,
+            modifier = Modifier
+                .size(26.dp)
+                .graphicsLayer { scaleX = iconScale; scaleY = iconScale },
+        )
         T(word, size = 11, weight = FontWeight.SemiBold, color = ViewerInk.copy(alpha = if (enabled) 0.85f else 0.4f), maxLines = 1, modifier = Modifier.clearAndSetSemantics {})
     }
 }
 
-/** Small thumbnails of every photo, with the current one wider and outlined, plus year dividers. */
+/** Small thumbnails of every photo, with the current one wider and outlined, plus tappable year pills. */
 @Composable
 private fun Filmstrip(photos: List<Photo>, index: Int, enabled: Boolean, onPick: (Int) -> Unit) {
     val reduce = LocalReduceMotion.current
@@ -629,6 +686,7 @@ private fun Filmstrip(photos: List<Photo>, index: Int, enabled: Boolean, onPick:
         if (reduce) strip.scrollToItem(index) else strip.animateScrollToItem(index)
     }
     val years = remember(photos) { photos.map { localDate(it.time).year } }
+    val multiYear = remember(years) { years.distinct().size > 1 }
     BoxWithConstraints(Modifier.fillMaxWidth().height(56.dp)) {
         val side = (maxWidth / 2 - 34.dp).coerceAtLeast(0.dp)
         LazyRow(
@@ -640,19 +698,20 @@ private fun Filmstrip(photos: List<Photo>, index: Int, enabled: Boolean, onPick:
         ) {
             itemsIndexed(photos, key = { _, p -> p.key }) { i, p ->
                 val on = i == index
-                val yearBoundary = i > 0 && years[i] != years[i - 1]
+                val yearBoundary = multiYear && (i == 0 || years[i] != years[i - 1])
                 val request = rememberThumbnailRequest(p.uri, maxPx = 160, crossfade = false)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (yearBoundary) {
                         Box(
                             Modifier
                                 .padding(horizontal = 4.dp)
-                                .clip(RoundedCornerShape(4.dp))
+                                .clip(RoundedCornerShape(50))
                                 .background(ViewerInk.copy(alpha = 0.18f))
-                                .padding(horizontal = 5.dp, vertical = 2.dp)
-                                .clearAndSetSemantics {},
+                                .clickable(enabled = enabled, role = Role.Button) { onPick(i) }
+                                .padding(horizontal = 7.dp, vertical = 3.dp)
+                                .semantics { contentDescription = L.num(years[i]) },
                         ) {
-                            T(L.num(years[i]), size = 10, weight = FontWeight.Bold, color = ViewerInk)
+                            T(L.num(years[i]), size = 11, weight = FontWeight.ExtraBold, color = ViewerInk)
                         }
                     }
                     Box(

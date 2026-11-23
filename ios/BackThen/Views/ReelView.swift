@@ -320,8 +320,20 @@ struct ReelView: View {
                                 VStack(spacing: 6) {
                                     ZStack(alignment: .topTrailing) {
                                         PhotoImage(photo: photo)
-                                            .frame(width: 82, height: 96)
+                                            .frame(width: 90, height: 96)
                                             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                                            .overlay(alignment: .bottomLeading) {
+                                                Text(L.num(yearOf(photo.time)))
+                                                    .font(.nunito(11, .heavy, maxSize: 13))
+                                                    .monospacedDigit()
+                                                    .foregroundStyle(.white)
+                                                    .padding(.horizontal, 6)
+                                                    .padding(.vertical, 2)
+                                                    .background(Color.black.opacity(0.62), in: Capsule())
+                                                    .padding(5)
+                                                    .allowsHitTesting(false)
+                                                    .accessibilityHidden(true)
+                                            }
                                         if curatedPhotos.count > 2 {
                                             Button {
                                                 if let idx = curatedPhotos.firstIndex(where: { $0.key == photo.key }) {
@@ -331,10 +343,10 @@ struct ReelView: View {
                                                 Image(systemName: "xmark.circle.fill")
                                                     .font(.system(size: 20))
                                                     .symbolRenderingMode(.palette)
-                                                    .foregroundStyle(.white, Color.black.opacity(0.65))
+                                                    .foregroundStyle(.white, Color.black.opacity(0.72))
                                                     .frame(width: 44, height: 44).contentShape(Rectangle())
                                             }
-                                            .accessibilityLabel(L.s("remove_from_album"))
+                                            .accessibilityLabel("\(L.s("clear_selection")), \(L.s("photo_n_of", ["n": i + 1, "total": curatedPhotos.count]))")
                                         }
                                     }
                                     HStack(spacing: 2) {

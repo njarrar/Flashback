@@ -42,19 +42,20 @@ export type AdProps = {
   // Scenes that have a recorded clip (shots/<lang>/<scene>-tail.mp4).
   clips: Record<string, boolean>;
   music: boolean;
-  cut?: "ad30" | "ad15";
+  cut?: "ad30" | "ad15" | "preview";
 };
 
 type Shot = { k: string; d: number };
-export const CUTS: Record<string, Shot[]> = {
+export const CUTS: Record<"ad30" | "ad15" | "preview", Shot[]> = {
+  // Varied rhythmic pacing: brisk mid-section showcase, extra breath on Heart, Reel, Privacy, and End (30.0s total).
   ad30: [
-    { k: "hook", d: 2.5 }, { k: "today", d: 3 }, { k: "viewer", d: 2.5 }, { k: "heart", d: 2.5 },
-    { k: "calendar", d: 2.5 }, { k: "album", d: 3 }, { k: "reel", d: 3 }, { k: "cards", d: 2.5 },
-    { k: "langs", d: 2.5 }, { k: "privacy", d: 3 }, { k: "end", d: 3 },
+    { k: "hook", d: 2.2 }, { k: "today", d: 2.8 }, { k: "viewer", d: 2.0 }, { k: "heart", d: 2.8 },
+    { k: "calendar", d: 2.2 }, { k: "album", d: 2.6 }, { k: "reel", d: 3.6 }, { k: "cards", d: 2.2 },
+    { k: "langs", d: 2.4 }, { k: "privacy", d: 3.4 }, { k: "end", d: 3.8 },
   ],
   ad15: [
-    { k: "hook", d: 2 }, { k: "today", d: 3 }, { k: "heart", d: 2.5 }, { k: "reel", d: 2.5 },
-    { k: "privacy", d: 2.5 }, { k: "end", d: 2.5 },
+    { k: "hook", d: 2.0 }, { k: "today", d: 2.6 }, { k: "heart", d: 2.6 }, { k: "reel", d: 2.8 },
+    { k: "privacy", d: 2.2 }, { k: "end", d: 2.8 },
   ],
   // App Store preview: real app footage only, with captions. No phone frame, hook or badges.
   preview: [
@@ -76,13 +77,19 @@ const LOCALES: Record<string, string> = {
 const shot = (lang: string, name: string) => staticFile(`shots/${lang}/${name}.png`);
 const clip = (lang: string, name: string) => staticFile(`shots/${lang}/${name}-tail.mp4`);
 
-// Sound effects made by sfx.py (public/sfx).
-// Music level, and effect levels set so each effect peaks about 4 dB under the music.
-// Keep the effects under the music: if MUSIC changes, scale SFX by the same amount.
-const MUSIC = 0.09;
-const SFX: Record<string, number> = { whoosh: 0.05, tap: 0.056, pop: 0.032, chime: 0.03 };
+// Sound effects made by sfx.py (public/sfx) and bed made by music.py (-14.5 LUFS master).
+// Mixed for -14 to -16 LUFS social/App Store loudness, with automatic bed ducking under SFX.
+const MUSIC = 0.88;
+const DUCK_GAIN = 0.72; // ~ -2.85 dB duck under tactile SFX and closing chime
+const SFX: Record<string, number> = { whoosh: 0.36, tap: 0.55, pop: 0.58, chime: 0.62 };
 const Sfx: React.FC<{ name: string }> = ({ name }) =>
   <Audio src={staticFile(`sfx/${name}.wav`)} volume={SFX[name]} />;
+
+// Only play whoosh on major act transitions (never before `end`, so it never overlaps `chime`).
+const WHOOSH_BEFORE = new Set(["today", "calendar", "reel", "privacy"]);
+
+// Heart tap fires after the Phone entrance spring settles.
+const HEART_AT = 22;
 
 // Plays every shot back to back.
 const Shots: React.FC<{ shots: Shot[]; render: (k: string, frames: number) => React.ReactNode }> = ({ shots, render }) => {
@@ -91,13 +98,13 @@ const Shots: React.FC<{ shots: Shot[]; render: (k: string, frames: number) => Re
     <>
       {shots.map((s, i) => {
         const frames = Math.round(s.d * FPS);
+        const playWhoosh = i > 0 && WHOOSH_BEFORE.has(s.k);
         const el = (
           <React.Fragment key={i}>
             <Sequence from={from} durationInFrames={frames} name={s.k}>
               {render(s.k, frames)}
             </Sequence>
-            {/* A soft whoosh that peaks on each cut. */}
-            {i > 0 ? (
+            {playWhoosh ? (
               <Sequence from={Math.max(0, from - 10)} durationInFrames={21} name="whoosh">
                 <Sfx name="whoosh" />
               </Sequence>
@@ -118,15 +125,35 @@ const useRise = (delay = 0, distance = 120) => {
   return { opacity: Math.min(1, p * 1.4), transform: `translateY(${(1 - p) * distance}px)` };
 };
 
-const Caption: React.FC<{ lang: string; h: string; s?: string; top?: number; size?: number }> = ({ lang, h, s, top = 250, size = 92 }) => {
+const Caption: React.FC<{
+  lang: string;
+  h: string;
+  s?: string;
+  top?: number;
+  size?: number;
+  extra?: React.ReactNode;
+}> = ({ lang, h, s, top = 185, size = 92, extra }) => {
   const f = fonts(lang);
   const head = useRise(0, 40);
   const sub = useRise(4, 40);
+  const headSize = h.length > 22 ? Math.round(size * 0.85) : size;
+  const subSize = Math.round(headSize * 0.44);
   return (
-    <div style={{ position: "absolute", top, left: 70, right: 70, textAlign: "center", color: WHITE,
-      direction: lang === "ar" ? "rtl" : "ltr", display: "flex", flexDirection: "column", gap: 22 }}>
-      <div style={{ ...head, fontFamily: f.display, fontWeight: f.weight, fontSize: size, lineHeight: 1.08, textWrap: "balance" }}>{h}</div>
-      {s ? <div style={{ ...sub, fontFamily: f.body, fontWeight: 500, fontSize: size * 0.44, lineHeight: 1.35, opacity: 0.92 * (sub.opacity as number), textWrap: "balance" }}>{s}</div> : null}
+    <div style={{
+      position: "absolute", top, left: 70, right: 70, maxWidth: 940, margin: "0 auto",
+      textAlign: "center", color: WHITE, direction: lang === "ar" ? "rtl" : "ltr",
+      display: "flex", flexDirection: "column", gap: 18,
+    }}>
+      <div style={{ ...head, fontFamily: f.display, fontWeight: f.weight, fontSize: headSize, lineHeight: 1.06, textWrap: "balance" }}>{h}</div>
+      {s ? (
+        <div style={{
+          ...sub, fontFamily: f.body, fontWeight: 500, fontSize: subSize, lineHeight: 1.3,
+          opacity: 0.92 * (sub.opacity as number), textWrap: "balance",
+        }}>
+          {s}
+        </div>
+      ) : null}
+      {extra}
     </div>
   );
 };
@@ -164,23 +191,33 @@ const Fade: React.FC<{ at: number; children: React.ReactNode }> = ({ at, childre
 
 const HeartPath = "M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 4.5 6.8 4.5c2.1 0 3.5 1.1 5.2 3 1.7-1.9 3.1-3 5.2-3 3.8 0 5.9 3.9 4.4 7.3C19.5 16.4 12 21 12 21z";
 
-// A finger tap, then the Favorite button fills coral, the way it does in the app.
-const HeartTap: React.FC<{ lang: string; at: number }> = ({ lang, at }) => {
+// A finger tap, then the Favorite button fills coral, matching the app's real button size and center.
+const HeartTap: React.FC<{ lang: string; at: number; phoneW: number }> = ({ lang, at, phoneW }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   // The Favorite button in the viewer, as a share of the screen (mirrored right to left in Arabic).
   const x = lang === "ar" ? 0.882 : 0.118;
   const y = 0.908;
+  const screenW = phoneW * (1 - 0.048);
+  const heartSize = Math.round(screenW * 0.058);
+  const ringSize = Math.round(heartSize * 2.8);
   const ring = interpolate(frame, [at - 6, at, at + 10], [0, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   const pop = spring({ frame: frame - at, fps, config: { damping: 9, stiffness: 180 } });
   return (
     <>
       <Sequence from={at - 2} layout="none"><Sfx name="tap" /></Sequence>
       <Sequence from={at} layout="none"><Sfx name="pop" /></Sequence>
-      <div style={{ position: "absolute", left: `${x * 100}%`, top: `${y * 100}%`, width: 120, height: 120, marginLeft: -60, marginTop: -60,
-        borderRadius: "50%", background: "rgba(255,255,255,0.35)", border: "4px solid rgba(255,255,255,0.9)", opacity: ring, transform: `scale(${0.6 + ring * 0.4})` }} />
-      <svg viewBox="0 0 24 24" style={{ position: "absolute", left: `${x * 100}%`, top: `${y * 100}%`, width: 62, height: 62, marginLeft: -31, marginTop: -40,
-        transform: `scale(${pop})`, opacity: pop > 0.02 ? 1 : 0 }}>
+      <div style={{
+        position: "absolute", left: `${x * 100}%`, top: `${y * 100}%`,
+        width: ringSize, height: ringSize, marginLeft: -ringSize / 2, marginTop: -ringSize / 2,
+        borderRadius: "50%", background: "rgba(255,255,255,0.35)", border: "3px solid rgba(255,255,255,0.9)",
+        opacity: ring, transform: `scale(${0.6 + ring * 0.4})`,
+      }} />
+      <svg viewBox="0 0 24 24" style={{
+        position: "absolute", left: `${x * 100}%`, top: `${y * 100}%`,
+        width: heartSize, height: heartSize, marginLeft: -heartSize / 2, marginTop: -heartSize / 2,
+        transform: `scale(${pop})`, opacity: pop > 0.02 ? 1 : 0,
+      }}>
         <path d={HeartPath} fill={CORAL} />
       </svg>
     </>
@@ -197,15 +234,26 @@ const Hook: React.FC<{ p: AdProps }> = ({ p }) => {
   // The sample photos sit 1, 4, 7 and 11 years back (make_photos.py).
   const years = [1, 4, 7, 11].map((n) => year - n);
   const dateIn = spring({ frame: frame - 6, fps, config: { damping: 16 } });
+  const dateSize = label.length > 12 ? 112 : 144;
   return (
     <AbsoluteFill style={{ background: NIGHT }}>
       <Caption lang={p.lang} h={p.text.hook} />
-      <div style={{ position: "absolute", top: 760, left: 0, right: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 34, color: WHITE }}>
-        <div style={{ fontFamily: f.display, fontWeight: f.weight, fontSize: 150, lineHeight: 1, opacity: dateIn, transform: `scale(${0.85 + dateIn * 0.15})`, direction: p.lang === "ar" ? "rtl" : "ltr" }}>{label}</div>
+      <div style={{
+        position: "absolute", top: 640, left: 0, right: 0, padding: "0 60px",
+        display: "flex", flexDirection: "column", alignItems: "center", gap: 26,
+        color: WHITE, textAlign: "center",
+      }}>
+        <div style={{
+          fontFamily: f.display, fontWeight: f.weight, fontSize: dateSize, lineHeight: 1.06,
+          textAlign: "center", textWrap: "balance", opacity: dateIn,
+          transform: `scale(${0.85 + dateIn * 0.15})`, direction: p.lang === "ar" ? "rtl" : "ltr",
+        }}>
+          {label}
+        </div>
         {years.map((y, i) => {
-          const d = spring({ frame: frame - 18 - i * 6, fps, config: { damping: 14 } });
+          const d = spring({ frame: frame - 16 - i * 5, fps, config: { damping: 14 } });
           return (
-            <div key={y} style={{ fontFamily: nunito, fontWeight: 900, fontSize: 96, lineHeight: 1, opacity: d * (0.95 - i * 0.2), transform: `translateY(${(1 - d) * -60}px)` }}>{y}</div>
+            <div key={y} style={{ fontFamily: nunito, fontWeight: 900, fontSize: 92, lineHeight: 1, opacity: d * (0.95 - i * 0.2), transform: `translateY(${(1 - d) * -50}px)` }}>{y}</div>
           );
         })}
       </div>
@@ -221,7 +269,12 @@ const End: React.FC<{ p: AdProps; badges?: boolean }> = ({ p, badges = true }) =
       <Sequence from={4} layout="none"><Sfx name="chime" /></Sequence>
       <Img src={staticFile("icon.png")} style={{ ...a, width: 300, height: 300, borderRadius: 68, boxShadow: "0 30px 70px rgba(0,0,0,0.28)" }} />
       <div style={{ ...b, fontFamily: nunito, fontWeight: 900, fontSize: 132, lineHeight: 1 }}>Flashback</div>
-      <div style={{ ...c, fontFamily: f.body, fontWeight: 500, fontSize: 46, direction: p.lang === "ar" ? "rtl" : "ltr" }}>{p.text.end}</div>
+      <div style={{
+        ...c, fontFamily: f.body, fontWeight: 500, fontSize: 46, padding: "0 70px",
+        textAlign: "center", textWrap: "balance", direction: p.lang === "ar" ? "rtl" : "ltr",
+      }}>
+        {p.text.end}
+      </div>
       {badges ? (
         <div style={{ ...d, display: "flex", gap: 24, marginTop: 20 }}>
           {["App Store", "Google Play"].map((s) => (
@@ -233,14 +286,14 @@ const End: React.FC<{ p: AdProps; badges?: boolean }> = ({ p, badges = true }) =
   );
 };
 
-const LANG_NAMES = "English · Français · Español · العربية · Português · 中文";
+const LANG_LIST = ["English", "Français", "Español", "العربية", "Português", "中文"];
 
 // One phone in the middle, cut off by the bottom of the frame, under a caption.
-const PX = 130, PY = 630, PW = 820;
+const PX = 130, PY = 600, PW = 820;
 
 const SocialShot: React.FC<{ k: string; frames: number; p: AdProps }> = ({ k, frames, p }) => {
   const L = p.lang;
-  const cap = (i: number) => <Caption lang={L} h={p.caps[i][0]} s={p.caps[i][1]} />;
+  const cap = (i: number, top?: number) => <Caption lang={L} h={p.caps[i][0]} s={p.caps[i][1]} top={top} />;
   const one = (src: string, extra?: React.ReactNode) => (
     <Phone x={PX} y={PY} w={PW}><Screen src={src} />{extra}</Phone>
   );
@@ -250,24 +303,25 @@ const SocialShot: React.FC<{ k: string; frames: number; p: AdProps }> = ({ k, fr
     case "today": return <AbsoluteFill style={{ background: BLUE }}>{cap(0)}{one(shot(L, "today"))}</AbsoluteFill>;
     case "viewer": return <AbsoluteFill style={{ background: BLUE }}>{cap(2)}{one(shot(L, "viewer"))}</AbsoluteFill>;
     case "heart": {
-      const swap = Math.round(frames * 0.55);
+      const swap = Math.max(HEART_AT + 24, Math.round(frames * 0.62));
+      const heartPhoneW = 500;
       return (
         <AbsoluteFill style={{ background: BLUE }}>
-          {cap(3)}
-          {/* Smaller, so the Favorite button at the bottom of the screen shows. */}
-          <Phone x={250} y={560} w={580}>
+          {cap(3, 165)}
+          {/* Lifted into TikTok/Reels/Shorts safe zone (HeartTap lands at Y = 1421px <= 1450px). */}
+          <Phone x={290} y={470} w={heartPhoneW}>
             <Screen src={shot(L, "viewer")} />
-            <HeartTap lang={L} at={10} />
+            <HeartTap lang={L} at={HEART_AT} phoneW={heartPhoneW} />
             <Fade at={swap}><Screen src={shot(L, "favorites")} /></Fade>
           </Phone>
         </AbsoluteFill>
       );
     }
-    // Smaller, so the calendar sheet at the bottom of the screen shows.
+    // Smaller, so the calendar sheet at the bottom of the screen shows cleanly below 2-line captions.
     case "calendar": return (
       <AbsoluteFill style={{ background: BLUE }}>
-        {cap(1)}
-        <Phone x={250} y={560} w={580}><Screen src={shot(L, "calendar")} /></Phone>
+        {cap(1, 175)}
+        <Phone x={260} y={515} w={560}><Screen src={shot(L, "calendar")} /></Phone>
       </AbsoluteFill>
     );
     case "album": return (
@@ -294,11 +348,26 @@ const SocialShot: React.FC<{ k: string; frames: number; p: AdProps }> = ({ k, fr
     );
     case "langs": return (
       <AbsoluteFill style={{ background: BLUE }}>
-        <Caption lang={L} h={p.text.langs} />
-        <div style={{ position: "absolute", top: 400, left: 40, right: 40, textAlign: "center", color: WHITE, opacity: 0.92,
-          fontFamily: `Inter, ${tajawal}, ${cjk}`, fontWeight: 500, fontSize: 38 }}>{LANG_NAMES}</div>
-        <Phone x={70} y={560} w={480} rotate={-4}><Screen src={shot(L, "today")} /></Phone>
-        <Phone x={530} y={640} w={480} rotate={4} delay={5}><Screen src={shot(p.other, "today")} /></Phone>
+        <Caption
+          lang={L}
+          h={p.text.langs}
+          extra={
+            <div style={{
+              color: WHITE, opacity: 0.92, fontFamily: `Inter, ${tajawal}, ${cjk}`,
+              fontWeight: 500, fontSize: 36, lineHeight: 1.35, textAlign: "center",
+            }}>
+              {LANG_LIST.map((name, idx) => (
+                <React.Fragment key={name}>
+                  {idx > 0 ? " · " : null}
+                  <bdi>{name}</bdi>
+                </React.Fragment>
+              ))}
+            </div>
+          }
+        />
+        {/* Keep right phone inside X <= 940px to stay clear of TikTok/Reels right action rail. */}
+        <Phone x={60} y={550} w={420} rotate={-4}><Screen src={shot(L, "today")} /></Phone>
+        <Phone x={480} y={620} w={420} rotate={4} delay={5}><Screen src={shot(p.other, "today")} /></Phone>
       </AbsoluteFill>
     );
     case "privacy": return <AbsoluteFill style={{ background: BLUE }}>{cap(5)}{one(shot(L, "welcome"))}</AbsoluteFill>;
@@ -306,15 +375,54 @@ const SocialShot: React.FC<{ k: string; frames: number; p: AdProps }> = ({ k, fr
   }
 };
 
-const Music: React.FC<{ on: boolean; frames: number }> = ({ on, frames }) =>
-  on ? <Audio src={staticFile("music.mp3")} volume={(f) => interpolate(f, [0, 18, frames - 75, frames], [0, MUSIC, MUSIC, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" })} /> : null;
+type DuckWindow = [number, number];
+
+function duckWindows(shots: Shot[]): DuckWindow[] {
+  const wins: DuckWindow[] = [];
+  let from = 0;
+  for (const s of shots) {
+    const frames = Math.round(s.d * FPS);
+    if (s.k === "heart") {
+      wins.push([from + HEART_AT - 4, from + HEART_AT + 16]);
+    } else if (s.k === "end") {
+      wins.push([from + 2, from + 44]);
+    }
+    from += frames;
+  }
+  return wins;
+}
+
+const Music: React.FC<{ on: boolean; frames: number; shots: Shot[] }> = ({ on, frames, shots }) => {
+  if (!on) return null;
+  const ducks = duckWindows(shots);
+  return (
+    <Audio
+      src={staticFile("music.mp3")}
+      volume={(f) => {
+        const base = interpolate(f, [0, 18, frames - 75, frames], [0, MUSIC, MUSIC, 0], {
+          extrapolateLeft: "clamp", extrapolateRight: "clamp",
+        });
+        let duck = 1;
+        for (const [start, end] of ducks) {
+          if (f >= start - 8 && f <= end + 8) {
+            const env = interpolate(f, [start - 8, start, end, end + 8], [1, DUCK_GAIN, DUCK_GAIN, 1], {
+              extrapolateLeft: "clamp", extrapolateRight: "clamp",
+            });
+            duck = Math.min(duck, env);
+          }
+        }
+        return base * duck;
+      }}
+    />
+  );
+};
 
 export const Social: React.FC<AdProps> = (p) => {
-  const shots = CUTS[p.cut ?? "ad30"];
+  const shots = CUTS[p.cut === "ad15" ? "ad15" : "ad30"];
   return (
     <AbsoluteFill style={{ background: BLUE }}>
       <Shots shots={shots} render={(k, frames) => <SocialShot k={k} frames={frames} p={p} />} />
-      <Music on={p.music} frames={cutFrames(shots)} />
+      <Music on={p.music} frames={cutFrames(shots)} shots={shots} />
     </AbsoluteFill>
   );
 };
@@ -335,7 +443,14 @@ const Band: React.FC<{ lang: string; h: string; s?: string }> = ({ lang, h, s })
     <div style={{ position: "absolute", left: 40, right: 40, top: 0, height: SCREEN_TOP, textAlign: "center", color: WHITE,
       direction: lang === "ar" ? "rtl" : "ltr", display: "flex", flexDirection: "column", justifyContent: "center", gap: 14 }}>
       <div style={{ ...a, fontFamily: f.display, fontWeight: f.weight, fontSize: 70, lineHeight: 1.08, textWrap: "balance" }}>{h}</div>
-      {s ? <div style={{ ...b, fontFamily: f.body, fontWeight: 500, fontSize: 32, lineHeight: 1.35, opacity: 0.92, textWrap: "balance" }}>{s}</div> : null}
+      {s ? (
+        <div style={{
+          ...b, fontFamily: f.body, fontWeight: 500, fontSize: 32, lineHeight: 1.35,
+          opacity: 0.92 * (b.opacity as number), textWrap: "balance",
+        }}>
+          {s}
+        </div>
+      ) : null}
     </div>
   );
 };
@@ -368,6 +483,6 @@ const PreviewShot: React.FC<{ k: string; frames: number; p: AdProps }> = ({ k, f
 export const Preview: React.FC<AdProps> = (p) => (
   <AbsoluteFill style={{ background: BLUE }}>
     <Shots shots={CUTS.preview} render={(k, frames) => <PreviewShot k={k} frames={frames} p={p} />} />
-    <Music on={p.music} frames={cutFrames(CUTS.preview)} />
+    <Music on={p.music} frames={cutFrames(CUTS.preview)} shots={CUTS.preview} />
   </AbsoluteFill>
 );

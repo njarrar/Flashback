@@ -156,7 +156,7 @@ fun AlbumSheet(
                     singleLine = true,
                     textStyle = TextStyle(fontFamily = Nunito, fontWeight = FontWeight.Medium, fontSize = 16.sp, color = p.ink),
                     shape = RoundedCornerShape(14.dp),
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Accent, unfocusedBorderColor = p.line, cursorColor = Accent),
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = p.brandCobaltFill, unfocusedBorderColor = p.borderControl, cursorColor = p.brandCobaltFill),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(onDone = { create() }),
                     modifier = mod,
@@ -372,7 +372,7 @@ fun SettingsSheet(
                             }
                         }
                         if (visitedCities.isNotEmpty()) {
-                            T(L.s("change"), size = 14, weight = FontWeight.SemiBold, color = Accent)
+                            T(L.s("change"), size = 14, weight = FontWeight.SemiBold, color = p.accInk)
                         }
                     }
                 }
@@ -464,7 +464,7 @@ fun SettingsSheet(
                 TextButton(onClick = {
                     onReminderTime(pickerState.hour, pickerState.minute)
                     pickingTime = false
-                }) { T(L.s("save"), weight = FontWeight.SemiBold, color = Accent) }
+                }) { T(L.s("save"), weight = FontWeight.SemiBold, color = p.accInk) }
             },
             dismissButton = {
                 TextButton(onClick = { pickingTime = false }) { T(L.s("cancel"), weight = FontWeight.SemiBold) }

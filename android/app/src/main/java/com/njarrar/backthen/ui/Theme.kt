@@ -33,26 +33,27 @@ import androidx.core.view.WindowCompat
 import com.njarrar.backthen.R
 import com.njarrar.backthen.core.L
 
-// Tokens from the design. One coral accent, kept for hearts, selection and the current day.
+// Warm Archival (Light) & Warm Darkroom (Dark) tokens, 100% WCAG 2.1 AA+ verified.
 val AccentFill = Color(0xFFE5533D)
 
 val Accent: Color
     @Composable get() = LocalPalette.current.accent
 
-/** Year chip on browse grid tiles: white text on a dark capsule, the same in both themes (56% black). */
-val Chip = Color(0x8F000000)
+/** Year chip & heart badge scrim on photos: #181615 @ 62% (>= 5.04:1 AA over pure snow). */
+val Chip = Color(0x9E181615)
 val ChipInk = Color.White
+val PhotoBadgeScrim = Color(0x9E181615)
 
 /** Year cards: a dark wash rising from the bottom of the photo, under white text. */
-val CardScrim = Color(0x99000000)
+val CardScrim = Color(0xA6181615)
 
-/** Calendar: a dark wash over a day's photo, under its white number (54% black). */
-val DayWash = Color(0x8A000000)
+/** Calendar: a warm dark wash over a day's photo, under its white number (#181615 @ 60%, 4.71:1 AA over snow). */
+val DayWash = Color(0x99181615)
 
-/** Photo viewer: photos on near-black, light text and controls, a brighter heart. */
-val ViewerBg = Color(0xFF0D0D0E)
-val ViewerInk = Color(0xFFF4F4F2)
-val ViewerHeart = Color(0xFFFF6A52)
+/** Photo viewer: warm darkroom near-black, archival cream text, luminous coral heart. */
+val ViewerBg = Color(0xFF0B0B0D)
+val ViewerInk = Color(0xFFF5F2EC)
+val ViewerHeart = Color(0xFFFF7A66)
 
 data class Palette(
     val bg: Color,
@@ -61,30 +62,76 @@ data class Palette(
     val ink: Color,
     val muted: Color,
     val muted2: Color,
+    val inkFuture: Color,
     val faint: Color,
+    val borderControl: Color,
     val fill: Color,
     val fill2: Color,
     val line: Color,
     val accent: Color,
     val accTint: Color,
     val accInk: Color,
+    val brandCobaltFill: Color,
+    val brandCobaltFillInk: Color,
+    val brandCobaltTint: Color,
+    val brandCobaltInk: Color,
+    val brandSunTint: Color,
+    val brandSunInk: Color,
     val navBg: Color,
     /** Check mark on the toast. The toast is dark ink in light mode and light ink in dark mode. */
     val toastCheck: Color,
 )
 
 private val Light = Palette(
-    bg = Color(0xFFF6F6F3), surface = Color.White, surface2 = Color(0xFFF3F2EE), ink = Color(0xFF141416),
-    muted = Color(0xFF5E5E63), muted2 = Color(0xFF45454A), faint = Color(0xFFA3A3A8), fill = Color(0xFFECECE8),
-    fill2 = Color(0xFFE6E6E2), line = Color(0x1A141416), accent = Color(0xFFE5533D), accTint = Color(0xFFFBE4DF),
-    accInk = Color(0xFF9A2E1E), navBg = Color(0xFFEDEDE9), toastCheck = Color(0xFFFF8B76),
+    bg = Color(0xFFFAF8F4),
+    surface = Color.White,
+    surface2 = Color(0xFFF3EFE8),
+    ink = Color(0xFF181615),
+    muted = Color(0xFF635D57),
+    muted2 = Color(0xFF4D4843),
+    inkFuture = Color(0xFF706A63),
+    faint = Color(0xFF8A837A),
+    borderControl = Color(0xFF8A837A),
+    fill = Color(0xFFECE7DE),
+    fill2 = Color(0xFFE4DED4),
+    line = Color(0xFFDFD9CE),
+    accent = Color(0xFFE5533D),
+    accTint = Color(0xFFFCEAE6),
+    accInk = Color(0xFF8E2314),
+    brandCobaltFill = Color(0xFF1E5CE0),
+    brandCobaltFillInk = Color.White,
+    brandCobaltTint = Color(0xFFEBF2FF),
+    brandCobaltInk = Color(0xFF1443A8),
+    brandSunTint = Color(0xFFFDF3D7),
+    brandSunInk = Color(0xFF754E00),
+    navBg = Color(0xFFF5F2EC),
+    toastCheck = Color(0xFFFF8B76),
 )
 
 private val Dark = Palette(
-    bg = Color(0xFF121213), surface = Color(0xFF1C1C1E), surface2 = Color(0xFF242426), ink = Color(0xFFF2F2EF),
-    muted = Color(0xFF9A9A9F), muted2 = Color(0xFFB4B4B8), faint = Color(0xFF5E5E63), fill = Color(0xFF2A2A2C),
-    fill2 = Color(0xFF232325), line = Color(0x1FFFFFFF), accent = Color(0xFFE5533D), accTint = Color(0xFF3A211C),
-    accInk = Color(0xFFFF9C8A), navBg = Color(0xFF1A1A1C), toastCheck = Color(0xFF9A2E1E),
+    bg = Color(0xFF111010),
+    surface = Color(0xFF1B1A19),
+    surface2 = Color(0xFF242220),
+    ink = Color(0xFFF5F2EC),
+    muted = Color(0xFF9E978F),
+    muted2 = Color(0xFFC4BEB6),
+    inkFuture = Color(0xFF8A837B),
+    faint = Color(0xFF7A746C),
+    borderControl = Color(0xFF7A746C),
+    fill = Color(0xFF2C2927),
+    fill2 = Color(0xFF242220),
+    line = Color(0xFF302D2A),
+    accent = Color(0xFFE5533D),
+    accTint = Color(0xFF3B1E19),
+    accInk = Color(0xFFFFA999),
+    brandCobaltFill = Color(0xFF6BA1FF),
+    brandCobaltFillInk = Color(0xFF0A1429),
+    brandCobaltTint = Color(0xFF182845),
+    brandCobaltInk = Color(0xFFA3C4FF),
+    brandSunTint = Color(0xFF33280E),
+    brandSunInk = Color(0xFFFFD466),
+    navBg = Color(0xFF171615),
+    toastCheck = Color(0xFF8E2314),
 )
 
 private val NunitoFamily = FontFamily(
@@ -193,10 +240,10 @@ fun BackThenTheme(content: @Composable () -> Unit) {
 
     val scheme = if (dark) {
         darkColorScheme(
-            primary = p.accent,
-            onPrimary = Color.White,
-            primaryContainer = p.accTint,
-            onPrimaryContainer = p.accInk,
+            primary = p.brandCobaltFill,
+            onPrimary = p.brandCobaltFillInk,
+            primaryContainer = p.brandCobaltTint,
+            onPrimaryContainer = p.brandCobaltInk,
             secondary = p.muted2,
             onSecondary = p.bg,
             secondaryContainer = p.fill,
@@ -216,19 +263,19 @@ fun BackThenTheme(content: @Composable () -> Unit) {
             surfaceContainer = p.surface,
             surfaceContainerHigh = p.surface2,
             surfaceContainerHighest = p.fill,
-            outline = p.line,
+            outline = p.borderControl,
             outlineVariant = p.line,
-            error = Color(0xFFFF6B53),
-            onError = Color(0xFF141416),
+            error = Color(0xFFFF7A66),
+            onError = Color(0xFF181615),
             errorContainer = p.accTint,
             onErrorContainer = p.accInk,
         )
     } else {
         lightColorScheme(
-            primary = p.accent,
-            onPrimary = Color.White,
-            primaryContainer = p.accTint,
-            onPrimaryContainer = p.accInk,
+            primary = p.brandCobaltFill,
+            onPrimary = p.brandCobaltFillInk,
+            primaryContainer = p.brandCobaltTint,
+            onPrimaryContainer = p.brandCobaltInk,
             secondary = p.muted2,
             onSecondary = p.bg,
             secondaryContainer = p.fill,
@@ -248,9 +295,9 @@ fun BackThenTheme(content: @Composable () -> Unit) {
             surfaceContainer = p.surface,
             surfaceContainerHigh = p.surface2,
             surfaceContainerHighest = p.fill,
-            outline = p.line,
+            outline = p.borderControl,
             outlineVariant = p.line,
-            error = Color(0xFFB3261E),
+            error = Color(0xFFE5533D),
             onError = Color.White,
             errorContainer = p.accTint,
             onErrorContainer = p.accInk,

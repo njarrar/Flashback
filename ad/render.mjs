@@ -95,6 +95,25 @@ function tails(lang) {
   return clips;
 }
 
+function checkLoudness(file) {
+  try {
+    const res = execFileSync("ffmpeg", [
+      "-hide_banner", "-i", file, "-af", "ebur128=peak=true", "-f", "null", "-",
+    ], { stdio: ["ignore", "ignore", "pipe"] }).toString();
+    const lufs = [...res.matchAll(/I:\s+([-\d.]+)\s+LUFS/g)].pop()?.[1];
+    const tp = [...res.matchAll(/Peak:\s+([-\d.]+)\s+dBFS/g)].pop()?.[1];
+    if (lufs && tp) {
+      const i = Number(lufs), p = Number(tp);
+      console.log(`  Audio ${path.basename(file)}: ${i.toFixed(1)} LUFS, ${p.toFixed(1)} dBTP`);
+      if (i < -17.5 || i > -12.5 || p > -0.8) {
+        console.warn(`  WARNING: loudness out of target (-16..-14 LUFS, <= -1.0 dBTP): ${i} LUFS / ${p} dBTP`);
+      }
+    }
+  } catch {
+    // Non-fatal if ffmpeg probe fails.
+  }
+}
+
 if (!langs.length) {
   console.error("No screens in public/shots/<lang>/. Run the Video ad workflow, or copy screenshots there.");
   process.exit(1);
@@ -114,7 +133,8 @@ const serveUrl = await bundle({ entryPoint: path.join(here, "src", "index.ts") }
 const browserExecutable = process.env.BROWSER || null;
 for (const props of all) {
   for (const id of cuts) {
-    const inputProps = { ...props, cut: id === "ad-15" ? "ad15" : "ad30" };
+    const cut = id === "ad-15" ? "ad15" : id === "preview" ? "preview" : "ad30";
+    const inputProps = { ...props, cut };
     const composition = await selectComposition({ serveUrl, id, inputProps, browserExecutable });
     const outputLocation = path.join(here, "out", props.lang, `${NAMES[id]}-${props.lang}.mp4`);
     await renderMedia({
@@ -125,5 +145,6 @@ for (const props of all) {
       enforceAudioTrack: true,
     });
     console.log(`Made ${path.relative(here, outputLocation)}`);
+    if (props.music) checkLoudness(outputLocation);
   }
 }

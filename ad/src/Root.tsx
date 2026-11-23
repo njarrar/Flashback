@@ -35,6 +35,6 @@ export const Root: React.FC = () => (
     <Composition id="ad-15" component={Social} width={1080} height={1920} fps={FPS}
       durationInFrames={cutFrames(CUTS.ad15)} defaultProps={{ ...defaults, cut: "ad15" as const }} />
     <Composition id="preview" component={Preview} width={886} height={1920} fps={FPS}
-      durationInFrames={cutFrames(CUTS.preview)} defaultProps={defaults} />
+      durationInFrames={cutFrames(CUTS.preview)} defaultProps={{ ...defaults, cut: "preview" as const }} />
   </>
 );

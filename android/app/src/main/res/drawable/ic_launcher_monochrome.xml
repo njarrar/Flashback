@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Material You monochrome adaptive icon: smiling double-Polaroid centered inside the 66dp safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Back tilted Polaroid peeking out to the upper-right -->
+    <group
+        android:pivotX="61"
+        android:pivotY="48"
+        android:rotation="12">
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M48,29h26c2.2,0 4,1.8 4,4v30c0,2.2 -1.8,4 -4,4H48c-2.2,0 -4,-1.8 -4,-4V33c0,-2.2 1.8,-4 4,-4zM50.5,33.5v22h21v-22z"
+            android:fillType="evenOdd" />
+    </group>
+    <!-- Front tilted Polaroid with smiling face cutout -->
+    <group
+        android:pivotX="49"
+        android:pivotY="57"
+        android:rotation="-7">
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M34,37h30c2.5,0 4.5,2 4.5,4.5v32c0,2.5 -2,4.5 -4.5,4.5H34c-2.5,0 -4.5,-2 -4.5,-4.5v-32c0,-2.5 2,-4.5 4.5,-4.5zM37.5,42v23h23v-23z"
+            android:fillType="evenOdd" />
+        <!-- Left eye -->
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M44.2,51.2m-2.1,0a2.1,2.3 0 1,0 4.2,0a2.1,2.3 0 1,0 -4.2,0" />
+        <!-- Right eye -->
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M53.8,51.2m-2.1,0a2.1,2.3 0 1,0 4.2,0a2.1,2.3 0 1,0 -4.2,0" />
+        <!-- Smile -->
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M44.6,56.2h8.8c0,2.6 -2,4.4 -4.4,4.4s-4.4,-1.8 -4.4,-4.4z" />
+    </group>
+</vector>

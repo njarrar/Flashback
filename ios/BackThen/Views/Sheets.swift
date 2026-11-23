@@ -55,9 +55,9 @@ struct CalendarSheet: View {
                     Spacer(minLength: 0)
                     if month != today.month || store.day != today {
                         Button { pick(today) } label: {
-                            Text(L.s("today")).font(.nunito(15, .semibold)).foregroundStyle(Palette.ink)
+                            Text(L.s("today")).font(.nunito(15, .bold)).foregroundStyle(Palette.brandCobaltInk)
                                 .padding(.horizontal, 14).frame(minHeight: 36)
-                                .background(Palette.fill, in: Capsule())
+                                .background(Palette.brandCobaltTint, in: Capsule())
                                 .frame(minHeight: 44).contentShape(Rectangle())
                         }
                     }
@@ -100,21 +100,21 @@ struct CalendarSheet: View {
     private func grid(today: MonthDay) -> some View {
         let index = store.index
         let days = (1...daysInMonth[month]).map { MonthDay(month: month, day: $0) }
-        return LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 7), spacing: 0) {
+        return LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 7), spacing: 4) {
             ForEach(days, id: \.key) { md in
                 let sel = store.day == md
                 let future = md.isAfter(today)
                 // Days after today stay locked and faint, as in 1.7.
-                let photos = !future && hasPhotos(index, md)
+                let yearCount = future ? 0 : yearsForDay(index, md).count
+                let photos = yearCount > 0
                 let hidden = store.isHidden(md)
-                let disabled = future
                 Button { pick(md) } label: {
-                    CalendarDay(md: md, photos: photos, hidden: hidden, selected: sel, today: md == today, future: future)
-                        .frame(maxWidth: .infinity, minHeight: 50)
+                    CalendarDay(md: md, photos: photos, yearCount: yearCount, hidden: hidden, selected: sel, today: md == today, future: future)
+                        .frame(maxWidth: .infinity, minHeight: 54)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .disabled(disabled)
+                .disabled(future)
                 .accessibilityLabel(label(md, index, today: today))
                 .accessibilityAddTraits(sel ? .isSelected : [])
             }
@@ -165,60 +165,82 @@ struct CalendarSheet: View {
     }
 }
 
-/// One day in the calendar: a tiny copy of one of its photos, dimmed, with the number on top, or a plain
-/// number. Hidden days display a micro eye.slash indicator.
+/// One day in the calendar: a tiny copy of one of its photos, dimmed with `calendarWash`, with the
+/// number on top and 1-3 subtle year-density pips underneath. Hidden days show a micro eye.slash.
 private struct CalendarDay: View {
     @Environment(AppStore.self) private var store
     let md: MonthDay
     let photos: Bool
+    let yearCount: Int
     let hidden: Bool
     let selected: Bool
     let today: Bool
     let future: Bool
     @State private var cover: Photo?
 
+    private var densityPips: Int {
+        if yearCount >= 4 { return 3 }
+        if yearCount >= 2 { return 2 }
+        return yearCount >= 1 ? 1 : 0
+    }
+
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 11, style: .continuous)
         let hasCover = photos && cover != nil
-        Text(L.num(md.day))
-            .font(.nunito(16, photos ? .heavy : .semibold, maxSize: 20))
-            .monospacedDigit()
-            .lineLimit(1)
-            .minimumScaleFactor(0.75)
-            .foregroundStyle(hasCover ? .white : future && !photos ? Palette.muted.opacity(0.65) : photos ? Palette.ink : Palette.muted)
-            .shadow(color: hasCover ? .black.opacity(0.45) : .clear, radius: 0.5, y: 0.5)
-            .frame(width: 40, height: 40)
-            .background {
-                if photos {
-                    ZStack {
-                        Palette.fill
-                        // A dark wash under the number, so it reads on bright photos too.
-                        if let cover { PhotoImage(photo: cover); Palette.dayWash }
+        VStack(spacing: 3) {
+            Text(L.num(md.day))
+                .font(.nunito(16, photos ? .heavy : .semibold, maxSize: 20))
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .foregroundStyle(hasCover ? .white : future && !photos ? Palette.inkFuture : photos ? Palette.ink : Palette.muted)
+                .shadow(color: hasCover ? .black.opacity(0.45) : .clear, radius: 0.5, y: 0.5)
+                .frame(width: 40, height: 40)
+                .background {
+                    if photos {
+                        ZStack {
+                            Palette.fill
+                            // 60% dark warm wash guarantees >= 4.71:1 AA over snow/sky.
+                            if let cover { PhotoImage(photo: cover); Palette.dayWash }
+                        }
+                        .clipShape(shape)
                     }
-                    .clipShape(shape)
+                }
+                .overlay(alignment: .bottomTrailing) {
+                    if hidden {
+                        Image(systemName: "eye.slash")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(Palette.muted)
+                            .padding(3)
+                            .accessibilityHidden(true)
+                    }
+                }
+                // The picked day gets a coral ring, set off from the photo by a thin gap. Today gets a crisp ink ring.
+                .overlay {
+                    if selected {
+                        RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Palette.accent, lineWidth: 2.5).padding(-4)
+                    } else if today {
+                        shape.strokeBorder(Palette.ink, lineWidth: 1.5)
+                    }
+                }
+
+            // Subtle year-density pips (1 dot = 1 yr, 2 dots = 2-3 yrs, 3 dots = 4+ yrs).
+            HStack(spacing: 2.5) {
+                if densityPips > 0 {
+                    ForEach(0..<densityPips, id: \.self) { _ in
+                        Circle()
+                            .fill(densityPips == 3 ? Palette.accent : Palette.muted)
+                            .frame(width: 3.5, height: 3.5)
+                    }
                 }
             }
-            .overlay(alignment: .bottomTrailing) {
-                if hidden {
-                    Image(systemName: "eye.slash")
-                        .font(.system(size: 8, weight: .bold))
-                        .foregroundStyle(Palette.muted)
-                        .padding(3)
-                        .accessibilityHidden(true)
-                }
-            }
-            // The picked day gets a coral ring, set off from the photo by a thin gap. Today gets a thin ink ring.
-            .overlay {
-                if selected {
-                    RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Palette.accent, lineWidth: 2.5).padding(-4)
-                } else if today {
-                    shape.strokeBorder(Palette.ink, lineWidth: 1.5)
-                }
-            }
-            .dynamicTypeSize(...DynamicTypeSize.xxLarge)
-            .task(id: "\(md.key)-\(photos)-\(store.indexVersion)") {
-                cover = photos ? await store.cover(for: md) : nil
-            }
+            .frame(height: 4)
+            .accessibilityHidden(true)
+        }
+        .dynamicTypeSize(...DynamicTypeSize.xxLarge)
+        .task(id: "\(md.key)-\(photos)-\(store.indexVersion)") {
+            cover = photos ? await store.cover(for: md) : nil
+        }
     }
 }
 
@@ -280,7 +302,7 @@ struct AlbumSheet: View {
                             .padding(.vertical, 12)
                             .frame(minHeight: 48)
                             .background(Palette.bg, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(focused ? Palette.accent : Palette.line, lineWidth: 1))
+                            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(focused ? Palette.brandCobaltFill : Palette.borderControl, lineWidth: focused ? 1.5 : 1))
                         Pill(label: L.s("create"), height: 48, wide: textSize >= .xxLarge ? true : false, action: create)
                             .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
                     }
