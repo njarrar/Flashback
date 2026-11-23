@@ -1,6 +1,10 @@
 package com.njarrar.backthen
 
+import android.Manifest
 import android.app.Application
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
@@ -27,6 +31,7 @@ import com.njarrar.backthen.data.StateFile
 import com.njarrar.backthen.data.YearLayout
 import com.njarrar.backthen.data.visibleIndex
 import com.njarrar.backthen.widget.TodayWidget
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -39,6 +44,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.ZoneId
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -68,9 +74,23 @@ class AppViewModel(
     val library = DeviceLibrary(app)
     val places = PlaceLibrary(app)
     private val stateFile = StateFile(app)
+    internal val stateReady = CompletableDeferred<Unit>()
 
-    private val _saved = MutableStateFlow(stateFile.read())
+    private val _ready = MutableStateFlow(false)
+    /** True once [SavedState] has finished loading off the main thread. */
+    val ready: StateFlow<Boolean> = _ready.asStateFlow()
+
+    private val _saved = MutableStateFlow(SavedState())
     val saved: StateFlow<SavedState> = _saved.asStateFlow()
+
+    private val _partialAccess = MutableStateFlow(library.hasPartialAccess())
+    val partialAccess: StateFlow<Boolean> = _partialAccess.asStateFlow()
+
+    private val _notificationsGranted = MutableStateFlow(hasNotificationAccess())
+    val notificationsGranted: StateFlow<Boolean> = _notificationsGranted.asStateFlow()
+
+    private val _hasCities = MutableStateFlow(false)
+    val hasCities: StateFlow<Boolean> = _hasCities.asStateFlow()
 
     // A day restored after the process was killed only counts if it was saved today.
     val day = MutableStateFlow(
@@ -95,12 +115,13 @@ class AppViewModel(
 
     private val _toastState = MutableStateFlow<ToastState?>(null)
     val toastState: StateFlow<ToastState?> = _toastState.asStateFlow()
-    private val _toast = MutableStateFlow<String?>(null)
-    val toast: StateFlow<String?> = _toast.asStateFlow()
 
     /** Fires when a reminder or widget opens a day, buffered until the UI collects it. */
     private val _openToday = Channel<Unit>(Channel.CONFLATED)
     val openToday = _openToday.receiveAsFlow()
+    private val _openTodayToken = MutableStateFlow(0)
+    /** Increments on every reminder/widget deep link so screens dismiss local sheets/overlays cleanly. */
+    val openTodayToken: StateFlow<Int> = _openTodayToken.asStateFlow()
 
     /** Debug screenshots only: the scene to show, see Demo.kt. */
     val demoScene = MutableStateFlow<String?>(null)
@@ -139,6 +160,16 @@ class AppViewModel(
     private var coverCache: CoverCache? = null
 
     init {
+        viewModelScope.launch {
+            val loaded = withContext(Dispatchers.IO) { stateFile.read() }
+            _saved.value = loaded
+            _ready.value = true
+            stateReady.complete(Unit)
+            if (loaded.reminder.on && loaded.indexZone != ZoneId.systemDefault().id) {
+                applyReminder()
+            }
+            syncPermissionsNow()
+        }
         persistScope.launch {
             for (ignored in persistTrigger) {
                 val snapshot = _saved.value
@@ -155,11 +186,47 @@ class AppViewModel(
             }
         }
         viewModelScope.launch(Dispatchers.IO) {
-            places.checkCitiesAvailable()
+            _hasCities.value = places.checkCitiesAvailable()
         }
-        val initial = _saved.value
-        if (initial.reminder.on && initial.indexZone != ZoneId.systemDefault().id) {
-            applyReminder()
+    }
+
+    override fun onCleared() {
+        // Close the trigger channel so the appScope persistence coroutine finishes its final flush and releases this ViewModel.
+        persistTrigger.close()
+        super.onCleared()
+    }
+
+    private fun hasNotificationAccess(): Boolean =
+        Build.VERSION.SDK_INT < 33 ||
+            ContextCompat.checkSelfPermission(getApplication(), Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+
+    /** Re-checks live OS permissions on resume so revocations in Settings never lock out recovery UI. */
+    fun syncPermissions() {
+        viewModelScope.launch {
+            stateReady.await()
+            syncPermissionsNow()
+        }
+    }
+
+    private fun syncPermissionsNow() {
+        val hasPhoto = library.hasAccess()
+        _partialAccess.value = library.hasPartialAccess()
+        _notificationsGranted.value = hasNotificationAccess()
+        val cur = _saved.value
+        if (cur.sources.device && !hasPhoto) {
+            update(refreshWidget = true) { it.copy(sources = it.sources.copy(device = false)) }
+        } else if (!cur.sources.device && cur.onboarded && hasPhoto) {
+            update(refreshWidget = true) { it.copy(sources = it.sources.copy(device = true)) }
+            refreshIndex(force = true)
+        } else if (cur.onboarded && cur.sources.device && hasPhoto) {
+            refreshIndex()
+        }
+        if (cur.places.on && !places.hasAccess()) {
+            update { it.copy(places = it.places.copy(on = false)) }
+            placesJob?.cancel()
+            checkPlaceJob?.cancel()
+            _placesScanning.value = false
+            placeCard.value = null
         }
     }
 
@@ -181,10 +248,13 @@ class AppViewModel(
 
     /** A tap on the daily reminder or widget: show that day on Today, over any open photo or reel. */
     fun openDay(md: MonthDay) {
+        // Advance lastToday before updating day so onResume()'s catchUpToToday() never overwrites yesterday's notification deep link.
+        lastToday = MonthDay.today()
         day.value = md
         viewer.value = null
         reel.value = null
         _openToday.trySend(Unit)
+        _openTodayToken.update { it + 1 }
     }
 
     /** Photo counts per day in the phone's library. Hidden days count as empty. */
@@ -217,7 +287,9 @@ class AppViewModel(
             }
             if (!force && !zoneChanged && saved.deviceIndex.isNotEmpty() && sig != null && sig == saved.librarySignature) {
                 if (saved.places.on) {
-                    if (saved.placeIndex.isEmpty()) refreshPlaces() else checkPlace()
+                    val cities = places.cities()
+                    val citiesChanged = cities != null && saved.citiesHash != cities.hash
+                    if (saved.placeIndex.isEmpty() || citiesChanged) refreshPlaces() else checkPlace()
                 }
                 return@launch
             }
@@ -352,7 +424,7 @@ class AppViewModel(
 
     /**
      * Loads calendar covers for every day in [month] (0..11) using at most one batched MediaStore query,
-     * backed by a thread-safe [ConcurrentHashMap] cache shared with [coverFor].
+     * backed by a thread-safe [ConcurrentHashMap] cache.
      */
     suspend fun coversForMonth(month: Int): Map<String, Photo?> {
         if (month !in 0..11) return emptyMap()
@@ -401,27 +473,6 @@ class AppViewModel(
         return out
     }
 
-    /**
-     * The photo the calendar shows for a day: a favorite from that day if there is one,
-     * else the first photo of the newest year. Null for a day with no photos.
-     */
-    suspend fun coverFor(md: MonthDay): Photo? {
-        val s = _saved.value
-        val idx = index(s)
-        val cache = currentCoverCache(idx, s.favorites)
-        cache.map[md.key]?.let { return it }
-        if (md.key in cache.empty) return null
-        val years = yearsForDay(idx, md)
-        val newest = years.firstOrNull() ?: run {
-            cache.empty += md.key
-            return null
-        }
-        val found = favoriteCover(s.favorites, md, years)
-            ?: if (s.sources.device) runCatching { library.photosOn(listOf(newest), md)[newest]?.firstOrNull() }.getOrNull() else null
-        if (found != null) cache.map[md.key] = found else cache.empty += md.key
-        return found
-    }
-
     /** Opens the reel editor with these photos, two to [ReelPlan.MAX_PHOTOS]. Returns false when there are too few. */
     fun startReel(photos: List<Photo>): Boolean {
         if (photos.size < 2) { showToast(L.s("reel_need_two"), ToastKind.Info); return false }
@@ -440,33 +491,31 @@ class AppViewModel(
     ) {
         toastJob?.cancel()
         _toastState.value = ToastState(text, kind, undoLabel, undo)
-        _toast.value = text
         toastJob = viewModelScope.launch {
             delay(if (undo != null) 4500L else 2200L)
             _toastState.value = null
-            _toast.value = null
         }
     }
 
     fun dismissToast() {
         toastJob?.cancel()
         _toastState.value = null
-        _toast.value = null
     }
 
-    fun say(message: String) = showToast(message)
-
     fun connectDevice() {
+        _partialAccess.value = library.hasPartialAccess()
         update(refreshWidget = true) { it.copy(sources = it.sources.copy(device = true)) }
         refreshIndex(force = true)
     }
 
     fun finishOnboarding(reminderOn: Boolean) {
+        _notificationsGranted.value = hasNotificationAccess()
         update(refreshWidget = true) { it.copy(onboarded = true, reminder = it.reminder.copy(on = reminderOn)) }
         applyReminder()
     }
 
     fun setReminder(change: (Reminder) -> Reminder) {
+        _notificationsGranted.value = hasNotificationAccess()
         update { it.copy(reminder = change(it.reminder)) }
         applyReminder()
     }
@@ -494,32 +543,47 @@ class AppViewModel(
     }
 
     fun createAlbum(name: String, photos: List<Photo>): Album {
-        val album = Album(UUID.randomUUID().toString(), name, photos, System.currentTimeMillis())
+        val cleanName = name.trim().ifBlank { L.s("album") }
+        val unique = photos.distinctBy { it.key }
+        val album = Album(UUID.randomUUID().toString(), cleanName, unique, System.currentTimeMillis())
         update { it.copy(albums = listOf(album) + it.albums) }
         showToast(L.s("toast_album_created"), ToastKind.Success)
         return album
     }
 
     fun addToAlbum(albumId: String, photos: List<Photo>): Int {
-        var added = 0
-        var albumName = ""
+        val target = _saved.value.albums.firstOrNull { it.id == albumId } ?: return 0
+        val unique = photos.distinctBy { it.key }
+        val existingKeys = target.photos.mapTo(HashSet(target.photos.size)) { it.key }
+        val fresh = unique.filter { it.key !in existingKeys }
+        if (fresh.isEmpty()) {
+            showToast(L.s("already_in_album", "name" to target.name), ToastKind.Info)
+            return 0
+        }
+        var found = false
+        var addedCount = 0
+        var resolvedName = target.name
         update { s ->
+            found = false
+            addedCount = 0
             s.copy(albums = s.albums.map { a ->
                 if (a.id != albumId) a else {
-                    albumName = a.name
-                    val existing = a.photos.mapTo(HashSet(a.photos.size)) { it.key }
-                    val fresh = photos.filter { it.key !in existing }
-                    added = fresh.size
-                    if (fresh.isEmpty()) a else a.copy(photos = a.photos + fresh)
+                    found = true
+                    resolvedName = a.name
+                    val currentKeys = a.photos.mapTo(HashSet(a.photos.size)) { it.key }
+                    val delta = unique.filter { it.key !in currentKeys }
+                    addedCount = delta.size
+                    if (delta.isEmpty()) a else a.copy(photos = a.photos + delta)
                 }
             })
         }
-        if (added == 0) {
-            showToast(L.s("already_in_album", "name" to albumName), ToastKind.Info)
+        if (!found) return 0
+        if (addedCount == 0) {
+            showToast(L.s("already_in_album", "name" to resolvedName), ToastKind.Info)
         } else {
-            showToast(L.s("toast_added_to", "name" to albumName), ToastKind.Success)
+            showToast(L.s("toast_added_to", "name" to resolvedName), ToastKind.Success)
         }
-        return added
+        return addedCount
     }
 
     fun removeFromAlbum(albumId: String, photoKey: String) {

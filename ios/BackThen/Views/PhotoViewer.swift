@@ -17,6 +17,7 @@ struct PhotoViewer: View {
     /// How far the photo has been pulled down, in points.
     @State private var drag: CGFloat = 0
     @State private var dragging = false
+    @State private var dragGen = 0
     /// The photo is being got ready to share.
     @State private var sharing = false
     @State private var shareTask: Task<Void, Never>?
@@ -61,6 +62,7 @@ struct PhotoViewer: View {
                                 onTap: { withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) { chrome.toggle() } },
                                 onClose: { store.viewer = nil },
                                 onDrag: { dy in
+                                    if !dragging { dragGen &+= 1 }
                                     dragging = true
                                     drag = max(0, dy)
                                 },
@@ -161,9 +163,7 @@ struct PhotoViewer: View {
         .sheet(item: $infoPhoto) { p in
             PhotoInfoSheet(photo: p) {
                 infoPhoto = nil
-                store.viewer = nil
-                store.day = MonthDay.of(p.time)
-                store.tab = .today
+                store.openDeepLink(day: MonthDay.of(p.time))
             }
         }
         .statusBarHidden(!chrome)
@@ -220,14 +220,18 @@ struct PhotoViewer: View {
     /// Close on a long enough pull or a fast flick down; otherwise spring back.
     private func endDrag(_ dy: CGFloat, _ velocity: CGFloat) {
         if dy > 0 && (dy > 120 || velocity > 800) {
+            dragGen &+= 1
             dragging = false
             store.viewer = nil
             return
         }
+        let gen = dragGen
         withAnimation(reduceMotion ? .easeOut(duration: 0.2) : .spring(duration: 0.4, bounce: 0)) {
             drag = 0
         } completion: {
-            dragging = false
+            if dragGen == gen {
+                dragging = false
+            }
         }
     }
 
@@ -290,10 +294,12 @@ private struct PhotoInfoSheet: View {
                     }
                     if photo.width > 0 && photo.height > 0 {
                         let mp = Double(photo.width * photo.height) / 1_000_000.0
-                        let mpStr = mp >= 1 ? String(format: "%.1f MP", mp) : nil
+                        let mpStr: String? = mp >= 1
+                            ? "\u{2066}\(mp.formatted(.number.precision(.fractionLength(1)).locale(L.locale))) MP\u{2069}"
+                            : nil
                         infoRow(
                             icon: "photo",
-                            title: "\(L.num(photo.width)) × \(L.num(photo.height))",
+                            title: "\u{2066}\(L.num(photo.width)) × \(L.num(photo.height))\u{2069}",
                             detail: mpStr
                         )
                     }
@@ -307,7 +313,7 @@ private struct PhotoInfoSheet: View {
             .padding(20)
         }
         .scrollBounceBehavior(.basedOnSize)
-        .presentationDetents([.medium])
+        .presentationDetents([.medium, .large])
         .presentationCornerRadius(32)
         .presentationBackground(Palette.surface)
         .presentationDragIndicator(.visible)
@@ -315,12 +321,12 @@ private struct PhotoInfoSheet: View {
             guard photo.source == .device else { return }
             let ref = photo.ref
             let coord: (Double, Double)? = await Task.detached(priority: .utility) {
-                guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [ref], options: nil).firstObject,
+                guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [ref], options: PhotoLibrary.imageOptions()).firstObject,
                       let loc = asset.location?.coordinate else { return nil }
                 return (loc.latitude, loc.longitude)
             }.value
             guard let (lat, lon) = coord, let cities = await CityList.load(),
-                  let cid = cities.city(lat: lat, lon: lon), cid < cities.cities.count else { return }
+                  let cid = cities.city(lat: lat, lon: lon), cities.cities.indices.contains(cid) else { return }
             let city = cities.cities[cid]
             let country = L.locale.localizedString(forRegionCode: city.country) ?? city.country
             placeLabel = "\(city.name), \(country)"
@@ -494,7 +500,6 @@ private struct ZoomPage: View {
         .accessibilityElement(children: failed && image == nil ? .contain : .ignore)
         .accessibilityLabel(L.s("photo_from", ["date": "\(L.date(photo.time, "yMMMMd")), \(L.weekdayTime(photo.time))"]))
         .accessibilityAddTraits(.isImage)
-        .accessibilityHint(L.s("options"))
         .accessibilityAction(.escape, onClose)
         .accessibilityAction(named: L.s("close"), onClose)
     }
@@ -536,9 +541,18 @@ private final class ZoomScrollView: UIScrollView, UIScrollViewDelegate {
     var image: UIImage? {
         didSet {
             guard image !== oldValue else { return }
+            let keepZoom: Bool = {
+                guard let old = oldValue, let next = image,
+                      old.size.height > 0, next.size.height > 0, zoomScale > 1.01 else { return false }
+                let oldAspect = old.size.width / old.size.height
+                let newAspect = next.size.width / next.size.height
+                return abs(oldAspect - newAspect) / max(oldAspect, 0.001) <= 0.02
+            }()
             imageView.image = image
-            setZoomScale(1, animated: false)
-            fit()
+            if !keepZoom {
+                setZoomScale(1, animated: false)
+                fit()
+            }
         }
     }
 

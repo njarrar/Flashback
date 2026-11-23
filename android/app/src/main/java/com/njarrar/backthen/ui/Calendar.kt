@@ -14,10 +14,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -143,28 +145,34 @@ fun CalendarSheet(
             Arrow(left = true) { jumpTo((month + 11) % 12) }
             Arrow(left = false) { jumpTo((month + 1) % 12) }
         }
-        HorizontalPager(state = pager, verticalAlignment = Alignment.Top) { m ->
-            val covers by produceState<Map<String, Photo?>>(emptyMap(), m, index) {
-                value = coversForMonth(m)
-            }
-            Column {
-                (1..DAYS_IN_MONTH[m]).chunked(7).forEach { week ->
-                    Row {
-                        for (d in week) {
-                            val md = MonthDay(m, d)
-                            Day(
-                                md = md,
-                                index = index,
-                                photo = if (md.isAfter(today)) null else covers[md.key],
-                                selected = start == md,
-                                isToday = today == md,
-                                future = md.isAfter(today),
-                                hidden = md.key in hiddenDates,
-                                modifier = Modifier.weight(1f),
-                                onClick = { onPick(md) },
-                            )
+        Column(Modifier.verticalScroll(rememberScrollState())) {
+            HorizontalPager(state = pager, verticalAlignment = Alignment.Top) { m ->
+                val monthHasAny = remember(m, index) {
+                    (1..DAYS_IN_MONTH[m]).any { d -> hasPhotos(index, MonthDay(m, d)) }
+                }
+                val covers by produceState<Map<String, Photo?>>(emptyMap(), m, index, monthHasAny) {
+                    value = if (monthHasAny) coversForMonth(m) else emptyMap()
+                }
+                Column {
+                    (1..DAYS_IN_MONTH[m]).chunked(7).forEach { week ->
+                        Row {
+                            for (d in week) {
+                                val md = MonthDay(m, d)
+                                val future = md.isAfter(today)
+                                Day(
+                                    md = md,
+                                    index = index,
+                                    photo = if (future) null else covers[md.key],
+                                    selected = start == md,
+                                    isToday = today == md,
+                                    future = future,
+                                    hidden = md.key in hiddenDates,
+                                    modifier = Modifier.weight(1f),
+                                    onClick = { onPick(md) },
+                                )
+                            }
+                            repeat(7 - week.size) { Box(Modifier.weight(1f)) }
                         }
-                        repeat(7 - week.size) { Box(Modifier.weight(1f)) }
                     }
                 }
             }

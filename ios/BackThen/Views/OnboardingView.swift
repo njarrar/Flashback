@@ -169,8 +169,10 @@ struct OnboardingView: View {
                                 ForEach(quickHours, id: \.self) { hour in
                                     let on = r.hour == hour && r.minute == 0
                                     Button {
-                                        store.saved.reminder.hour = hour
-                                        store.saved.reminder.minute = 0
+                                        var next = store.saved
+                                        next.reminder.hour = hour
+                                        next.reminder.minute = 0
+                                        store.saved = next
                                     } label: {
                                         Text(formatTime(hour: hour, minute: 0))
                                             .font(.nunito(14, .semibold))

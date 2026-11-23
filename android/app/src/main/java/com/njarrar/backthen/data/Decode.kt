@@ -8,6 +8,7 @@ import android.graphics.Matrix
 import android.net.Uri
 import android.os.Build
 import android.os.CancellationSignal
+import android.util.Log
 import android.util.Size
 import androidx.exifinterface.media.ExifInterface
 import kotlin.math.max
@@ -20,10 +21,13 @@ fun decodePhoto(
     target: Int,
     signal: CancellationSignal? = null,
 ): Bitmap? {
-    if (target <= 0) return null
+    if (target <= 0 || signal?.isCanceled == true) return null
     return try {
-        if (Build.VERSION.SDK_INT >= 29) {
-            return context.contentResolver.loadThumbnail(uri, Size(target, target), signal)
+        if (Build.VERSION.SDK_INT >= 29 && target <= 640) {
+            val thumb = runCatching {
+                context.contentResolver.loadThumbnail(uri, Size(target, target), signal)
+            }.getOrNull()
+            if (thumb != null) return thumb
         }
         if (Build.VERSION.SDK_INT >= 28) {
             if (signal?.isCanceled == true) return null
@@ -38,7 +42,7 @@ fun decodePhoto(
                 decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
             }
         }
-        // Android 8 and 9: sample down while decoding, then turn/flip by the photo's EXIF tag.
+        // Android 8 and 9: sample down while decoding, then turn/flip and scale in one pass.
         if (signal?.isCanceled == true) return null
         fun open() = context.contentResolver.openInputStream(uri)
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
@@ -46,6 +50,9 @@ fun decodePhoto(
         if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
         var sample = 1
         while (max(bounds.outWidth, bounds.outHeight) / (sample * 2) >= target) sample *= 2
+        if (bounds.outWidth.toLong() * bounds.outHeight.toLong() / (sample.toLong() * sample.toLong()) > 8_000_000L) {
+            sample *= 2
+        }
         if (signal?.isCanceled == true) return null
         val bitmap = open()?.use {
             BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sample })
@@ -54,6 +61,7 @@ fun decodePhoto(
             ExifInterface(it).getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
         } ?: ExifInterface.ORIENTATION_NORMAL
         val matrix = Matrix()
+        var needsTransform = true
         when (orientation) {
             ExifInterface.ORIENTATION_ROTATE_90 -> matrix.postRotate(90f)
             ExifInterface.ORIENTATION_ROTATE_180 -> matrix.postRotate(180f)
@@ -68,11 +76,26 @@ fun decodePhoto(
                 matrix.postRotate(270f)
                 matrix.postScale(-1f, 1f)
             }
-            else -> return bitmap
+            else -> needsTransform = false
         }
-        val transformed = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+        val longSide = max(bitmap.width, bitmap.height)
+        if (longSide > target) {
+            val scale = target.toFloat() / longSide
+            matrix.postScale(scale, scale)
+            needsTransform = true
+        }
+        if (!needsTransform) return bitmap
+        val transformed = try {
+            Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+        } catch (t: Throwable) {
+            bitmap.recycle()
+            throw t
+        }
         if (transformed !== bitmap) bitmap.recycle()
         transformed
+    } catch (oom: OutOfMemoryError) {
+        Log.w("Flashback", "decodePhoto OOM for target=$target", oom)
+        null
     } catch (_: Throwable) {
         null
     }

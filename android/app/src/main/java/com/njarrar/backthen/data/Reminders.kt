@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -20,11 +21,17 @@ import com.njarrar.backthen.MainActivity
 import com.njarrar.backthen.R
 import com.njarrar.backthen.core.L
 import com.njarrar.backthen.core.MonthDay
+import com.njarrar.backthen.core.buildDayIndex
 import com.njarrar.backthen.core.label
 import com.njarrar.backthen.core.startLanguage
 import com.njarrar.backthen.core.yearsForDay
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.time.Duration
 import java.time.LocalDate
+import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.util.concurrent.TimeUnit
 
@@ -51,19 +58,53 @@ internal fun nextReminderDelayMillis(
 
 object Reminders {
     /**
-     * Schedules the next daily reminder at the chosen local wall-clock time. Each run
-     * reschedules the following day so DST shifts and timezone travel never drift the clock.
+     * Schedules the next daily reminder at the chosen local wall-clock time. External callers
+     * (UI, timezone/clock receivers) replace any pending work; [ReminderWorker] chains tomorrow's
+     * run using [ExistingWorkPolicy.APPEND_OR_REPLACE] so it never cancels itself mid-execution.
      */
-    fun schedule(context: Context, hour: Int, minute: Int, skipToday: Boolean = false) {
+    fun schedule(
+        context: Context,
+        hour: Int,
+        minute: Int,
+        skipToday: Boolean = false,
+        policy: ExistingWorkPolicy = ExistingWorkPolicy.REPLACE,
+    ) {
         val delayMs = nextReminderDelayMillis(hour, minute, skipToday = skipToday)
         val request = OneTimeWorkRequestBuilder<ReminderWorker>()
             .setInitialDelay(delayMs, TimeUnit.MILLISECONDS)
             .build()
-        WorkManager.getInstance(context).enqueueUniqueWork(WORK, ExistingWorkPolicy.REPLACE, request)
+        WorkManager.getInstance(context).enqueueUniqueWork(WORK, policy, request)
     }
 
     fun cancel(context: Context) {
         WorkManager.getInstance(context).cancelUniqueWork(WORK)
+    }
+}
+
+/** Re-arms the daily reminder immediately when the phone changes timezone or wall-clock time. */
+class TimezoneChangedReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent?) {
+        val action = intent?.action ?: return
+        if (action != Intent.ACTION_TIMEZONE_CHANGED && action != Intent.ACTION_TIME_SET) return
+        val pending = goAsync()
+        val appContext = context.applicationContext
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val state = StateFile(appContext).read()
+                if (state.reminder.on) {
+                    val alreadyNotifiedToday = state.lastNotifiedEpochDay == LocalDate.now().toEpochDay()
+                    Reminders.schedule(
+                        appContext,
+                        state.reminder.hour,
+                        state.reminder.minute,
+                        skipToday = alreadyNotifiedToday,
+                        policy = ExistingWorkPolicy.REPLACE,
+                    )
+                }
+            } finally {
+                pending.finish()
+            }
+        }
     }
 }
 
@@ -73,7 +114,7 @@ object Reminders {
  */
 fun reminderText(day: MonthDay, years: List<Int>): Pair<String, String>? {
     if (years.isEmpty() || !L.ready) return null
-    if (!L.has("reminder_title_years") || !L.has("reminder_body_oldest")) return null
+    if (!L.has("reminder_title_years") || !L.has("reminder_body_oldest") || !L.hasPlural("years")) return null
     val title = L.s("reminder_title_years", "day" to day.label(), "years" to L.p("years", years.size))
     val body = L.s("reminder_body_oldest", "year" to years.last())
     return title to body
@@ -83,29 +124,52 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
     override suspend fun doWork(): Result {
         val ctx = applicationContext
         val stateFile = StateFile(ctx)
-        val state = stateFile.read()
+        var state = stateFile.read()
         if (!state.reminder.on) return Result.success()
+        var evaluatedToday = false
         try {
-            if (!state.onboarded || !state.sources.device || !DeviceLibrary(ctx).hasAccess()) {
+            val library = DeviceLibrary(ctx)
+            if (!state.onboarded || !state.sources.device || !library.hasAccess()) {
+                evaluatedToday = true
                 return Result.success()
             }
             if (Build.VERSION.SDK_INT >= 33 &&
                 ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-            ) return Result.success()
+            ) {
+                evaluatedToday = true
+                return Result.success()
+            }
+
+            val currentZone = ZoneId.systemDefault().id
+            if (state.indexZone != currentZone) {
+                val rebuilt = runCatching { buildDayIndex(library.readAllTimes()) }.getOrNull()
+                if (rebuilt != null) {
+                    state = stateFile.update { it.copy(deviceIndex = rebuilt, indexZone = currentZone) }
+                }
+            }
 
             val todayDate = LocalDate.now()
             val epochDay = todayDate.toEpochDay()
-            if (state.lastNotifiedEpochDay == epochDay) return Result.success()
+            if (state.lastNotifiedEpochDay == epochDay) {
+                evaluatedToday = true
+                return Result.success()
+            }
 
             // Hidden days are left out of the index, so they never notify.
             val today = MonthDay.of(todayDate)
             val years = yearsForDay(visibleIndex(state), today, todayDate)
-            if (years.isEmpty()) return Result.success()
+            if (years.isEmpty()) {
+                evaluatedToday = true
+                return Result.success()
+            }
 
             startLanguage(ctx)
             if (!L.ready) startLanguage(ctx)
             // Never post keys such as "reminder_title_years". Skip the day; the next run tries again.
-            val (title, body) = reminderText(today, years) ?: return Result.success()
+            val (title, body) = reminderText(today, years) ?: run {
+                evaluatedToday = true
+                return Result.success()
+            }
             val manager = ctx.getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(NotificationChannel(CHANNEL, L.s("daily_reminder"), NotificationManager.IMPORTANCE_DEFAULT))
             val open = Intent(ctx, MainActivity::class.java)
@@ -125,12 +189,23 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
             if (posted) {
                 stateFile.update { it.copy(lastNotifiedEpochDay = epochDay) }
             }
+            evaluatedToday = true
             return Result.success()
+        } catch (ce: CancellationException) {
+            throw ce
         } finally {
-            // Re-arm for tomorrow's wall-clock time so DST and timezone shifts never accumulate drift.
-            val latest = stateFile.read()
-            if (latest.reminder.on) {
-                Reminders.schedule(ctx, latest.reminder.hour, latest.reminder.minute, skipToday = true)
+            // Re-arm only when not cancelled/stopped so rescheduling from Settings is never clobbered.
+            if (!isStopped && evaluatedToday) {
+                val latest = stateFile.read()
+                if (latest.reminder.on) {
+                    Reminders.schedule(
+                        ctx,
+                        latest.reminder.hour,
+                        latest.reminder.minute,
+                        skipToday = true,
+                        policy = ExistingWorkPolicy.APPEND_OR_REPLACE,
+                    )
+                }
             }
         }
     }

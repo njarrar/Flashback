@@ -24,7 +24,10 @@ struct ReelView: View {
     @State private var blurred: [String: UIImage] = [:]
     @State private var renderer: ReelRenderer?
     @State private var looks: [ReelLook: UIImage] = [:]
+    @State private var looksPhotoKey: String?
     @State private var looksTask: Task<Void, Never>?
+    @State private var loadFinished = false
+    @State private var loadAttempt = 0
     /// Playback runs from this moment; while paused, `pausedAt` holds the time shown.
     @State private var origin = Date()
     @State private var pausedAt: Double?
@@ -35,6 +38,7 @@ struct ReelView: View {
     @State private var makeTask: Task<Void, Never>?
     @State private var note: String?
     @State private var noteKind: AppStore.ToastKind = .info
+    @State private var noteTask: Task<Void, Never>?
     private let ink = Palette.viewerInk
 
     enum ReelTab { case stamp, move, photos, more }
@@ -73,7 +77,12 @@ struct ReelView: View {
         }
         .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: note)
         .preferredColorScheme(.dark)
-        .task { await load() }
+        .onAppear {
+            if request.photos.count > ReelPlan.maxPhotos {
+                show(L.p("reel_too_many", ReelPlan.maxPhotos), kind: .info)
+            }
+        }
+        .task(id: loadAttempt) { await load() }
         .onChange(of: options) { old, new in
             storedOptions = (try? JSONEncoder().encode(new)) ?? Data()
             if old.newestFirst != new.newestFirst {
@@ -85,6 +94,8 @@ struct ReelView: View {
         .onDisappear {
             makeTask?.cancel()
             looksTask?.cancel()
+            noteTask?.cancel()
+            UIApplication.shared.isIdleTimerDisabled = false
         }
     }
 
@@ -140,8 +151,30 @@ struct ReelView: View {
             .background(Color.black)
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay {
-                if renderer == nil { ProgressView().tint(ink) }
-                if pausedAt != nil && !scrubbing {
+                if renderer == nil && loadFinished {
+                    VStack(spacing: 12) {
+                        Image(systemName: "exclamationmark.icloud")
+                            .font(.system(size: 30, weight: .medium))
+                            .foregroundStyle(ink.opacity(0.75))
+                        Text(L.s("photo_unavailable"))
+                            .font(.nunito(15, .semibold))
+                            .foregroundStyle(ink)
+                            .multilineTextAlignment(.center)
+                        Button {
+                            loadAttempt &+= 1
+                        } label: {
+                            Label(L.s("retry"), systemImage: "arrow.clockwise")
+                                .font(.nunito(14, .bold))
+                                .foregroundStyle(Palette.viewerBg)
+                                .padding(.horizontal, 16)
+                                .frame(minHeight: 44)
+                                .background(ink, in: Capsule())
+                        }
+                    }
+                    .padding(20)
+                } else if renderer == nil {
+                    ProgressView().tint(ink)
+                } else if pausedAt != nil && !scrubbing {
                     Image(systemName: "play.fill").font(.system(size: 22)).foregroundStyle(.white)
                         .frame(width: 56, height: 56).background(.black.opacity(0.5), in: Circle())
                 }
@@ -299,7 +332,7 @@ struct ReelView: View {
                                                     .font(.system(size: 20))
                                                     .symbolRenderingMode(.palette)
                                                     .foregroundStyle(.white, Color.black.opacity(0.65))
-                                                    .frame(width: 36, height: 36).contentShape(Rectangle())
+                                                    .frame(width: 44, height: 44).contentShape(Rectangle())
                                             }
                                             .accessibilityLabel(L.s("remove_from_album"))
                                         }
@@ -312,11 +345,13 @@ struct ReelView: View {
                                         } label: {
                                             Image(systemName: "chevron.backward")
                                                 .font(.system(size: 12, weight: .bold))
-                                                .frame(width: 38, height: 36)
+                                                .frame(width: 44, height: 44)
                                                 .background(Color.white.opacity(0.1), in: Capsule())
+                                                .contentShape(Rectangle())
                                         }
                                         .disabled(i == 0)
                                         .opacity(i == 0 ? 0.3 : 1)
+                                        .accessibilityLabel(L.s("photo_n_of", ["n": max(1, i), "total": curatedPhotos.count]))
                                         Button {
                                             if let idx = curatedPhotos.firstIndex(where: { $0.key == photo.key }) {
                                                 movePhoto(from: idx, to: idx + 1)
@@ -324,11 +359,13 @@ struct ReelView: View {
                                         } label: {
                                             Image(systemName: "chevron.forward")
                                                 .font(.system(size: 12, weight: .bold))
-                                                .frame(width: 38, height: 36)
+                                                .frame(width: 44, height: 44)
                                                 .background(Color.white.opacity(0.1), in: Capsule())
+                                                .contentShape(Rectangle())
                                         }
                                         .disabled(i == curatedPhotos.count - 1)
                                         .opacity(i == curatedPhotos.count - 1 ? 0.3 : 1)
+                                        .accessibilityLabel(L.s("photo_n_of", ["n": min(curatedPhotos.count, i + 2), "total": curatedPhotos.count]))
                                     }
                                     .foregroundStyle(ink)
                                 }
@@ -425,7 +462,7 @@ struct ReelView: View {
             VStack(spacing: 14) {
                 Text(L.s("reel_making")).font(.nunito(19, .heavy))
                 ProgressView(value: p).tint(ink).frame(width: 220)
-                Text("\(L.num(pct))%")
+                Text("\u{2066}\((Double(pct) / 100.0).formatted(.percent.precision(.fractionLength(0)).locale(L.locale)))\u{2069}")
                     .font(.nunito(15, .bold))
                     .monospacedDigit()
                     .foregroundStyle(ink)
@@ -466,16 +503,17 @@ struct ReelView: View {
     }
 
     private func clock(_ t: Double) -> String {
-        let s = Int(t.rounded())
-        return "\(L.num(s / 60)):\(s % 60 < 10 ? L.num(0) : "")\(L.num(s % 60))"
+        let s = max(0, Int(t.rounded()))
+        return "\u{2066}\(L.num(s / 60)):\(s % 60 < 10 ? L.num(0) : "")\(L.num(s % 60))\u{2069}"
     }
 
     private func show(_ message: String, kind: AppStore.ToastKind = .info) {
+        noteTask?.cancel()
         noteKind = kind
         note = message
-        Task {
+        noteTask = Task {
             try? await Task.sleep(for: .seconds(2.5))
-            if note == message { note = nil }
+            if !Task.isCancelled { note = nil }
         }
     }
 
@@ -489,6 +527,7 @@ struct ReelView: View {
     }
 
     private func load() async {
+        loadFinished = false
         if let saved = try? JSONDecoder().decode(ReelOptions.self, from: storedOptions) {
             options = saved
             curatedPhotos = reelOrder(request.photos, newestFirst: saved.newestFirst)
@@ -507,17 +546,28 @@ struct ReelView: View {
                 if let img { small[key] = img }
                 if let blur { blurred[key] = blur }
                 arrived += 1
+                let leadKey = curatedPhotos.first?.key
                 if renderer == nil && small.count >= min(2, photos.count) {
                     rebuildRenderer()
                     origin = Date()
                     rebuildLooks()
-                } else if arrived % 4 == 0 && renderer != nil {
-                    rebuildRenderer()
+                } else {
+                    if arrived % 4 == 0 && renderer != nil {
+                        rebuildRenderer()
+                    }
+                    // If photo 0 arrived late (e.g. from iCloud), rebuild look cards now that it is loaded.
+                    if let leadKey, key == leadKey, small[leadKey] != nil, looksPhotoKey != leadKey {
+                        rebuildLooks()
+                    }
                 }
             }
         }
+        loadFinished = true
         rebuildRenderer()
-        if renderer != nil && looks.isEmpty { rebuildLooks() }
+        let leadKey = curatedPhotos.first?.key
+        if renderer != nil && (looks.isEmpty || (leadKey != nil && small[leadKey!] != nil && looksPhotoKey != leadKey)) {
+            rebuildLooks()
+        }
         if pausedAt == nil && renderer == nil { origin = Date() }
     }
 
@@ -543,6 +593,7 @@ struct ReelView: View {
         guard !small.isEmpty else { return }
         looksTask?.cancel()
         let photos = curatedPhotos
+        let sampleKey = photos.first.flatMap { small[$0.key] != nil ? $0.key : nil }
         let smallList = photos.map { small[$0.key] }
         let blurredList = photos.map { blurred[$0.key] }
         let baseOptions = options
@@ -566,7 +617,10 @@ struct ReelView: View {
             }
             guard !Task.isCancelled else { return }
             let result = rendered
-            await MainActor.run { looks = result }
+            await MainActor.run {
+                looks = result
+                looksPhotoKey = sampleKey
+            }
         }
     }
 
@@ -578,6 +632,13 @@ struct ReelView: View {
         pausedAt = time(at: Date())
         making = 0
         makeTask = Task {
+            UIApplication.shared.isIdleTimerDisabled = true
+            let bg = ReelExportBackgroundTask()
+            bg.begin()
+            defer {
+                UIApplication.shared.isIdleTimerDisabled = false
+                bg.end()
+            }
             do {
                 let url = try await ReelExport.make(
                     renderer: r,
@@ -590,11 +651,13 @@ struct ReelView: View {
                 )
                 making = nil
                 if saveDirectly {
-                    let ok = await store.saveReelToPhotos(url)
-                    if ok {
+                    switch await store.saveReelToPhotos(url) {
+                    case .saved:
                         show(L.s("toast_saved_photos"), kind: .success)
-                    } else {
-                        show(L.s("toast_save_failed"), kind: .error)
+                    case .denied:
+                        show(L.s("toast_allow_save"), kind: .info)
+                    case .failed:
+                        show(L.s("reel_failed"), kind: .error)
                     }
                 } else {
                     Share.file(url, title: L.s("reel_title"))
@@ -606,5 +669,23 @@ struct ReelView: View {
                 show(L.s("reel_failed"), kind: .error)
             }
         }
+    }
+}
+
+@MainActor
+private final class ReelExportBackgroundTask: Sendable {
+    private var id: UIBackgroundTaskIdentifier = .invalid
+
+    func begin() {
+        id = UIApplication.shared.beginBackgroundTask(withName: "ExportReel") { [weak self] in
+            Task { @MainActor in self?.end() }
+        }
+    }
+
+    func end() {
+        guard id != .invalid else { return }
+        let current = id
+        id = .invalid
+        UIApplication.shared.endBackgroundTask(current)
     }
 }

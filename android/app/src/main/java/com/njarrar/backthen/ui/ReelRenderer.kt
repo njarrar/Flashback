@@ -133,12 +133,13 @@ class ReelRenderer(
     }
 
     fun draw(c: Canvas, w: Float, h: Float, time: Double) {
+        val frameIndex = (time * ReelPlan.FPS).toInt()
         val m = plan.moment(time)
         val b = m.b
-        if (b != null) move(c, w, h, m.a, b, m.progress, time) else item(c, w, h, m.a, time - m.a.start)
+        if (b != null) move(c, w, h, m.a, b, m.progress, time, frameIndex) else item(c, w, h, m.a, time - m.a.start, frameIndex)
     }
 
-    private fun move(c: Canvas, w: Float, h: Float, a: ReelPlan.Item, b: ReelPlan.Item, p: Double, t: Double) {
+    private fun move(c: Canvas, w: Float, h: Float, a: ReelPlan.Item, b: ReelPlan.Item, p: Double, t: Double, frameIndex: Int) {
         val e = reelEase(p).toFloat()
         val ta = t - a.start
         val tb = t - b.start
@@ -146,36 +147,36 @@ class ReelRenderer(
             ReelMove.SLIDE -> {
                 // Photos come in from the side the reading goes toward.
                 val dir = if (rtl) -1f else 1f
-                c.save(); c.translate(-e * w * dir, 0f); item(c, w, h, a, ta); c.restore()
-                c.save(); c.translate((1 - e) * w * dir, 0f); item(c, w, h, b, tb); c.restore()
+                c.save(); c.translate(-e * w * dir, 0f); item(c, w, h, a, ta, frameIndex); c.restore()
+                c.save(); c.translate((1 - e) * w * dir, 0f); item(c, w, h, b, tb, frameIndex); c.restore()
             }
             ReelMove.ZOOM -> {
-                item(c, w, h, b, tb)
+                item(c, w, h, b, tb, frameIndex)
                 layer(c, w, h, 1 - e) {
                     c.scale(1 + 0.22f * e, 1 + 0.22f * e, w / 2, h / 2)
-                    item(c, w, h, a, ta)
+                    item(c, w, h, a, ta, frameIndex)
                 }
             }
             ReelMove.FLASH -> {
-                if (p < 0.5) item(c, w, h, a, ta) else item(c, w, h, b, tb)
+                if (p < 0.5) item(c, w, h, a, ta, frameIndex) else item(c, w, h, b, tb, frameIndex)
                 val white = (1 - abs(2 * p - 1)).pow(1.4) * 0.96
                 c.drawColor(Color.argb((white * 255).toInt(), 255, 255, 255))
             }
             ReelMove.FADE -> {
-                item(c, w, h, a, ta)
-                layer(c, w, h, e) { item(c, w, h, b, tb) }
+                item(c, w, h, a, ta, frameIndex)
+                layer(c, w, h, e) { item(c, w, h, b, tb, frameIndex) }
             }
         }
     }
 
-    private fun item(c: Canvas, w: Float, h: Float, it: ReelPlan.Item, lt: Double) {
+    private fun item(c: Canvas, w: Float, h: Float, it: ReelPlan.Item, lt: Double, frameIndex: Int) {
         c.save()
         c.clipRect(0f, 0f, w, h)
         val u = (lt / it.length).coerceIn(0.0, 1.0)
         when (val k = it.kind) {
             ReelPlan.Kind.Intro -> intro(c, w, h, u)
             ReelPlan.Kind.Outro -> outro(c, w, h, u)
-            is ReelPlan.Kind.Photo -> photo(c, w, h, k.index, lt, u)
+            is ReelPlan.Kind.Photo -> photo(c, w, h, k.index, lt, u, frameIndex)
         }
         c.restore()
     }
@@ -233,14 +234,11 @@ class ReelRenderer(
         val ta = if (reduceMotion) min(u * 3, 1.0).toFloat() else reelEase(((u - 0.15) / 0.4).coerceIn(0.0, 1.0)).toFloat()
         layer(c, w, h, ta) {
             c.translate(0f, (1 - ta) * w * 0.03f)
-            var ts = w * 0.115f
-            text(fonts.black, ts, Color.WHITE, -0.03f)
-            val tw = textPaint.measureText(introTitle)
-            if (tw > w * 0.9f) { ts *= w * 0.9f / tw; textPaint.textSize = ts }
+            val ts = fitText(fonts.black, w * 0.115f, Color.WHITE, introTitle, w * 0.9f, -0.03f)
             val ty = cy + pw * 0.75f + ts * 1.15f
             textPaint.textAlign = Paint.Align.CENTER
             c.drawText(introTitle, cx, ty, textPaint)
-            text(fonts.bold, w * 0.045f, Color.argb(209, 255, 255, 255))
+            fitText(fonts.bold, w * 0.045f, Color.argb(209, 255, 255, 255), introSubtitle, w * 0.9f)
             textPaint.textAlign = Paint.Align.CENTER
             c.drawText(introSubtitle, cx, ty + w * 0.075f, textPaint)
         }
@@ -266,14 +264,13 @@ class ReelRenderer(
                 c.drawBitmap(icon, null, outroRect, paint)
                 c.restore()
             }
-            val fs = w * 0.07f
-            text(fonts.black, fs, Color.WHITE, -0.03f)
+            val fs = fitText(fonts.black, w * 0.07f, Color.WHITE, appName, w * 0.9f, -0.03f)
             textPaint.textAlign = Paint.Align.CENTER
             c.drawText(appName, cx, cy + s / 2 + fs * 1.4f, textPaint)
         }
     }
 
-    private fun photo(c: Canvas, w: Float, h: Float, i: Int, lt: Double, u: Double) {
+    private fun photo(c: Canvas, w: Float, h: Float, i: Int, lt: Double, u: Double, frameIndex: Int) {
         val img = (image(i) ?: small.getOrNull(i))?.takeIf { !it.isRecycled }
         if (img == null) { background(c, w, h, i, 0.45f); return }
         val kb = if (reduceMotion) 0.5f else u.toFloat()
@@ -308,7 +305,7 @@ class ReelRenderer(
         val card = cards.getOrNull(i) ?: return
         when (options.look) {
             ReelLook.YEAR -> bigYear(c, w, h, photoRect, radius, card, a)
-            ReelLook.FILM -> film(c, w, h, photoRect, radius, card, a)
+            ReelLook.FILM -> film(c, w, h, photoRect, radius, card, a, frameIndex)
             ReelLook.CLEAN -> clean(c, w, h, photoRect, card, a)
         }
     }
@@ -350,14 +347,15 @@ class ReelRenderer(
             c.translate(0f, (1 - a) * w * 0.035f)
             val x = if (rtl) right else left
             val align = if (rtl) Paint.Align.RIGHT else Paint.Align.LEFT
-            text(fonts.black, ys, Color.WHITE, -0.035f)
+            val maxW = max(1f, right - left)
+            fitText(fonts.black, ys, Color.WHITE, card.year, maxW, -0.035f)
             textPaint.textAlign = align
             textPaint.setShadowLayer(w * 0.02f, 0f, 0f, Color.argb(64, 0, 0, 0))
             c.drawText(card.year, x, baseline, textPaint)
-            text(fonts.bold, ds, Color.argb(230, 255, 255, 255))
+            val fittedDs = fitText(fonts.bold, ds, Color.argb(230, 255, 255, 255), card.bigSubtitle, maxW)
             textPaint.textAlign = align
             textPaint.setShadowLayer(w * 0.02f, 0f, 0f, Color.argb(64, 0, 0, 0))
-            c.drawText(card.bigSubtitle, x, baseline + ds * 1.55f, textPaint)
+            c.drawText(card.bigSubtitle, x, baseline + fittedDs * 1.55f, textPaint)
             textPaint.clearShadowLayer()
         }
     }
@@ -400,7 +398,7 @@ class ReelRenderer(
         }
     }
 
-    private fun film(c: Canvas, w: Float, h: Float, r: RectF, radius: Float, card: ReelCard, a: Float) {
+    private fun film(c: Canvas, w: Float, h: Float, r: RectF, radius: Float, card: ReelCard, a: Float, frameIndex: Int) {
         // A warm tint, a dark edge and a little grain, like a print from film.
         c.save()
         if (radius > 0) { path.reset(); path.addRoundRect(r, radius, radius, Path.Direction.CW); c.clipPath(path) } else c.clipRect(r)
@@ -427,7 +425,10 @@ class ReelRenderer(
         val tile = 128 * max(1f, w / 540f)
         noiseMatrix.reset()
         noiseMatrix.setScale(tile / 128f, tile / 128f)
-        noiseMatrix.postTranslate(-Random.nextFloat() * tile, -Random.nextFloat() * tile)
+        // Deterministic grain offset keyed to frameIndex so pausing or redrawing never jitters.
+        val ox = ((frameIndex * 73) and 127) / 128f * tile
+        val oy = ((frameIndex * 41) and 127) / 128f * tile
+        noiseMatrix.postTranslate(-ox, -oy)
         noiseShader.setLocalMatrix(noiseMatrix)
         paint.shader = noiseShader
         paint.alpha = 18
@@ -436,8 +437,11 @@ class ReelRenderer(
         paint.reset()
         c.restore()
 
-        val sh = w * 0.052f
         val pad = w * 0.055f
+        val maxStampW = max(1f, r.width() - pad * 2f)
+        var sh = w * 0.052f
+        val rawStampW = sevenWidth(card.film, sh)
+        if (rawStampW > maxStampW) sh *= maxStampW / rawStampW
         val x = r.right - pad - sevenWidth(card.film, sh)
         val y = safeBottom(r, h) - pad - sh
         layer(c, w, h, a) {
@@ -516,6 +520,18 @@ class ReelRenderer(
         textPaint.color = color
         // Arabic letters join, so they keep normal spacing.
         textPaint.letterSpacing = if (arabic) 0f else spacing
+    }
+
+    /** Configures [textPaint] and shrinks [maxSize] proportionally when [content] exceeds [maxWidth]. */
+    private fun fitText(face: Typeface, maxSize: Float, color: Int, content: String, maxWidth: Float, spacing: Float = 0f): Float {
+        var sz = maxSize
+        text(face, sz, color, spacing)
+        val measured = textPaint.measureText(content)
+        if (measured > maxWidth && measured > 0f) {
+            sz *= maxWidth / measured
+            textPaint.textSize = sz
+        }
+        return sz
     }
 
     private fun cover(c: Canvas, img: Bitmap, r: RectF, scale: Float = 1f, px: Float = 0f) {

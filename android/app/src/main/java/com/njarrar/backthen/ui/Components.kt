@@ -316,8 +316,8 @@ fun Toast(
     val shown = state ?: last
     AnimatedVisibility(
         visible = state != null,
-        enter = if (reduce) EnterTransition.None else fadeIn(tween(180)) + slideInVertically(tween(180)) { -it / 2 },
-        exit = if (reduce) ExitTransition.None else fadeOut(tween(150)) + slideOutVertically(tween(150)) { -it / 2 },
+        enter = if (reduce) EnterTransition.None else fadeIn(tween(180)) + slideInVertically(tween(180)) { it / 2 },
+        exit = if (reduce) ExitTransition.None else fadeOut(tween(150)) + slideOutVertically(tween(150)) { it / 2 },
         modifier = modifier,
     ) {
         if (shown != null) {
@@ -385,6 +385,8 @@ data class Selection(
     val toggle: (Photo) -> Unit,
     /** Batch toggle for selecting/deselecting an entire year in one state update and haptic. */
     val toggleAll: ((List<Photo>, Boolean) -> Unit)? = null,
+    /** Long press on a year card while not selecting: enters select mode with all photos in one haptic. */
+    val startAll: ((List<Photo>) -> Unit)? = null,
 )
 
 @Composable
@@ -410,10 +412,13 @@ fun PhotoTile(
     if (drag != null) DisposableEffect(drag, photo.key) { onDispose { drag.forget(photo.key) } }
     var loadFailed by remember(photo.uri) { mutableStateOf(false) }
     val request = rememberThumbnailRequest(photo.uri, maxPx = thumbPx)
-    val label = semanticsLabel ?: L.s(
-        if (favorite) "favorite_photo_from" else "photo_from",
-        "date" to formatDate(localDate(photo.time), "yMMMMd"),
-    )
+    val langVersion = L.version.value
+    val label = remember(photo.time, favorite, semanticsLabel, langVersion) {
+        semanticsLabel ?: L.s(
+            if (favorite) "favorite_photo_from" else "photo_from",
+            "date" to formatDate(localDate(photo.time), "yMMMMd"),
+        )
+    }
     Box(
         modifier
             .then(if (drag != null) Modifier.onGloballyPositioned { drag.place(photo, it.boundsInRoot()) } else Modifier)
@@ -732,36 +737,6 @@ fun YearMosaic(photos: List<Photo>, favorites: Set<String>, selection: Selection
     }
 }
 
-/** Lazy square grid rows helper kept for list-based screens; prefer LazyVerticalGrid where possible. */
-fun LazyListScope.squareGridItems(
-    photos: List<Photo>,
-    favorites: Set<String>,
-    showDate: Boolean,
-    columns: Int = 3,
-    selection: Selection? = null,
-    onOpen: (Int) -> Unit,
-) {
-    val cols = columns.coerceAtLeast(1)
-    val gap = 4.dp
-    val rows = photos.chunked(cols)
-    itemsIndexed(rows, key = { r, row -> "row-$r-${row.first().key}" }) { r, rowPhotos ->
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = if (r < rows.lastIndex) gap else 0.dp),
-            horizontalArrangement = Arrangement.spacedBy(gap),
-        ) {
-            rowPhotos.forEachIndexed { c, photo ->
-                Box(Modifier.weight(1f).aspectRatio(1f)) {
-                    PhotoTile(photo, 12.dp, !showDate && photo.key in favorites, selection, onOpen = { onOpen(r * cols + c) }, modifier = Modifier.fillMaxSize())
-                    if (showDate) DateChip(formatDate(localDate(photo.time), "yMMMd"), Modifier.align(Alignment.BottomStart).padding(6.dp))
-                }
-            }
-            repeat(cols - rowPhotos.size) {
-                Spacer(Modifier.weight(1f).aspectRatio(1f))
-            }
-        }
-    }
-}
-
 /** Small date label on a photo tile. */
 @Composable
 fun DateChip(text: String, modifier: Modifier = Modifier) {
@@ -828,12 +803,17 @@ fun timeLabel(hour: Int, minute: Int): String =
 fun YearPills(
     years: List<Int>,
     selected: Int,
-    onBounds: ((Rect) -> Unit)? = null,
+    onBounds: ((Rect?) -> Unit)? = null,
     onPick: (Int) -> Unit,
 ) {
     val p = LocalPalette.current
     val reduce = LocalReduceMotion.current
     val listState = rememberLazyListState()
+    if (onBounds != null) {
+        DisposableEffect(Unit) {
+            onDispose { onBounds(null) }
+        }
+    }
     LaunchedEffect(selected, years) {
         val idx = years.indexOf(selected)
         if (idx >= 0) {

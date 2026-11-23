@@ -97,12 +97,23 @@ class DeviceLibrary(private val context: Context) {
 
     private val collection: Uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
 
-    /** Quick check of library version/generation (API 30+) or count/newest/oldest IDs so unchanged resumes skip a full scan. */
+    /** Quick check of library version/generation across all external volumes (API 30+) or IDs/mod times so unchanged resumes skip a full scan. */
     suspend fun signature(): LibrarySignature? = withContext(Dispatchers.IO) {
-        if (Build.VERSION.SDK_INT >= 30 && !hasPartialAccess()) {
-            val version = MediaStore.getVersion(context, MediaStore.VOLUME_EXTERNAL_PRIMARY)
-            val generation = MediaStore.getGeneration(context, MediaStore.VOLUME_EXTERNAL_PRIMARY)
-            return@withContext LibrarySignature(mediaVersion = version, mediaGeneration = generation)
+        val partial = hasPartialAccess()
+        if (Build.VERSION.SDK_INT >= 30 && !partial) {
+            val volumes = runCatching { MediaStore.getExternalVolumeNames(context).sorted() }
+                .getOrDefault(listOf(MediaStore.VOLUME_EXTERNAL_PRIMARY))
+                .ifEmpty { listOf(MediaStore.VOLUME_EXTERNAL_PRIMARY) }
+            val version = buildString {
+                volumes.forEachIndexed { idx, vol ->
+                    if (idx > 0) append('|')
+                    val v = runCatching { MediaStore.getVersion(context, vol) }.getOrDefault("")
+                    val g = runCatching { MediaStore.getGeneration(context, vol) }.getOrDefault(0L)
+                    append(vol).append(':').append(v).append(':').append(g)
+                }
+            }
+            val primaryGen = runCatching { MediaStore.getGeneration(context, MediaStore.VOLUME_EXTERNAL_PRIMARY) }.getOrNull()
+            return@withContext LibrarySignature(mediaVersion = version, mediaGeneration = primaryGen)
         }
         val (exclSql, exclArgs) = excludeSavedFlashbackSelection()
         val projection = arrayOf(MediaStore.Images.Media._ID, MediaStore.Images.Media.DATE_MODIFIED)
@@ -119,8 +130,21 @@ class DeviceLibrary(private val context: Context) {
             val modCol = c.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_MODIFIED)
             val latestId = c.getLong(idCol)
             val latestMod = if (c.isNull(modCol)) 0L else c.getLong(modCol)
-            val oldestId = if (c.moveToLast()) c.getLong(idCol) else latestId
-            LibrarySignature(count, latestId, latestMod, oldestId)
+            var oldestId = latestId
+            var idHash: Long? = null
+            if (partial) {
+                // Hash all visible IDs in selected-photos mode so same-count swaps in Settings always re-index.
+                var h = 1125899906842597L
+                do {
+                    val curId = c.getLong(idCol)
+                    oldestId = curId
+                    h = h * 31L + curId
+                } while (c.moveToNext())
+                idHash = h
+            } else if (c.moveToLast()) {
+                oldestId = c.getLong(idCol)
+            }
+            LibrarySignature(count, latestId, latestMod, oldestId, mediaGeneration = idHash)
         }
     }
 
@@ -279,8 +303,8 @@ class DeviceLibrary(private val context: Context) {
             val type = resolver.getType(source) ?: "image/jpeg"
             val ext = extensionForMimeType(type)
             val safeId = p.key.substringAfter(':').replace(Regex("""[^A-Za-z0-9_-]"""), "_")
-            val file = "backthen_$safeId.$ext"
-            if (file in there) continue
+            val file = "flashback_$safeId.$ext"
+            if (file in there || "backthen_$safeId.$ext" in there) continue
             val values = ContentValues().apply {
                 put(MediaStore.Images.Media.DISPLAY_NAME, file)
                 put(MediaStore.Images.Media.MIME_TYPE, type)

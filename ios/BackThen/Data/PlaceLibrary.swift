@@ -56,6 +56,15 @@ final class Locator: NSObject, CLLocationManagerDelegate {
         manager.desiredAccuracy = kCLLocationAccuracyReduced
     }
 
+    var onAuthorizationChange: (@MainActor (CLAuthorizationStatus) -> Void)?
+
+    var authorizationStatus: CLAuthorizationStatus { manager.authorizationStatus }
+
+    var isDenied: Bool {
+        let s = manager.authorizationStatus
+        return s == .denied || s == .restricted
+    }
+
     var allowed: Bool {
         let s = manager.authorizationStatus
         return s == .authorizedWhenInUse || s == .authorizedAlways
@@ -126,8 +135,9 @@ final class Locator: NSObject, CLLocationManagerDelegate {
 
     nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         let status = manager.authorizationStatus
-        guard status != .notDetermined else { return }
         Task { @MainActor in
+            onAuthorizationChange?(status)
+            guard status != .notDetermined else { return }
             let ok = status == .authorizedWhenInUse || status == .authorizedAlways
             finishAccess(ok)
             if !ok { finishSpot(nil) }

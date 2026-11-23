@@ -1,12 +1,14 @@
 package com.njarrar.backthen.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import android.text.format.DateFormat
 import androidx.activity.compose.PredictiveBackHandler
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
@@ -16,7 +18,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -39,8 +40,10 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
@@ -81,6 +84,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -96,6 +100,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.exifinterface.media.ExifInterface
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
@@ -140,7 +145,7 @@ fun ViewerScreen(
     onAlbum: (Photo) -> Unit,
     onClose: () -> Unit,
     onShowDay: ((MonthDay) -> Unit)? = null,
-    cityFor: (suspend (Photo) -> String?)? = null,
+    cityAt: (suspend (Double, Double) -> String?)? = null,
 ) {
     val reduce = LocalReduceMotion.current
     val pager = rememberPagerState(initialPage = start.coerceIn(0, (photos.size - 1).coerceAtLeast(0))) { photos.size }
@@ -155,13 +160,14 @@ fun ViewerScreen(
     var chrome by remember { mutableStateOf(true) }
     var zoomed by remember { mutableStateOf(false) }
     var isDragging by remember { mutableStateOf(false) }
+    var dragGen by remember { mutableIntStateOf(0) }
     var showInfo by remember { mutableStateOf(false) }
     var backProgress by remember { mutableFloatStateOf(0f) }
     // Track per-photo broken state so Share is disabled on missing files.
     val brokenKeys = remember { mutableStateMapOf<String, Boolean>() }
 
-    // Drag offset in pixels, read strictly inside drawBehind & graphicsLayer (0 recompositions per drag pixel).
-    var dragY by remember { mutableFloatStateOf(0f) }
+    // Drag offset kept in Animatable so concurrent drags cancel in-flight spring-backs cleanly.
+    val dragY = remember { Animatable(0f) }
     val fullPull = with(density) { 300.dp.toPx() }
     val closeAt = with(density) { 120.dp.toPx() }
     val flick = with(density) { 800.dp.toPx() }
@@ -180,7 +186,8 @@ fun ViewerScreen(
 
     var shown by remember { mutableStateOf(pager.currentPage) }
     LaunchedEffect(pager.currentPage) {
-        dragY = 0f
+        dragGen++
+        dragY.snapTo(0f)
         isDragging = false
         if (pager.currentPage != shown) {
             shown = pager.currentPage
@@ -196,13 +203,19 @@ fun ViewerScreen(
     Box(
         Modifier
             .fillMaxSize()
-            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = {}),
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        awaitPointerEvent().changes.forEach { it.consume() }
+                    }
+                }
+            },
     ) {
         Box(
             Modifier
                 .fillMaxSize()
                 .drawBehind {
-                    val pull = (dragY.coerceAtLeast(0f) / fullPull).coerceIn(0f, 1f)
+                    val pull = (dragY.value.coerceAtLeast(0f) / fullPull).coerceIn(0f, 1f)
                     val combined = maxOf(pull, backProgress * 0.6f)
                     drawRect(ViewerBg.copy(alpha = (1f - combined).coerceIn(0f, 1f)))
                 },
@@ -216,30 +229,40 @@ fun ViewerScreen(
                 .draggable(
                     orientation = Orientation.Vertical,
                     enabled = !zoomed,
-                    onDragStarted = { isDragging = true },
+                    onDragStarted = {
+                        dragGen++
+                    },
                     state = rememberDraggableState { d ->
-                        dragY = (dragY + d).coerceAtLeast(0f)
+                        val next = (dragY.value + d).coerceAtLeast(0f)
+                        if (next > 0f || isDragging) {
+                            isDragging = true
+                            scope.launch { dragY.snapTo(next) }
+                        }
                     },
                     onDragStopped = { velocity ->
-                        if (dragY > 0f && (dragY > closeAt || velocity > flick)) {
+                        val currentGen = dragGen
+                        val curY = dragY.value
+                        if (curY > 0f && (curY > closeAt || velocity > flick)) {
                             scope.launch {
                                 if (!reduce) {
-                                    animate(dragY, screenHeightPx, animationSpec = tween(180)) { v, _ -> dragY = v }
+                                    dragY.animateTo(screenHeightPx, animationSpec = tween(180))
                                 }
-                                onClose()
+                                if (dragGen == currentGen) onClose()
                             }
-                        } else {
+                        } else if (curY > 0f || isDragging) {
                             scope.launch {
-                                if (reduce) {
-                                    dragY = 0f
-                                } else {
-                                    animate(
-                                        initialValue = dragY,
-                                        targetValue = 0f,
-                                        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow),
-                                    ) { v, _ -> dragY = v }
+                                try {
+                                    if (reduce) {
+                                        dragY.snapTo(0f)
+                                    } else {
+                                        dragY.animateTo(
+                                            targetValue = 0f,
+                                            animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow),
+                                        )
+                                    }
+                                } finally {
+                                    if (dragGen == currentGen) isDragging = false
                                 }
-                                isDragging = false
                             }
                         }
                     },
@@ -282,8 +305,8 @@ fun ViewerScreen(
                     .fillMaxSize()
                     .graphicsLayer {
                         if (current) {
-                            translationY = dragY
-                            val pull = (dragY.coerceAtLeast(0f) / fullPull).coerceIn(0f, 1f)
+                            translationY = dragY.value
+                            val pull = (dragY.value.coerceAtLeast(0f) / fullPull).coerceIn(0f, 1f)
                             val backScale = 1f - 0.12f * backProgress
                             val s = (1f - 0.15f * pull) * backScale
                             scaleX = s
@@ -333,7 +356,7 @@ fun ViewerScreen(
                 Modifier
                     .fillMaxSize()
                     .graphicsLayer {
-                        val pull = (dragY.coerceAtLeast(0f) / fullPull).coerceIn(0f, 1f)
+                        val pull = (dragY.value.coerceAtLeast(0f) / fullPull).coerceIn(0f, 1f)
                         alpha = chromeAlpha * (1f - pull) * (1f - backProgress)
                     }
                     .then(if (!chrome) Modifier.clearAndSetSemantics {} else Modifier),
@@ -450,7 +473,7 @@ fun ViewerScreen(
         PhotoInfoSheet(
             photo = photo,
             use24 = use24,
-            cityFor = cityFor,
+            cityAt = cityAt,
             onShowDay = onShowDay?.let { openDay ->
                 {
                     showInfo = false
@@ -466,13 +489,14 @@ fun ViewerScreen(
 private data class PhotoExifInfo(
     val camera: String?,
     val details: String?,
+    val latLong: DoubleArray?,
 )
 
 @Composable
 private fun PhotoInfoSheet(
     photo: Photo,
     use24: Boolean,
-    cityFor: (suspend (Photo) -> String?)?,
+    cityAt: (suspend (Double, Double) -> String?)?,
     onShowDay: (() -> Unit)?,
     onDismiss: () -> Unit,
 ) {
@@ -483,14 +507,23 @@ private fun PhotoInfoSheet(
     var city by remember(photo.key) { mutableStateOf<String?>(null) }
 
     LaunchedEffect(photo.key) {
-        exif = withContext(Dispatchers.IO) {
+        val parsed = withContext(Dispatchers.IO) {
             runCatching {
-                var uri = Uri.parse(photo.uri)
-                if (Build.VERSION.SDK_INT >= 29) {
-                    runCatching { uri = MediaStore.setRequireOriginal(uri) }
+                val baseUri = Uri.parse(photo.uri)
+                val hasMediaLocation = Build.VERSION.SDK_INT < 29 ||
+                    ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_MEDIA_LOCATION) == PackageManager.PERMISSION_GRANTED
+                val preferredUri = if (Build.VERSION.SDK_INT >= 29 && hasMediaLocation) {
+                    runCatching { MediaStore.setRequireOriginal(baseUri) }.getOrDefault(baseUri)
+                } else {
+                    baseUri
                 }
-                context.contentResolver.openInputStream(uri)?.use { stream ->
-                    val ex = ExifInterface(stream)
+                val stream = try {
+                    context.contentResolver.openInputStream(preferredUri)
+                } catch (_: SecurityException) {
+                    if (preferredUri != baseUri) context.contentResolver.openInputStream(baseUri) else null
+                }
+                stream?.use { input ->
+                    val ex = ExifInterface(input)
                     val make = ex.getAttribute(ExifInterface.TAG_MAKE)?.trim().orEmpty()
                     val model = ex.getAttribute(ExifInterface.TAG_MODEL)?.trim().orEmpty()
                     val camera = when {
@@ -505,12 +538,15 @@ private fun PhotoInfoSheet(
                         }
                         ex.getAttribute(ExifInterface.TAG_PHOTOGRAPHIC_SENSITIVITY)?.let { add("ISO $it") }
                     }
-                    PhotoExifInfo(camera, parts.joinToString(" · ").ifBlank { null })
+                    val latLong = if (hasMediaLocation) ex.latLong else null
+                    PhotoExifInfo(camera, parts.joinToString(" · ").ifBlank { null }, latLong)
                 }
             }.getOrNull()
         }
-        if (cityFor != null) {
-            city = runCatching { cityFor(photo) }.getOrNull()
+        exif = parsed
+        val coords = parsed?.latLong
+        if (cityAt != null && coords != null && coords.size >= 2) {
+            city = runCatching { cityAt(coords[0], coords[1]) }.getOrNull()
         }
     }
 
@@ -521,28 +557,30 @@ private fun PhotoInfoSheet(
                 Icon(Icons.Filled.Close, L.s("close"), tint = p.muted)
             }
         }
-        InfoRow(
-            Icons.Outlined.CalendarToday,
-            formatDate(date, "yMMMMd"),
-            L.s("ago_weekday", "ago" to agoLabel(date.year), "weekday" to weekdayTime(photo.time, use24)),
-        )
-        if (!city.isNullOrBlank()) {
-            InfoRow(Icons.Outlined.Place, city!!, null)
-        }
-        if (photo.width > 0 && photo.height > 0) {
+        Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             InfoRow(
-                Icons.Outlined.PhotoSizeSelectActual,
-                ltrIsolate("${L.num(photo.width)} × ${L.num(photo.height)}"),
-                null,
+                Icons.Outlined.CalendarToday,
+                formatDate(date, "yMMMMd"),
+                L.s("ago_weekday", "ago" to agoLabel(date.year), "weekday" to weekdayTime(photo.time, use24)),
             )
-        }
-        exif?.let { info ->
-            if (info.camera != null || info.details != null) {
-                InfoRow(Icons.Outlined.CameraAlt, info.camera ?: info.details!!, if (info.camera != null) info.details else null)
+            if (!city.isNullOrBlank()) {
+                InfoRow(Icons.Outlined.Place, city!!, null)
             }
-        }
-        if (onShowDay != null) {
-            Pill(L.s("show_this_day"), onShowDay, kind = Kind.Secondary, height = 48.dp, modifier = Modifier.fillMaxWidth())
+            if (photo.width > 0 && photo.height > 0) {
+                InfoRow(
+                    Icons.Outlined.PhotoSizeSelectActual,
+                    ltrIsolate("${L.num(photo.width)} × ${L.num(photo.height)}"),
+                    null,
+                )
+            }
+            exif?.let { info ->
+                if (info.camera != null || info.details != null) {
+                    InfoRow(Icons.Outlined.CameraAlt, info.camera ?: info.details!!, if (info.camera != null) info.details else null)
+                }
+            }
+            if (onShowDay != null) {
+                Pill(L.s("show_this_day"), onShowDay, kind = Kind.Secondary, height = 48.dp, modifier = Modifier.fillMaxWidth())
+            }
         }
     }
 }

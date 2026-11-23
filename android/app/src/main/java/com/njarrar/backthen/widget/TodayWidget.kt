@@ -8,10 +8,15 @@ import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Matrix
+import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.RectF
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.CancellationSignal
 import android.util.SizeF
 import android.widget.RemoteViews
 import com.njarrar.backthen.MainActivity
@@ -31,9 +36,11 @@ import com.njarrar.backthen.data.decodePhoto
 import com.njarrar.backthen.data.visibleIndex
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import java.time.LocalDateTime
+import kotlin.coroutines.coroutineContext
 import kotlin.math.max
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
@@ -104,20 +111,36 @@ private suspend fun draw(context: Context, manager: AppWidgetManager, ids: IntAr
     val rootId = if (Build.VERSION.SDK_INT >= 31) android.R.id.background else R.id.widget_root
     val shown = pick(context, today)
     // Decode once across all widget instances, trying up to 5 candidates before falling back to Empty.
-    val decoded = (shown as? Shown.Candidates)?.let { pickDecoded(context, it) }
+    val signal = CancellationSignal()
+    val handle = coroutineContext.job.invokeOnCompletion { signal.cancel() }
+    val decoded = try {
+        (shown as? Shown.Candidates)?.let { pickDecoded(context, it, signal) }
+    } finally {
+        handle.dispose()
+    }
+    val density = context.resources.displayMetrics.density
+    val preApi31CornerPx = if (Build.VERSION.SDK_INT < 31) 20f * density else 0f
     try {
         for (id in ids) {
             runCatching {
-                val views = if (decoded != null) {
-                    val (w, h) = sizeOf(context, manager.getAppWidgetOptions(id))
-                    cropForWidget(decoded.bitmap, w, h)?.let { cropped ->
-                        photoViews(context, decoded.photo, decoded.year, cropped)
-                    } ?: messageViews(context, today, Shown.Empty)
-                } else {
-                    messageViews(context, today, if (shown is Shown.NeedsApp) Shown.NeedsApp else Shown.Empty)
+                var cropped: Bitmap? = null
+                try {
+                    val views = if (decoded != null) {
+                        val (w, h) = sizeOf(context, manager.getAppWidgetOptions(id))
+                        cropped = cropForWidget(decoded.bitmap, w, h, preApi31CornerPx)
+                        if (cropped != null) {
+                            photoViews(context, decoded.photo, decoded.year, cropped)
+                        } else {
+                            messageViews(context, today, Shown.Empty)
+                        }
+                    } else {
+                        messageViews(context, today, if (shown is Shown.NeedsApp) Shown.NeedsApp else Shown.Empty)
+                    }
+                    views.setOnClickPendingIntent(rootId, tap)
+                    manager.updateAppWidget(id, views)
+                } finally {
+                    cropped?.let { if (!it.isRecycled) it.recycle() }
                 }
-                views.setOnClickPendingIntent(rootId, tap)
-                manager.updateAppWidget(id, views)
             }
         }
     } finally {
@@ -125,12 +148,13 @@ private suspend fun draw(context: Context, manager: AppWidgetManager, ids: IntAr
     }
 }
 
-private fun pickDecoded(context: Context, candidates: Shown.Candidates): DecodedCandidate? {
+private fun pickDecoded(context: Context, candidates: Shown.Candidates, signal: CancellationSignal): DecodedCandidate? {
     val attempts = minOf(MAX_DECODE_CANDIDATES, candidates.photos.size)
     for (offset in 0 until attempts) {
+        if (signal.isCanceled) return null
         val idx = (candidates.startIndex + offset) % candidates.photos.size
         val (photo, year) = candidates.photos[idx]
-        val bmp = decode(context, photo)
+        val bmp = decode(context, photo, signal)
         if (bmp != null) return DecodedCandidate(photo, year, bmp)
     }
     return null
@@ -199,7 +223,7 @@ private const val MAX_BYTES = 500_000
 private const val MAX_DECODE_CANDIDATES = 5
 
 /** Crops and scales [full] to the widget's shape within Binder byte budget, recycling intermediates. */
-private fun cropForWidget(full: Bitmap, widgetW: Int, widgetH: Int): Bitmap? = runCatching {
+private fun cropForWidget(full: Bitmap, widgetW: Int, widgetH: Int, cornerRadiusPx: Float = 0f): Bitmap? = runCatching {
     if (full.width <= 0 || full.height <= 0) return null
     val safeW = max(1, widgetW)
     val safeH = max(1, widgetH)
@@ -211,11 +235,13 @@ private fun cropForWidget(full: Bitmap, widgetW: Int, widgetH: Int): Bitmap? = r
     }
     val cw = rawCw.coerceIn(1, full.width)
     val ch = rawCh.coerceIn(1, full.height)
+    val needsAlpha = cornerRadiusPx > 0f
+    val bytesPerPixel = if (needsAlpha) 4L else 2L
     val targetLong = minOf(MAX_SIDE, max(safeW, safeH).coerceAtLeast(160))
     var scale = minOf(1f, targetLong.toFloat() / max(cw, ch))
     val outW = max(1, (cw * scale).roundToInt())
     val outH = max(1, (ch * scale).roundToInt())
-    val bytes = outW.toLong() * outH.toLong() * 2L
+    val bytes = outW.toLong() * outH.toLong() * bytesPerPixel
     if (bytes > MAX_BYTES) {
         scale *= sqrt(MAX_BYTES.toDouble() / bytes.toDouble()).toFloat()
     }
@@ -224,11 +250,24 @@ private fun cropForWidget(full: Bitmap, widgetW: Int, widgetH: Int): Bitmap? = r
     val y = ((full.height - ch) / 2).coerceIn(0, full.height - ch)
     val cropped = Bitmap.createBitmap(full, x, y, cw, ch, matrix, true)
     try {
-        cropped.copy(Bitmap.Config.RGB_565, false)
+        if (needsAlpha) {
+            val rounded = Bitmap.createBitmap(cropped.width, cropped.height, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(rounded)
+            val radius = cornerRadiusPx * (cropped.width.toFloat() / safeW)
+            val path = Path().apply {
+                addRoundRect(RectF(0f, 0f, cropped.width.toFloat(), cropped.height.toFloat()), radius, radius, Path.Direction.CW)
+            }
+            canvas.clipPath(path)
+            canvas.drawBitmap(cropped, 0f, 0f, Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG))
+            rounded
+        } else {
+            cropped.copy(Bitmap.Config.RGB_565, false)
+        }
     } finally {
         if (cropped !== full) cropped.recycle()
     }
 }.getOrNull()
 
 /** Reads the photo at about twice [MAX_SIDE], turned the right way up. */
-private fun decode(context: Context, photo: Photo): Bitmap? = decodePhoto(context, Uri.parse(photo.uri), MAX_SIDE * 2)
+private fun decode(context: Context, photo: Photo, signal: CancellationSignal): Bitmap? =
+    decodePhoto(context, Uri.parse(photo.uri), MAX_SIDE * 2, signal)

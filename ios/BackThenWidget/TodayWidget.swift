@@ -72,11 +72,11 @@ struct TodayProvider: TimelineProvider {
             return completion(Timeline(entries: [empty], policy: .after(tomorrow)))
         }
 
-        // Batch hourly entries up to midnight so WidgetKit refreshes far less often per day.
+        // Batch hourly entries up to midnight (capped at 4 to stay well below WidgetKit's 30 MB Jetsam limit).
         var dates: [Date] = [now]
         if assets.count > 1 {
             var cursor = now
-            let maxEntries = 8
+            let maxEntries = 4
             while dates.count < maxEntries,
                   let nextHour = cal.nextDate(after: cursor, matching: DateComponents(minute: 0, second: 0), matchingPolicy: .nextTime),
                   nextHour < tomorrow {
@@ -88,8 +88,10 @@ struct TodayProvider: TimelineProvider {
         var entries: [TodayEntry] = []
         entries.reserveCapacity(dates.count)
         for (idx, slotDate) in dates.enumerated() {
-            if let shown = Self.pickPhoto(from: assets, day: day, at: slotDate, size: context.displaySize, allowNetwork: idx == 0) {
-                entries.append(TodayEntry(date: slotDate, day: day, shown: shown))
+            autoreleasepool {
+                if let shown = Self.pickPhoto(from: assets, day: day, at: slotDate, size: context.displaySize, allowNetwork: idx == 0) {
+                    entries.append(TodayEntry(date: slotDate, day: day, shown: shown))
+                }
             }
         }
         if entries.isEmpty {
@@ -175,7 +177,7 @@ struct TodayProvider: TimelineProvider {
         first.fetchLimit = 1
         guard let oldest = PHAsset.fetchAssets(with: .image, options: first).firstObject?.creationDate else { return [] }
         let thisYear = yearOf(now)
-        let from = max(yearOf(oldest), 1970)
+        let from = max(yearOf(oldest), 1900)
         guard from < thisYear else { return [] }
         let ranges = (from..<thisYear).compactMap { dayRange(year: $0, day) }
         guard !ranges.isEmpty else { return [] }
@@ -190,23 +192,59 @@ struct TodayProvider: TimelineProvider {
         return out
     }
 
-    /// The photo center-cropped and redrawn to exact widget pixels so wide panoramas never exceed
-    /// WidgetKit's archival image size limit.
+    /// The photo center-cropped and redrawn to exact 8-bit sRGB widget pixels so wide panoramas and
+    /// extended-range HDR photos never exceed WidgetKit's 30 MB Jetsam memory cap.
     private static func image(_ asset: PHAsset, size: CGSize, network: Bool) -> UIImage? {
         let o = PHImageRequestOptions()
-        o.isSynchronous = true
         o.deliveryMode = .highQualityFormat
-        o.resizeMode = .fast
+        o.resizeMode = .exact
         o.isNetworkAccessAllowed = network
         let w = max(size.width, 160)
         let h = max(size.height, 160)
-        let scale = min(2, 800 / max(w, h))
+        let scale = min(2, 600 / max(w, h))
         let target = CGSize(width: floor(w * scale), height: floor(h * scale))
-        var out: UIImage?
-        PHImageManager.default().requestImage(for: asset, targetSize: target, contentMode: .aspectFill, options: o) { image, _ in
-            out = image
+        let raw: UIImage?
+        if network {
+            // Bounded async iCloud fetch so a flaky cellular network never stalls WidgetKit's timeline timeout.
+            o.isSynchronous = false
+            final class Box: @unchecked Sendable {
+                private let lock = NSLock()
+                private var value: UIImage?
+                private var done = false
+                func finish(_ img: UIImage?, sem: DispatchSemaphore) {
+                    lock.lock()
+                    guard !done else { lock.unlock(); return }
+                    done = true
+                    value = img
+                    lock.unlock()
+                    sem.signal()
+                }
+                func result() -> UIImage? {
+                    lock.lock()
+                    defer { lock.unlock() }
+                    return value
+                }
+            }
+            let box = Box()
+            let sem = DispatchSemaphore(value: 0)
+            let reqID = PHImageManager.default().requestImage(for: asset, targetSize: target, contentMode: .aspectFill, options: o) { image, info in
+                if (info?[PHImageResultIsDegradedKey] as? Bool) == true { return }
+                box.finish(image, sem: sem)
+            }
+            if sem.wait(timeout: .now() + .seconds(4)) == .timedOut {
+                PHImageManager.default().cancelImageRequest(reqID)
+                box.finish(nil, sem: sem)
+            }
+            raw = box.result()
+        } else {
+            o.isSynchronous = true
+            var out: UIImage?
+            PHImageManager.default().requestImage(for: asset, targetSize: target, contentMode: .aspectFill, options: o) { image, _ in
+                out = image
+            }
+            raw = out
         }
-        guard let raw = out else { return nil }
+        guard let raw else { return nil }
         return cropToTarget(raw, target: target)
     }
 
@@ -214,6 +252,7 @@ struct TodayProvider: TimelineProvider {
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
         format.opaque = true
+        format.preferredRange = .standard
         return UIGraphicsImageRenderer(size: target, format: format).image { _ in
             let imgSize = image.size
             guard imgSize.width > 0, imgSize.height > 0 else { return }

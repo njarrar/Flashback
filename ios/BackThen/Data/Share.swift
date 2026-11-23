@@ -34,7 +34,7 @@ enum Share {
         defer { busy = false }
         let dir = FileManager.default.temporaryDirectory.appending(path: "share-\(UUID().uuidString)")
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let urls = await Task.detached(priority: .userInitiated) {
+        let worker = Task.detached(priority: .userInitiated) { () -> [URL] in
             Share.pruneStaleShares()
             let f = DateFormatter()
             f.locale = Locale(identifier: "en_US_POSIX")
@@ -42,20 +42,27 @@ enum Share {
             f.dateFormat = "yyyy-MM-dd"
             var out: [URL] = []
             for (i, p) in items.enumerated() {
+                if Task.isCancelled { return [] }
                 switch p.source {
                 case .sample:
                     let url = SamplePhotos.fileURL(p.ref)
                     if FileManager.default.fileExists(atPath: url.path) { out.append(url) }
                 case .device:
                     guard let got = await PhotoLibrary.data(id: p.ref) else { continue }
+                    if Task.isCancelled { return [] }
                     // Name files by date so they make sense where they land.
                     let name = dir.appending(path: "\(f.string(from: p.time))-\(i + 1)")
                     if let url = Share.shareFile(got.0, type: got.1, name: name) { out.append(url) }
                 }
             }
             return out
-        }.value
-        guard !urls.isEmpty, let top = topController() else {
+        }
+        let urls = await withTaskCancellationHandler {
+            await worker.value
+        } onCancel: {
+            worker.cancel()
+        }
+        guard !Task.isCancelled, !urls.isEmpty, let top = topController() else {
             try? FileManager.default.removeItem(at: dir)
             return false
         }
@@ -76,6 +83,7 @@ enum Share {
     nonisolated static func shareFile(_ data: Data, type: String?, name: URL) -> URL? {
         let kept: [String: String] = [
             "public.jpeg": "jpg", "public.heic": "heic", "public.heif": "heic", "public.png": "png",
+            "com.compuserve.gif": "gif",
         ]
         if let type, let ext = kept[type] {
             let url = name.appendingPathExtension(ext)
@@ -128,7 +136,8 @@ enum Share {
         let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
         let active = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
         var vc = (active?.keyWindow ?? active?.windows.first(where: \.isKeyWindow) ?? active?.windows.first)?.rootViewController
-        while let next = vc?.presentedViewController { vc = next }
+        while let next = vc?.presentedViewController, !next.isBeingDismissed { vc = next }
+        guard let vc, !vc.isBeingDismissed, !vc.isBeingPresented else { return nil }
         return vc
     }
 }

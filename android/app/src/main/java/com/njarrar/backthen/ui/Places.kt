@@ -4,7 +4,6 @@ import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -48,6 +47,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -126,11 +126,12 @@ fun PlaceCardView(vm: AppViewModel, card: PlaceCard, onOpen: () -> Unit, modifie
             }
         }
         if (photos.isNotEmpty()) {
+            val openLabel = L.s("see_city", "city" to card.city.name)
             if (photos.size == 1) {
                 val request = rememberThumbnailRequest(photos[0].uri, maxPx = 384)
                 AsyncImage(
                     model = request,
-                    contentDescription = null,
+                    contentDescription = openLabel,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .height(96.dp)
@@ -144,7 +145,8 @@ fun PlaceCardView(vm: AppViewModel, card: PlaceCard, onOpen: () -> Unit, modifie
                     Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(10.dp))
-                        .clickable(role = Role.Button, onClick = onOpen),
+                        .clickable(role = Role.Button, onClick = onOpen)
+                        .semantics { contentDescription = openLabel },
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     photos.forEach { ph ->
@@ -203,7 +205,13 @@ fun PlaceScreen(vm: AppViewModel, city: City, placeIndex: Map<Int, Map<String, I
                 }
             }
             .background(p.bg)
-            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = {})
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        awaitPointerEvent().changes.forEach { it.consume() }
+                    }
+                }
+            }
             .statusBarsPadding(),
     ) {
         Column(Modifier.fillMaxSize()) {

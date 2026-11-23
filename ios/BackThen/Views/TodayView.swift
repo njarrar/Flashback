@@ -4,6 +4,7 @@ struct TodayView: View {
     @Environment(AppStore.self) private var store
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var textSize
+    @Environment(\.displayScale) private var scale
     @State private var result: (day: MonthDay, groups: [YearGroup])?
     @State private var calendar = false
     @State private var settings = false
@@ -23,6 +24,7 @@ struct TodayView: View {
     @State private var stripPick: Int?
     /// How far the day has moved sideways under a swipe, and the days a swipe would land on.
     @State private var swipeX: CGFloat = 0
+    @State private var turning = false
     @State private var neighbors: (back: (day: MonthDay, skipped: Int)?, forward: (day: MonthDay, skipped: Int)?) = (nil, nil)
     @State private var pageWidth: CGFloat = 400
     @State private var pageHeight: CGFloat = 800
@@ -45,10 +47,10 @@ struct TodayView: View {
         let hidden = store.isHidden(day)
         let canSelect = !hidden && total > 0
         let stackHeader: Bool = textSize >= .accessibility1 || capsuleWidth > pageWidth * 0.42
-        // Strict non-overlapping opacity handoff: large title fades out completely by 0.45;
-        // compact title fades in only after 0.55 so both can never overlap.
-        let largeTitleOpacity: CGFloat = max(0, min(1, 1 - scrolled / 0.45))
-        let compactTitleOpacity: CGFloat = max(0, min(1, (scrolled - 0.55) / 0.45))
+        // Single 0.5 handoff cutoff so exactly one date button is always hittable and visible to VoiceOver.
+        let showCompact = scrolled >= 0.5
+        let largeTitleOpacity: CGFloat = max(0, min(1, 1 - scrolled / 0.5))
+        let compactTitleOpacity: CGFloat = max(0, min(1, (scrolled - 0.5) / 0.5))
         let barBgOpacity: CGFloat = max(0, min(1, (scrolled - 0.1) / 0.6))
 
         let summary = summaryText(hidden: hidden, groups: groups, total: total)
@@ -70,7 +72,7 @@ struct TodayView: View {
             start: { p in
                 selecting = true
                 picked = [p]
-                drag.armed = true
+                drag.arm(p)
             },
             batch: { photos, select in
                 if select {
@@ -89,15 +91,16 @@ struct TodayView: View {
         ScrollViewReader { scroll in
             ScrollView {
                 Group {
-                    headerView(day: day, today: today, stackHeader: stackHeader, largeTitleOpacity: largeTitleOpacity, summary: summary)
+                    headerView(day: day, today: today, stackHeader: stackHeader, largeTitleOpacity: largeTitleOpacity, showCompact: showCompact, summary: summary)
 
-                    dayContent(day: day, groups: groups, hidden: hidden, selection: selection, activeStripGroup: activeStripGroup)
+                    dayContent(day: day, today: today, groups: groups, hidden: hidden, selection: selection, activeStripGroup: activeStripGroup)
                     Color.clear.frame(height: 120)
                 }
                 .background(
                     DragSelectHook(
                         drag: drag,
-                        enabled: selecting && store.saved.layout != .cards,
+                        enabled: selecting,
+                        active: store.saved.layout != .cards,
                         order: { visiblePhotos },
                         selecting: $selecting,
                         picked: $picked
@@ -108,6 +111,7 @@ struct TodayView: View {
                 .offset(x: direction == .rightToLeft ? -swipeX : swipeX)
                 .opacity(1 - min(abs(swipeX) / max(pageWidth, 1), 1) * 0.5)
             }
+            .scrollDisabled(abs(swipeX) > 12)
             .simultaneousGesture(daySwipe)
             .onGeometryChange(for: CGSize.self) { $0.size } action: { pageWidth = $0.width; pageHeight = $0.height }
             .refreshable {
@@ -124,7 +128,7 @@ struct TodayView: View {
                 }
             }
             .safeAreaInset(edge: .top, spacing: 0) {
-                topBar(day, canSelect: canSelect, compactOpacity: compactTitleOpacity, barOpacity: barBgOpacity)
+                topBar(day, canSelect: canSelect, compactOpacity: compactTitleOpacity, showCompact: showCompact, barOpacity: barBgOpacity)
             }
         }
         .background(Palette.bg)
@@ -180,6 +184,15 @@ struct TodayView: View {
         .sensoryFeedback(.selection, trigger: day)
         .sensoryFeedback(.impact(flexibility: .rigid), trigger: boundaryHit)
         .onChange(of: store.tab) { _, _ in stopSelecting() }
+        .onChange(of: store.deepLinkToken) { _, _ in
+            calendar = false
+            settings = false
+            placeAsk = false
+            shareFor = nil
+            albumFor = nil
+            placeOpen = nil
+            stopSelecting()
+        }
         .onChange(of: total) { _, n in if n == 0 && selecting { stopSelecting() } }
         .onChange(of: hidden) { _, h in if h && selecting { stopSelecting() } }
         .onChange(of: store.demoCalendar) { _, on in if on { calendar = true } }
@@ -194,7 +207,7 @@ struct TodayView: View {
     }
 
     @ViewBuilder
-    private func headerView(day: MonthDay, today: MonthDay, stackHeader: Bool, largeTitleOpacity: CGFloat, summary: String) -> some View {
+    private func headerView(day: MonthDay, today: MonthDay, stackHeader: Bool, largeTitleOpacity: CGFloat, showCompact: Bool, summary: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Button { calendar = true } label: {
                 HStack(spacing: 8) {
@@ -206,8 +219,8 @@ struct TodayView: View {
             // Share the top bar row at normal text sizes; stack cleanly below at AX1+ or when capsule is wide.
             .padding(.trailing, stackHeader ? 0 : capsuleWidth + 8)
             .opacity(largeTitleOpacity)
-            .allowsHitTesting(largeTitleOpacity > 0.1)
-            .accessibilityHidden(largeTitleOpacity < 0.1)
+            .allowsHitTesting(!showCompact)
+            .accessibilityHidden(showCompact)
             .accessibilityAddTraits(.isHeader)
             .accessibilityHint(L.s("pick_another_day"))
             .accessibilityActions {
@@ -240,7 +253,7 @@ struct TodayView: View {
     }
 
     @ViewBuilder
-    private func dayContent(day: MonthDay, groups: [YearGroup]?, hidden: Bool, selection: Selection, activeStripGroup: YearGroup?) -> some View {
+    private func dayContent(day: MonthDay, today: MonthDay, groups: [YearGroup]?, hidden: Bool, selection: Selection, activeStripGroup: YearGroup?) -> some View {
         if store.photoAccessRevoked && !selecting {
             accessBanner(
                 icon: "exclamationmark.triangle.fill",
@@ -253,7 +266,7 @@ struct TodayView: View {
                     UIApplication.shared.open(url)
                 }
             }
-        } else if PhotoLibrary.isLimited && !limitedBannerDismissed && !selecting {
+        } else if store.isLimitedPhotoAccess && !limitedBannerDismissed && !selecting {
             accessBanner(
                 icon: "photo.badge.plus",
                 title: L.s("limited_access"),
@@ -261,11 +274,11 @@ struct TodayView: View {
                 actionLabel: L.s("manage_photos"),
                 dismissible: true
             ) {
-                PhotoLibrary.presentLimitedPicker()
+                store.presentLimitedPicker()
             }
         }
 
-        if let card = store.placeCard, !selecting {
+        if let card = store.placeCard, day == today, !hidden, !selecting {
             PlaceCardView(card: card) { placeOpen = card.city }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 22)
@@ -280,7 +293,7 @@ struct TodayView: View {
                 EmptyDay(
                     day: day,
                     noSources: !store.saved.sources.device || store.photoAccessRevoked,
-                    isLimited: PhotoLibrary.isLimited,
+                    isLimited: store.isLimitedPhotoAccess,
                     near: nearbyDays(store.index, day),
                     go: go,
                     connect: {
@@ -292,7 +305,7 @@ struct TodayView: View {
                             settings = true
                         }
                     },
-                    manageLimited: { PhotoLibrary.presentLimitedPicker() }
+                    manageLimited: { store.presentLimitedPicker() }
                 )
             } else if store.saved.layout == .cards {
                 YearCards(groups: groups, day: day, selection: selection, height: max(360, pageHeight * 0.64)) { g in
@@ -408,7 +421,7 @@ struct TodayView: View {
 
     /// The bar at the top of Today. Clear at rest; once the date title scrolls out of view,
     /// it blurs what passes beneath and fades in its own compact date title without overlap.
-    private func topBar(_ day: MonthDay, canSelect: Bool, compactOpacity: CGFloat, barOpacity: CGFloat) -> some View {
+    private func topBar(_ day: MonthDay, canSelect: Bool, compactOpacity: CGFloat, showCompact: Bool, barOpacity: CGFloat) -> some View {
         // One size at rest and when scrolled. The bar's height places the date title, so a
         // bar that shrank as the title went under it moved the title back out, grew again,
         // and kept flipping until the app froze.
@@ -423,8 +436,8 @@ struct TodayView: View {
                 }
             }
             .opacity(compactOpacity)
-            .allowsHitTesting(compactOpacity > 0.5)
-            .accessibilityHidden(compactOpacity < 0.5)
+            .allowsHitTesting(showCompact)
+            .accessibilityHidden(!showCompact)
             .accessibilityLabel(day.label)
             .accessibilityHint(L.s("pick_another_day"))
             Spacer()
@@ -451,7 +464,7 @@ struct TodayView: View {
         }
         .overlay(alignment: .bottom) {
             // One hairline only: a pinned year header draws its own.
-            Palette.line.frame(height: 1 / 3).opacity(pinnedYears.isEmpty ? barOpacity : 0)
+            Palette.line.frame(height: 1 / scale).opacity(pinnedYears.isEmpty ? barOpacity : 0)
         }
         .onGeometryChange(for: CGFloat.self) { $0.frame(in: .global).maxY } action: { barBottom = $0 }
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { barHeight = $0 }
@@ -481,12 +494,6 @@ struct TodayView: View {
             } else {
                 Button(role: .destructive) {
                     store.setHidden(day, true)
-                    store.showToast(
-                        L.s("toast_day_hidden", ["day": day.shortLabel]),
-                        kind: .info,
-                        undoLabel: L.s("undo"),
-                        undo: { store.setHidden(day, false) }
-                    )
                 } label: {
                     Label(L.s("hide_date"), systemImage: "eye.slash")
                 }
@@ -503,6 +510,7 @@ struct TodayView: View {
     private var daySwipe: some Gesture {
         DragGesture(minimumDistance: 24, coordinateSpace: .global)
             .onChanged { v in
+                guard !turning else { return }
                 guard sideways(v) else { if swipeX != 0 { swipeX = 0 }; return }
                 let dx = v.translation.width
                 if target(dx) == nil {
@@ -518,6 +526,7 @@ struct TodayView: View {
             }
             .onEnded { v in
                 boundaryArmed = false
+                guard !turning else { return }
                 let dx = v.translation.width
                 if sideways(v), abs(dx) > 80 || abs(v.predictedEndTranslation.width) > 240, let t = target(dx) {
                     turn(to: t, leaving: dx < 0 ? -pageWidth : pageWidth)
@@ -528,7 +537,7 @@ struct TodayView: View {
     }
 
     private func sideways(_ v: DragGesture.Value) -> Bool {
-        if selecting { return false }
+        if selecting || turning { return false }
         // Ignore screen-edge drags to avoid conflicting with system gestures.
         if v.startLocation.x < 20 || v.startLocation.x > pageWidth - 20 { return false }
         if store.saved.layout == .strip, pillsFrame.contains(v.startLocation) { return false }
@@ -540,13 +549,24 @@ struct TodayView: View {
         (dx < 0) != (direction == .rightToLeft) ? neighbors.forward : neighbors.back
     }
 
-    /// Slides the day out, swaps it, and slides the new one in from the other side.
+    /// Slides the day out, preloads the next day so Skeleton never flashes, swaps, and slides in.
     private func turn(to t: (day: MonthDay, skipped: Int), leaving out: CGFloat) {
+        guard !turning else { return }
         if reduceMotion { swipeX = 0; land(on: t); return }
+        turning = true
+        let preload = Task { await store.photos(for: t.day) }
         withAnimation(.easeIn(duration: 0.15)) { swipeX = out } completion: {
-            land(on: t)
-            swipeX = -out
-            withAnimation(.easeOut(duration: 0.22)) { swipeX = 0 }
+            Task { @MainActor in
+                let preloaded = await preload.value
+                result = (t.day, preloaded)
+                land(on: t)
+                swipeX = -out
+                withAnimation(.easeOut(duration: 0.22)) {
+                    swipeX = 0
+                } completion: {
+                    turning = false
+                }
+            }
         }
     }
 
@@ -558,7 +578,6 @@ struct TodayView: View {
     /// Opens the reel editor with these photos, two to `ReelPlan.maxPhotos`.
     private func startReel(_ photos: [Photo]) {
         guard photos.count >= 2 else { return store.showToast(L.s("reel_need_two"), kind: .info, undoLabel: nil, undo: nil) }
-        if photos.count > ReelPlan.maxPhotos { store.showToast(L.p("reel_too_many", ReelPlan.maxPhotos), kind: .info, undoLabel: nil, undo: nil) }
         store.reel = ReelRequest(photos: photos)
         stopSelecting()
     }
@@ -675,11 +694,21 @@ private struct EmptyDay: View {
                  : near.before != nil || near.after != nil ? L.s("empty_nearby")
                  : L.s("empty_none"))
                 .font(.nunito(15)).foregroundStyle(Palette.muted).frame(maxWidth: 300, alignment: .leading)
-            HStack(spacing: 8) {
-                if noSources { Pill(label: L.s("connect_photos"), height: 44, action: connect).fixedSize() }
-                else if isLimited { Pill(label: L.s("manage_photos"), kind: .secondary, height: 44, action: manageLimited).fixedSize() }
-                if let b = near.before { Pill(label: b.shortLabel, systemImage: "arrow.backward", kind: .secondary, height: 44) { go(b) }.fixedSize() }
-                if let a = near.after { Pill(label: a.shortLabel, systemImage: "arrow.forward", kind: .secondary, height: 44) { go(a) }.fixedSize() }
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) {
+                    if noSources { Pill(label: L.s("connect_photos"), height: 44, action: connect).fixedSize() }
+                    else if isLimited { Pill(label: L.s("manage_photos"), kind: .secondary, height: 44, action: manageLimited).fixedSize() }
+                    if let b = near.before { Pill(label: b.shortLabel, systemImage: "arrow.backward", kind: .secondary, height: 44) { go(b) }.fixedSize() }
+                    if let a = near.after { Pill(label: a.shortLabel, systemImage: "arrow.forward", kind: .secondary, height: 44) { go(a) }.fixedSize() }
+                }
+                VStack(alignment: .leading, spacing: 8) {
+                    if noSources { Pill(label: L.s("connect_photos"), height: 44, action: connect).fixedSize() }
+                    else if isLimited { Pill(label: L.s("manage_photos"), kind: .secondary, height: 44, action: manageLimited).fixedSize() }
+                    HStack(spacing: 8) {
+                        if let b = near.before { Pill(label: b.shortLabel, systemImage: "arrow.backward", kind: .secondary, height: 44) { go(b) }.fixedSize() }
+                        if let a = near.after { Pill(label: a.shortLabel, systemImage: "arrow.forward", kind: .secondary, height: 44) { go(a) }.fixedSize() }
+                    }
+                }
             }
             .padding(.top, 4)
         }

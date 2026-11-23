@@ -12,7 +12,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -45,6 +44,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.outlined.BrokenImage
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -57,6 +57,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -81,6 +82,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.Role
@@ -157,6 +159,7 @@ fun ReelScreen(
     onClose: () -> Unit,
 ) {
     val context = LocalContext.current
+    val view = LocalView.current
     val scope = rememberCoroutineScope()
     val reduce = LocalReduceMotion.current
     val fonts = remember { ReelFonts(context) }
@@ -171,6 +174,10 @@ fun ReelScreen(
     var small by remember { mutableStateOf<Map<String, Bitmap>>(emptyMap()) }
     var blurred by remember { mutableStateOf<Map<String, Bitmap>>(emptyMap()) }
     var looks by remember { mutableStateOf<Map<ReelLook, Pair<Bitmap, ImageBitmap>>>(emptyMap()) }
+    var loadFinished by remember(ordered) { mutableStateOf(false) }
+    var retryTick by remember { mutableIntStateOf(0) }
+    // Cache last exported MP4 for identical (keys, options) so Share + Save doesn't re-encode.
+    var lastExport by remember { mutableStateOf<Triple<List<String>, ReelOptions, File>?>(null) }
     // Playback time kept in a state object read ONLY by leaf Canvas/Scrubber (0 root recompositions/sec).
     val timeState = remember { mutableDoubleStateOf(0.0) }
     var playing by remember { mutableStateOf(true) }
@@ -180,22 +187,25 @@ fun ReelScreen(
     BackHandler { if (exportProgress != null) makeJob?.cancel() else onClose() }
     DarkSystemBars()
 
-    // Cancel any running export and recycle all decoded bitmaps when closing the editor.
-    val smallRef = rememberUpdatedState(small)
-    val blurredRef = rememberUpdatedState(blurred)
-    val looksRef = rememberUpdatedState(looks)
+    // Keep the screen awake while hardware encoding an MP4 so screen timeout never stalls export.
+    val exporting = exportProgress != null
+    DisposableEffect(view, exporting) {
+        view.keepScreenOn = exporting
+        onDispose { view.keepScreenOn = false }
+    }
+
+    // Cancel any running export on close. Never recycle shared bitmaps manually here: Android 8+
+    // reclaims pixel buffers via NativeAllocationRegistry once RenderThread/coroutines release them.
     DisposableEffect(Unit) {
         onDispose {
             makeJob?.cancel()
-            smallRef.value.values.forEach { if (!it.isRecycled) it.recycle() }
-            blurredRef.value.values.forEach { if (!it.isRecycled) it.recycle() }
-            looksRef.value.values.forEach { (bmp, _) -> if (!bmp.isRecycled) bmp.recycle() }
         }
     }
 
-    // Re-keyed on ordered (covers both photos & options.newestFirst) with bounded parallelism (4).
+    // Re-keyed on ordered + retryTick with bounded parallelism (4).
     val decodeDispatcher = remember { Dispatchers.IO.limitedParallelism(4) }
-    LaunchedEffect(ordered) {
+    LaunchedEffect(ordered, retryTick) {
+        loadFinished = false
         val neededKeys = ordered.map { it.key }.toSet()
         val missing = ordered.filter { it.key !in small }
         if (missing.isNotEmpty()) {
@@ -211,6 +221,7 @@ fun ReelScreen(
             small = small + addedSmall
             blurred = blurred + addedBlur
         }
+        loadFinished = true
         // Keep time clamped when photos are removed or reordered.
         if (neededKeys.isEmpty()) timeState.doubleValue = 0.0
     }
@@ -240,9 +251,7 @@ fun ReelScreen(
                 bmp to bmp.asImageBitmap()
             }
         }
-        val old = looks
         looks = generated
-        old.values.forEach { (bmp, _) -> if (!bmp.isRecycled) bmp.recycle() }
     }
 
     // Plays the reel, holds the end a moment, then starts over. Mutates timeState without recomposing ReelScreen.
@@ -258,6 +267,7 @@ fun ReelScreen(
     }
 
     fun change(o: ReelOptions) {
+        Haptics.tick(view)
         if (o.newestFirst != options.newestFirst) customOrder = null
         options = o
         saveOptions(context, o)
@@ -266,22 +276,26 @@ fun ReelScreen(
 
     fun make(save: Boolean) {
         if (exportProgress != null || ordered.size < 2) return
+        Haptics.confirm(view)
         val o = options
         val list = ordered
+        val keys = list.map { it.key }
         val r = buildRenderer(o, list, small, blurred)
         playing = false
-        exportProgress = 0f
+        val cachedFile = lastExport?.takeIf { it.first == keys && it.second == o && it.third.exists() && it.third.length() > 0L }?.third
+        exportProgress = if (cachedFile != null) 1f else 0f
         makeJob = scope.launch {
             try {
-                val file: File = ReelExport.make(
+                val file: File = cachedFile ?: ReelExport.make(
                     context,
                     r,
                     load = { i -> withContext(Dispatchers.IO) { list.getOrNull(i)?.let { decodePhoto(context, Uri.parse(it.uri), ReelExport.PHOTO_SIDE) } } },
                     progress = { p -> exportProgress = p.coerceIn(0f, 1f) },
-                )
+                ).also { lastExport = Triple(keys, o, it) }
                 exportProgress = null
                 if (save) {
                     val savedOk = ReelExport.saveToGallery(context, file)
+                    if (savedOk) Haptics.confirm(view)
                     onToast(
                         L.s(if (savedOk) "toast_reel_saved" else "reel_failed"),
                         if (savedOk) ToastKind.Success else ToastKind.Error,
@@ -306,7 +320,13 @@ fun ReelScreen(
         Modifier
             .fillMaxSize()
             .background(ReelBg)
-            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = {}),
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        awaitPointerEvent().changes.forEach { it.consume() }
+                    }
+                }
+            },
     ) {
         Column(Modifier.fillMaxSize().systemBarsPadding()) {
             // Top bar
@@ -369,23 +389,37 @@ fun ReelScreen(
                                     .aspectRatio(aspect)
                                     .clip(RoundedCornerShape(12.dp))
                                     .background(Color.Black)
-                                    .pointerInput(Unit) { detectTapGestures { playing = !playing } }
+                                    .pointerInput(Unit) { detectTapGestures { Haptics.tick(view); playing = !playing } }
                                     .semantics {
                                         contentDescription = L.s("reel_preview")
                                         stateDescription = L.s(if (playing) "reel_playing" else "reel_paused")
-                                        onClick(L.s(if (playing) "reel_pause" else "reel_play")) { playing = !playing; true }
+                                        onClick(L.s(if (playing) "reel_pause" else "reel_play")) { Haptics.tick(view); playing = !playing; true }
                                     },
                                 contentAlignment = Alignment.Center,
                             ) {
-                                if (renderer != null) {
-                                    ReelPlayerCanvas(
-                                        renderer = renderer,
-                                        total = total,
-                                        timeProvider = { timeState.doubleValue },
-                                        modifier = Modifier.fillMaxSize(),
-                                    )
-                                } else {
-                                    CircularProgressIndicator(color = ReelInk, modifier = Modifier.size(32.dp))
+                                when {
+                                    renderer != null -> {
+                                        ReelPlayerCanvas(
+                                            renderer = renderer,
+                                            total = total,
+                                            timeProvider = { timeState.doubleValue },
+                                            modifier = Modifier.fillMaxSize(),
+                                        )
+                                    }
+                                    loadFinished -> {
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                                            modifier = Modifier.padding(16.dp),
+                                        ) {
+                                            Icon(Icons.Outlined.BrokenImage, null, tint = ReelInk.copy(alpha = 0.7f), modifier = Modifier.size(32.dp))
+                                            T(L.s("photo_unavailable"), size = 14, weight = FontWeight.SemiBold, color = ReelInk, align = TextAlign.Center)
+                                            Pill(L.s("retry"), { Haptics.tick(view); retryTick++ }, kind = Kind.Secondary, height = 44.dp)
+                                        }
+                                    }
+                                    else -> {
+                                        CircularProgressIndicator(color = ReelInk, modifier = Modifier.size(32.dp))
+                                    }
                                 }
                                 if (!playing && exportProgress == null && renderer != null) {
                                     Box(Modifier.size(56.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.45f)), contentAlignment = Alignment.Center) {
@@ -426,7 +460,7 @@ fun ReelScreen(
                                         .weight(1f)
                                         .heightIn(min = 48.dp)
                                         .clip(RoundedCornerShape(10.dp))
-                                        .clickable(role = Role.Tab) { tab = t }
+                                        .clickable(role = Role.Tab) { Haptics.tick(view); tab = t }
                                         .semantics { selected = on },
                                     contentAlignment = Alignment.Center,
                                 ) {
@@ -524,17 +558,18 @@ fun ReelScreen(
                                                             Box(
                                                                 Modifier
                                                                     .align(Alignment.TopEnd)
-                                                                    .size(32.dp)
+                                                                    .size(48.dp)
                                                                     .clickable(role = Role.Button) {
+                                                                        Haptics.tick(view)
                                                                         customOrder = ordered.filterNot { it.key == ph.key }
                                                                     },
-                                                                contentAlignment = Alignment.Center,
+                                                                contentAlignment = Alignment.TopEnd,
                                                             ) {
                                                                 Box(
-                                                                    Modifier.size(22.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.65f)),
+                                                                    Modifier.padding(4.dp).size(22.dp).clip(CircleShape).background(Color.Black.copy(alpha = 0.65f)),
                                                                     contentAlignment = Alignment.Center,
                                                                 ) {
-                                                                    Icon(Icons.Filled.Close, L.s("close"), tint = Color.White, modifier = Modifier.size(14.dp))
+                                                                    Icon(Icons.Filled.Close, L.s("remove_from_album"), tint = Color.White, modifier = Modifier.size(14.dp))
                                                                 }
                                                             }
                                                         }
@@ -552,9 +587,10 @@ fun ReelScreen(
                                                     Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                                                         Box(
                                                             Modifier
-                                                                .size(36.dp)
+                                                                .size(48.dp)
                                                                 .clip(CircleShape)
                                                                 .clickable(enabled = idx > 0, role = Role.Button) {
+                                                                    Haptics.tick(view)
                                                                     val next = ordered.toMutableList()
                                                                     val tmp = next[idx]
                                                                     next[idx] = next[idx - 1]
@@ -565,16 +601,17 @@ fun ReelScreen(
                                                         ) {
                                                             Icon(
                                                                 Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                                                                L.s("previous_month"),
+                                                                "${L.s("reel_order")}: ${L.s("photo_n_of", "n" to maxOf(1, idx), "total" to ordered.size)}",
                                                                 tint = ReelInk.copy(alpha = if (idx > 0) 0.9f else 0.25f),
                                                                 modifier = Modifier.size(20.dp),
                                                             )
                                                         }
                                                         Box(
                                                             Modifier
-                                                                .size(36.dp)
+                                                                .size(48.dp)
                                                                 .clip(CircleShape)
                                                                 .clickable(enabled = idx < ordered.lastIndex, role = Role.Button) {
+                                                                    Haptics.tick(view)
                                                                     val next = ordered.toMutableList()
                                                                     val tmp = next[idx]
                                                                     next[idx] = next[idx + 1]
@@ -585,7 +622,7 @@ fun ReelScreen(
                                                         ) {
                                                             Icon(
                                                                 Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                                                L.s("next_month"),
+                                                                "${L.s("reel_order")}: ${L.s("photo_n_of", "n" to minOf(ordered.size, idx + 2), "total" to ordered.size)}",
                                                                 tint = ReelInk.copy(alpha = if (idx < ordered.lastIndex) 0.9f else 0.25f),
                                                                 modifier = Modifier.size(20.dp),
                                                             )
@@ -631,7 +668,13 @@ fun ReelScreen(
                 Modifier
                     .fillMaxSize()
                     .background(Color.Black.copy(alpha = 0.8f))
-                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = {}),
+                    .pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                awaitPointerEvent().changes.forEach { it.consume() }
+                            }
+                        }
+                    },
                 contentAlignment = Alignment.Center,
             ) {
                 Column(

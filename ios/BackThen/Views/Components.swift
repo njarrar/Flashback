@@ -36,7 +36,7 @@ struct PhotoImage: View {
                         .frame(width: geo.size.width, height: geo.size.height)
                         .clipped()
                         .transition(reduceMotion || !asyncLoaded ? .identity : .opacity)
-                } else if failed && contentMode == .fill {
+                } else if failed {
                     Image(systemName: "exclamationmark.icloud")
                         .font(.system(size: 18, weight: .medium))
                         .foregroundStyle(Palette.muted)
@@ -590,6 +590,7 @@ struct SquareGrid: View {
     let photos: [Photo]
     var showDate = false
     var selection: Selection? = nil
+    var removeLabel: String? = nil
     var onRemove: ((Photo) -> Void)? = nil
 
     var body: some View {
@@ -607,7 +608,7 @@ struct SquareGrid: View {
                 .contextMenu {
                     if let onRemove {
                         Button(role: .destructive) { onRemove(photo) } label: {
-                            Label(L.s("remove_from_album"), systemImage: "minus.circle")
+                            Label(removeLabel ?? L.s("remove_from_album"), systemImage: "minus.circle")
                         }
                     }
                 }
@@ -824,7 +825,7 @@ struct StripYear: View {
 
             HStack(alignment: .top, spacing: 6) {
                 ForEach(Array(masonryColumns(photos.map { tileAspect(width: $0.width, height: $0.height) }).enumerated()), id: \.offset) { _, col in
-                    VStack(spacing: 6) {
+                    LazyVStack(spacing: 6) {
                         ForEach(col, id: \.self) { i in
                             let p = photos[i]
                             PhotoTile(photo: p, radius: 12, selection: selection) {

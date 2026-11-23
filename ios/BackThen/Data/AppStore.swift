@@ -1,5 +1,8 @@
+import CoreLocation
 import Foundation
 import Observation
+import OSLog
+import Photos
 import Security
 import UIKit
 import WidgetKit
@@ -121,10 +124,16 @@ final class AppStore {
         case success, info, error
     }
 
+    enum ReelSaveResult: Equatable {
+        case saved, denied, failed
+    }
+
+    private static let logger = Logger(subsystem: "com.njarrar.backthen", category: "AppStore")
+
     var saved: SavedState {
         didSet {
             syncDerivedState(from: oldValue)
-            save()
+            scheduleSave()
         }
     }
     var day = MonthDay.today
@@ -140,10 +149,20 @@ final class AppStore {
     var openAlbumID: String? {
         didSet { if openAlbumID != nil { tab = .albums } }
     }
+    /// Incremented whenever a widget, notification, or "Show this day" deep link fires so TodayView dismisses local sheets/subpages.
+    var deepLinkToken: Int = 0
     var toast: String?
     var toastKind: ToastKind = .success
     var toastUndoLabel: String? = nil
     @ObservationIgnored private var toastUndoAction: (() -> Void)? = nil
+    /// Live Photos authorization status so views react automatically to Limited / Full / Denied changes.
+    var photoAuthStatus: PHAuthorizationStatus = PhotoLibrary.authorizationStatus
+    var isLimitedPhotoAccess: Bool { photoAuthStatus == .limited }
+    /// Live location authorization status so Settings can recover from "Allow Once" expiry or Settings revocation.
+    var locationAuthStatus: CLAuthorizationStatus = Locator.shared.authorizationStatus
+    var locationAccessLost: Bool {
+        saved.places.on && !(locationAuthStatus == .authorizedWhenInUse || locationAuthStatus == .authorizedAlways)
+    }
     /// True when the user previously connected Photos but later revoked access in iOS Settings.
     var photoAccessRevoked: Bool = false
     /// True while Places is scanning photo locations across the library.
@@ -178,10 +197,14 @@ final class AppStore {
     @ObservationIgnored private var covers: (version: String, photos: [String: Photo]) = ("", [:])
 
     private var toastTask: Task<Void, Never>?
+    private var saveDebounceTask: Task<Void, Never>?
     private var saveTask: Task<Void, Never>?
     private var widgetTask: Task<Void, Never>?
     private var reminderTask: Task<Void, Never>?
     private var placesTask: Task<Void, Never>?
+    private var libraryChangeTask: Task<Void, Never>?
+    @ObservationIgnored private var libraryObserver: PhotoLibraryObserver?
+    @ObservationIgnored private var dirtySave = false
     @ObservationIgnored private var lastWidgetInfo: WidgetInfo?
     private var refreshing = false
     private var pendingForceRefresh = false
@@ -207,6 +230,8 @@ final class AppStore {
             initial = SavedState()
         }
         saved = initial
+        photoAuthStatus = PhotoLibrary.authorizationStatus
+        locationAuthStatus = Locator.shared.authorizationStatus
         photoAccessRevoked = persist && initial.sources.device && !PhotoLibrary.hasAccess
         index = photoAccessRevoked ? [:] : initial.visibleIndex
         favoriteKeys = Set(initial.favorites.map(\.key))
@@ -220,7 +245,51 @@ final class AppStore {
                 Share.pruneStaleShares()
                 ReelExport.pruneStaleExports()
             }
+            Locator.shared.onAuthorizationChange = { [weak self] status in
+                guard let self else { return }
+                self.locationAuthStatus = status
+                if self.saved.places.on && !(status == .authorizedWhenInUse || status == .authorizedAlways) {
+                    self.placeCard = nil
+                }
+            }
+            libraryObserver = PhotoLibraryObserver { [weak self] in
+                Task { @MainActor [weak self] in
+                    self?.scheduleLibraryChangeRefresh()
+                }
+            }
         }
+    }
+
+    private func scheduleLibraryChangeRefresh() {
+        guard persist, !isDemoMode, samplePhotos.isEmpty, saved.onboarded, saved.sources.device else { return }
+        guard UIApplication.shared.applicationState == .active else { return }
+        libraryChangeTask?.cancel()
+        libraryChangeTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled, let self else { return }
+            await self.refreshIndex(force: PhotoLibrary.isLimited)
+        }
+    }
+
+    /// Presents Apple's Limited Photos picker and refreshes the index as soon as the user taps Done.
+    func presentLimitedPicker() {
+        PhotoLibrary.presentLimitedPicker { [weak self] in
+            guard let self else { return }
+            Task { await self.refreshIndex(force: true) }
+        }
+    }
+
+    /// Unified deep-link entry for widget taps, reminder notifications, and "Show this day".
+    /// Updates `lastToday` first so a subsequent `catchUpToToday()` on scene activation cannot overwrite `md`.
+    func openDeepLink(day md: MonthDay) {
+        guard saved.onboarded else { return }
+        lastToday = MonthDay.today
+        viewer = nil
+        reel = nil
+        openAlbumID = nil
+        day = md
+        tab = .today
+        deepLinkToken &+= 1
     }
 
     /// Version 1.8 and earlier could import from Google Photos. Clears what that left behind once.
@@ -278,9 +347,30 @@ final class AppStore {
         }
     }
 
-    /// Each write waits for the one before it, so an older snapshot never lands after a newer one.
-    private func save() {
+    /// Coalesces rapid `saved` mutations into a single disk write. Call `flushSave()` before suspension.
+    private func scheduleSave() {
         guard persist, !isDemoMode else { return }
+        dirtySave = true
+        saveDebounceTask?.cancel()
+        saveDebounceTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(180))
+            guard !Task.isCancelled, let self else { return }
+            self.writeSaveNow()
+        }
+    }
+
+    /// Immediately persists any pending coalesced changes (invoked when leaving foreground).
+    func flushSave() {
+        guard persist, !isDemoMode, dirtySave else { return }
+        saveDebounceTask?.cancel()
+        saveDebounceTask = nil
+        writeSaveNow()
+    }
+
+    /// Each write waits for the one before it, so an older snapshot never lands after a newer one.
+    private func writeSaveNow() {
+        guard persist, !isDemoMode else { return }
+        dirtySave = false
         let snapshot = saved
         let file = storageURL
         let previous = saveTask
@@ -288,15 +378,35 @@ final class AppStore {
         bg.begin(name: "SaveAppState")
         saveTask = Task.detached(priority: .utility) {
             await previous?.value
-            try? FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
-            if let data = try? JSONEncoder().encode(snapshot) { try? data.write(to: file, options: .atomic) }
+            do {
+                try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
+                let data = try JSONEncoder().encode(snapshot)
+                try data.write(to: file, options: .atomic)
+                var excluded = file
+                var values = URLResourceValues()
+                values.isExcludedFromBackup = true
+                try? excluded.setResourceValues(values)
+            } catch {
+                AppStore.logger.error("Failed to save state.json: \(error.localizedDescription, privacy: .public)")
+            }
             await bg.end()
         }
     }
 
-    /// Reconciles saved source state if Photos access was revoked or re-granted in iOS Settings.
+    /// Reconciles saved source state if Photos or Location access was revoked or re-granted in iOS Settings.
     func reconcilePhotoAccess() {
         guard persist, !isDemoMode, samplePhotos.isEmpty else { return }
+        let currentPhotoAuth = PhotoLibrary.authorizationStatus
+        if currentPhotoAuth != photoAuthStatus {
+            photoAuthStatus = currentPhotoAuth
+        }
+        let currentLocAuth = Locator.shared.authorizationStatus
+        if currentLocAuth != locationAuthStatus {
+            locationAuthStatus = currentLocAuth
+            if saved.places.on && !Locator.shared.allowed {
+                placeCard = nil
+            }
+        }
         let revoked = saved.sources.device && !PhotoLibrary.hasAccess
         guard revoked != photoAccessRevoked else { return }
         photoAccessRevoked = revoked
@@ -355,9 +465,12 @@ final class AppStore {
     }
 
     private func runRefreshPass(force: Bool) async {
+        let limited = PhotoLibrary.isLimited
         if saved.deviceIndex.isEmpty || force { indexing = true }
         // Usually only a few photos were added since last time: count just those.
-        if !force, !saved.deviceIndex.isEmpty, saved.indexZone == TimeZone.autoupdatingCurrent.identifier,
+        // Skip the persistent change-token fast path in Limited mode: scope edits in Settings
+        // do not emit PHAsset change rows, so limited libraries always rescan directly.
+        if !force, !limited, !saved.deviceIndex.isEmpty, saved.indexZone == TimeZone.autoupdatingCurrent.identifier,
            let token = saved.changeToken,
            let added = await PhotoLibrary.newPhotos(since: token) {
             // Load CityList BEFORE snapshotting `saved` so concurrent @MainActor edits are never clobbered.
@@ -383,11 +496,23 @@ final class AppStore {
             }
             return
         }
-        let known = force || saved.deviceIndex.isEmpty ? nil : saved.librarySignature
+        // In Limited mode pass known: nil so same-count middle swaps are never missed.
+        let known = (force || limited || saved.deviceIndex.isEmpty) ? nil : saved.librarySignature
         let fresh = await PhotoLibrary.deviceIndex(known: known)
         // Taken after the scan: a photo added during it is missed until the next full scan,
         // never counted twice.
         let token = await PhotoLibrary.changeToken()
+        // Prune deleted device photos from Favorites and Albums when full library access is active.
+        var existingIDs: Set<String>? = nil
+        if fresh != nil && PhotoLibrary.authorizationStatus == .authorized {
+            let referenced = Set(
+                saved.favorites.filter { $0.source == .device }.map(\.ref)
+                + saved.albums.flatMap { $0.photos.filter { $0.source == .device }.map(\.ref) }
+            )
+            if !referenced.isEmpty {
+                existingIDs = await PhotoLibrary.existingIdentifiers(from: Array(referenced))
+            }
+        }
         var next = saved
         var changed = false
         if token != next.changeToken {
@@ -403,6 +528,25 @@ final class AppStore {
             next.deviceIndex = fresh.index
             next.librarySignature = fresh.signature
             changed = true
+        }
+        if let existingIDs {
+            let prunedFavs = next.favorites.filter { $0.source != .device || existingIDs.contains($0.ref) }
+            if prunedFavs != next.favorites {
+                next.favorites = prunedFavs
+                changed = true
+            }
+            let prunedAlbums = next.albums.map { album in
+                Album(
+                    id: album.id,
+                    name: album.name,
+                    photos: album.photos.filter { $0.source != .device || existingIDs.contains($0.ref) },
+                    createdAt: album.createdAt
+                )
+            }
+            if prunedAlbums != next.albums {
+                next.albums = prunedAlbums
+                changed = true
+            }
         }
         if changed { saved = next }
         if fresh != nil {
@@ -445,7 +589,9 @@ final class AppStore {
             return
         }
         saved.places.asked = true
-        guard await Locator.shared.requestAccess() else {
+        let granted = await Locator.shared.requestAccess()
+        locationAuthStatus = Locator.shared.authorizationStatus
+        guard granted else {
             saved.places.on = false
             return showToast(L.s("toast_location_off"), kind: .info)
         }
@@ -484,7 +630,12 @@ final class AppStore {
 
     /// Looks up the city the phone is in, and whether Today shows a card for it.
     func checkPlace() async {
+        locationAuthStatus = Locator.shared.authorizationStatus
         guard saved.places.on, !Task.isCancelled else {
+            placeCard = nil
+            return
+        }
+        guard Locator.shared.allowed else {
             placeCard = nil
             return
         }
@@ -526,10 +677,10 @@ final class AppStore {
             saved.placeDismissed = nil
         }
         if saved.places.on {
-            if let cities = CityList.shared {
-                placeCard = makePlaceCard(saved.placeIndex, here: here ?? restored, cities: cities, customHome: saved.customHomeCity)
-            } else {
-                startPlacesTask(rebuild: false)
+            let targetID = here ?? restored
+            Task { [weak self] in
+                guard let self, let cities = await CityList.load(), self.saved.places.on else { return }
+                self.placeCard = makePlaceCard(self.saved.placeIndex, here: targetID, cities: cities, customHome: self.saved.customHomeCity)
             }
         }
     }
@@ -562,6 +713,10 @@ final class AppStore {
         let years = yearsForDay(index, md)
         guard let newest = years.first else { return nil }
         var found = favoriteCover(saved.favorites, md, years: years)
+        if let fav = found, fav.source == .device, samplePhotos.isEmpty {
+            let existing = await PhotoLibrary.existingIdentifiers(from: [fav.ref])
+            if !existing.contains(fav.ref) { found = nil }
+        }
         if found == nil {
             if !samplePhotos.isEmpty {
                 found = samplePhotos.filter { MonthDay.of($0.time) == md && yearOf($0.time) == newest }.min { $0.time < $1.time }
@@ -604,7 +759,11 @@ final class AppStore {
     }
 
     func connectDevice() async -> Bool {
-        guard await PhotoLibrary.requestAccess() else { return false }
+        guard await PhotoLibrary.requestAccess() else {
+            photoAuthStatus = PhotoLibrary.authorizationStatus
+            return false
+        }
+        photoAuthStatus = PhotoLibrary.authorizationStatus
         photoAccessRevoked = false
         saved.sources.device = true
         await refreshIndex()
@@ -738,19 +897,13 @@ final class AppStore {
         }
     }
 
-    /// Saves an exported reel MP4 into Apple Photos.
-    @discardableResult
-    func saveReelToPhotos(_ url: URL) async -> Bool {
+    /// Saves an exported reel MP4 into Apple Photos. Returns outcome so `ReelView` renders feedback on its own overlay.
+    func saveReelToPhotos(_ url: URL) async -> ReelSaveResult {
         if !PhotoLibrary.hasAccess, !(await PhotoLibrary.requestAccess()) {
-            showToast(L.s("toast_allow_save"), kind: .info)
-            return false
+            photoAuthStatus = PhotoLibrary.authorizationStatus
+            return .denied
         }
-        let ok = await PhotoLibrary.saveVideo(url)
-        if ok {
-            showToast(L.s("toast_saved_photos"), kind: .success)
-        } else {
-            showToast(L.s("toast_save_failed"), kind: .error)
-        }
-        return ok
+        photoAuthStatus = PhotoLibrary.authorizationStatus
+        return await PhotoLibrary.saveVideo(url) ? .saved : .failed
     }
 }

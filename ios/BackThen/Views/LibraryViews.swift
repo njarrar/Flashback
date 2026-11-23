@@ -44,6 +44,7 @@ struct FavoritesView: View {
     @State private var newestFirst = true
     @State private var shareFor: ShareRequest?
     @State private var albumFor: [Photo]?
+    @State private var drag = DragSelect()
 
     var body: some View {
         let favs = store.saved.favorites.sorted { newestFirst ? $0.time > $1.time : $0.time < $1.time }
@@ -55,6 +56,7 @@ struct FavoritesView: View {
             start: { p in
                 selecting = true
                 picked = [p]
+                drag.arm(p)
             },
             batch: { photos, select in
                 if select {
@@ -111,7 +113,24 @@ struct FavoritesView: View {
             if favs.isEmpty {
                 EmptyNote(icon: "heart", title: L.s("favorites_empty_title"), text: L.s("favorites_empty_body"))
             } else {
-                SquareGrid(photos: favs, showDate: true, selection: selection)
+                SquareGrid(
+                    photos: favs,
+                    showDate: true,
+                    selection: selection,
+                    removeLabel: L.s("unfavorite"),
+                    onRemove: { photo in store.toggleFavorite(photo) }
+                )
+                .background(
+                    DragSelectHook(
+                        drag: drag,
+                        enabled: selecting,
+                        active: true,
+                        order: { favs },
+                        selecting: $selecting,
+                        picked: $picked
+                    )
+                )
+                .environment(\.dragSelect, drag)
             }
             Color.clear.frame(height: 120)
         }
@@ -137,11 +156,11 @@ struct FavoritesView: View {
         .sensoryFeedback(.selection, trigger: picked.count) { _, _ in selecting }
         .onChange(of: store.tab) { _, _ in stopSelecting() }
         .onChange(of: favs.count) { _, n in if n == 0 && selecting { stopSelecting() } }
+        .onDisappear { drag.cancel() }
     }
 
     private func startReel(_ photos: [Photo]) {
         guard photos.count >= 2 else { return store.showToast(L.s("reel_need_two"), kind: .info, undoLabel: nil, undo: nil) }
-        if photos.count > ReelPlan.maxPhotos { store.showToast(L.p("reel_too_many", ReelPlan.maxPhotos), kind: .info, undoLabel: nil, undo: nil) }
         store.reel = ReelRequest(photos: photos)
         stopSelecting()
     }
@@ -149,6 +168,7 @@ struct FavoritesView: View {
     private func stopSelecting() {
         selecting = false
         picked = []
+        drag.cancel()
     }
 }
 
@@ -265,9 +285,6 @@ struct AlbumsView: View {
                         }
                         if a.photos.count >= 2 {
                             Button(L.s("make_reel"), systemImage: "play.rectangle") {
-                                if a.photos.count > ReelPlan.maxPhotos {
-                                    store.showToast(L.p("reel_too_many", ReelPlan.maxPhotos), kind: .info, undoLabel: nil, undo: nil)
-                                }
                                 store.reel = ReelRequest(photos: a.photos)
                             }
                         }
@@ -303,9 +320,7 @@ struct AlbumsView: View {
         ) {
             Button(L.s("delete_album"), role: .destructive) {
                 if let target = deleteTarget {
-                    let name = target.name
                     store.deleteAlbum(target.id)
-                    store.showToast(L.s("album_deleted", ["name": name]), kind: .info, undoLabel: nil, undo: nil)
                 }
             }
         } message: {
@@ -321,9 +336,16 @@ private struct NewAlbumSheet: View {
     let created: (Album) -> Void
     @State private var name = ""
     @State private var pickerItems: [PhotosPickerItem] = []
-    @State private var chosen: [Photo] = []
+    @State private var pickedFromLibrary: [Photo] = []
+    @State private var pickedFavorites: [Photo] = []
+    @State private var limitedMissed = false
     @State private var loadingPicks = false
     @FocusState private var focused: Bool
+
+    private var chosen: [Photo] {
+        var seen = Set<String>()
+        return (pickedFromLibrary + pickedFavorites).filter { seen.insert($0.key).inserted }
+    }
 
     var body: some View {
         ScrollView {
@@ -366,22 +388,37 @@ private struct NewAlbumSheet: View {
                     .background(Palette.bg, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                     .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Palette.line, lineWidth: 1))
                 }
-                .onChange(of: pickerItems) { _, items in
-                    let ids = items.compactMap(\.itemIdentifier)
-                    guard !ids.isEmpty else { chosen = []; return }
-                    loadingPicks = true
-                    Task {
-                        let fetched: [Photo] = await Task.detached(priority: .userInitiated) {
-                            var out: [Photo] = []
-                            PHAsset.fetchAssets(withLocalIdentifiers: ids, options: nil).enumerateObjects { a, _, _ in
-                                out.append(Photo(key: "d:\(a.localIdentifier)", source: .device, ref: a.localIdentifier,
-                                                 width: a.pixelWidth, height: a.pixelHeight, time: a.creationDate ?? Date()))
-                            }
-                            return out
-                        }.value
-                        chosen = fetched
+                .task(id: pickerItems) {
+                    let ids = pickerItems.compactMap(\.itemIdentifier)
+                    guard !ids.isEmpty else {
+                        pickedFromLibrary = []
+                        limitedMissed = false
                         loadingPicks = false
+                        return
                     }
+                    loadingPicks = true
+                    let fetched: [Photo] = await Task.detached(priority: .userInitiated) {
+                        var out: [Photo] = []
+                        PHAsset.fetchAssets(withLocalIdentifiers: ids, options: PhotoLibrary.imageOptions()).enumerateObjects { a, _, _ in
+                            let time = a.creationDate ?? a.modificationDate ?? Date(timeIntervalSince1970: 0)
+                            out.append(Photo(key: "d:\(a.localIdentifier)", source: .device, ref: a.localIdentifier,
+                                             width: a.pixelWidth, height: a.pixelHeight, time: time))
+                        }
+                        return out
+                    }.value
+                    guard !Task.isCancelled else { return }
+                    pickedFromLibrary = fetched
+                    limitedMissed = fetched.count < ids.count
+                    loadingPicks = false
+                }
+
+                if limitedMissed {
+                    Label(L.s("limited_access_note"), systemImage: "info.circle")
+                        .font(.nunito(13, .medium))
+                        .foregroundStyle(Palette.accInk)
+                        .padding(10)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Palette.accTint, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
 
                 if !store.saved.favorites.isEmpty {
@@ -390,9 +427,15 @@ private struct NewAlbumSheet: View {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 6) {
                                 ForEach(store.saved.favorites.prefix(20)) { p in
-                                    let on = chosen.contains { $0.key == p.key }
+                                    let on = pickedFavorites.contains { $0.key == p.key } || pickedFromLibrary.contains { $0.key == p.key }
                                     Button {
-                                        if on { chosen.removeAll { $0.key == p.key } } else { chosen.append(p) }
+                                        if pickedFavorites.contains(where: { $0.key == p.key }) {
+                                            pickedFavorites.removeAll { $0.key == p.key }
+                                        } else if pickedFromLibrary.contains(where: { $0.key == p.key }) {
+                                            pickedFromLibrary.removeAll { $0.key == p.key }
+                                        } else {
+                                            pickedFavorites.append(p)
+                                        }
                                     } label: {
                                         PhotoImage(photo: p)
                                             .frame(width: 64, height: 64)
@@ -484,9 +527,6 @@ struct AlbumDetailView: View {
 
             if album.photos.count >= 2 {
                 Pill(label: L.s("make_reel"), systemImage: "play.rectangle", kind: .tint, height: 46, wide: true) {
-                    if album.photos.count > ReelPlan.maxPhotos {
-                        store.showToast(L.p("reel_too_many", ReelPlan.maxPhotos), kind: .info, undoLabel: nil, undo: nil)
-                    }
                     store.reel = ReelRequest(photos: album.photos)
                 }
                 .padding(.horizontal, 16).padding(.bottom, 16)
@@ -510,9 +550,6 @@ struct AlbumDetailView: View {
                 Menu {
                     if album.photos.count >= 2 {
                         Button(L.s("make_reel"), systemImage: "play.rectangle") {
-                            if album.photos.count > ReelPlan.maxPhotos {
-                                store.showToast(L.p("reel_too_many", ReelPlan.maxPhotos), kind: .info, undoLabel: nil, undo: nil)
-                            }
                             store.reel = ReelRequest(photos: album.photos)
                         }
                     }
@@ -536,10 +573,8 @@ struct AlbumDetailView: View {
         }
         .confirmationDialog(L.s("delete_album_confirm", ["name": album.name]), isPresented: $confirmDelete, titleVisibility: .visible) {
             Button(L.s("delete_album"), role: .destructive) {
-                let name = album.name
                 dismiss()
                 store.deleteAlbum(album.id)
-                store.showToast(L.s("album_deleted", ["name": name]), kind: .info, undoLabel: nil, undo: nil)
             }
         } message: {
             Text(L.s("delete_album_note"))

@@ -1,8 +1,5 @@
 package com.njarrar.backthen.ui
 
-import android.net.Uri
-import android.os.Build
-import android.provider.MediaStore
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
@@ -16,12 +13,16 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.displayCutoutPadding
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.TextAutoSize
@@ -62,13 +63,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.exifinterface.media.ExifInterface
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.njarrar.backthen.AppViewModel
 import com.njarrar.backthen.ToastKind
 import com.njarrar.backthen.core.L
 import com.njarrar.backthen.core.Photo
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.filter
@@ -87,11 +88,17 @@ fun BackThenApp(vm: AppViewModel) {
     val view = LocalView.current
     val reduce = LocalReduceMotion.current
     val wide = LocalConfiguration.current.screenWidthDp >= 600
+    val ready by vm.ready.collectAsStateWithLifecycle()
     val state by vm.saved.collectAsStateWithLifecycle()
     val viewer by vm.viewer.collectAsStateWithLifecycle()
     val reel by vm.reel.collectAsStateWithLifecycle()
     val toastState by vm.toastState.collectAsStateWithLifecycle()
     val demo by vm.demoScene.collectAsStateWithLifecycle()
+
+    if (!ready) {
+        Box(Modifier.fillMaxSize().background(p.bg))
+        return
+    }
 
     var tab by rememberSaveable { mutableStateOf(Tab.Today) }
     var openAlbum by rememberSaveable { mutableStateOf<String?>(null) }
@@ -103,20 +110,14 @@ fun BackThenApp(vm: AppViewModel) {
     val tabs = rememberSaveableStateHolder()
     val reselect = remember { MutableSharedFlow<Tab>(extraBufferCapacity = 1) }
 
-    // Clear selection whenever switching tabs or opening a day via reminder.
-    LaunchedEffect(tab) {
-        selecting = false
-        pickedKeys = emptyList()
-    }
     LaunchedEffect(Unit) {
         vm.openToday.collect {
             selecting = false
             pickedKeys = emptyList()
+            albumFor = null
             tab = Tab.Today
         }
     }
-    // Never leak stale albumFor across ViewerScreen dismissals.
-    LaunchedEffect(viewer) { albumFor = null }
 
     LaunchedEffect(demo) {
         when (demo) {
@@ -127,6 +128,8 @@ fun BackThenApp(vm: AppViewModel) {
 
     // Standard Android M3 back behavior: return to Today tab before exiting app.
     BackHandler(enabled = state.onboarded && tab != Tab.Today && openAlbum == null && !selecting && viewer == null && reel == null) {
+        selecting = false
+        pickedKeys = emptyList()
         tab = Tab.Today
     }
 
@@ -139,6 +142,8 @@ fun BackThenApp(vm: AppViewModel) {
                 reselect.tryEmit(t)
             }
         } else {
+            selecting = false
+            pickedKeys = emptyList()
             tab = t
         }
     }
@@ -186,6 +191,7 @@ fun BackThenApp(vm: AppViewModel) {
 
             if (wide) {
                 // Adaptive NavigationRail for tablets, foldables, and landscape widths >= 600dp.
+                val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
                 Row(
                     Modifier
                         .fillMaxSize()
@@ -211,8 +217,8 @@ fun BackThenApp(vm: AppViewModel) {
                         }
                         Box(Modifier.fillMaxHeight().width(1.dp).background(p.line))
                     }
-                    Box(Modifier.weight(1f).fillMaxHeight()) {
-                        mainContent(0.dp)
+                    Box(Modifier.weight(1f).fillMaxHeight().displayCutoutPadding()) {
+                        mainContent(navBottom)
                     }
                 }
             } else {
@@ -251,6 +257,12 @@ fun BackThenApp(vm: AppViewModel) {
         // Full-screen ViewerScreen overlay with reduced-motion-aware AnimatedVisibility.
         var lastViewer by remember { mutableStateOf(viewer) }
         if (viewer != null) lastViewer = viewer
+        LaunchedEffect(viewer) {
+            if (viewer == null && lastViewer != null) {
+                if (!reduce) delay(200)
+                lastViewer = null
+            }
+        }
         AnimatedVisibility(
             visible = viewer != null,
             enter = if (reduce) EnterTransition.None else fadeIn(tween(180)) + scaleIn(tween(180), initialScale = 0.96f),
@@ -270,20 +282,16 @@ fun BackThenApp(vm: AppViewModel) {
                         }
                     },
                     onAlbum = { albumFor = listOf(it.key) },
-                    onClose = { vm.viewer.value = null },
+                    onClose = {
+                        albumFor = null
+                        vm.viewer.value = null
+                    },
                     onShowDay = { md -> vm.openDay(md) },
-                    cityFor = { ph ->
+                    cityAt = { lat, lon ->
                         withContext(Dispatchers.IO) {
-                            if (!vm.places.hasCities) return@withContext null
+                            if (!vm.places.checkCitiesAvailable()) return@withContext null
                             val cities = vm.places.cities() ?: return@withContext null
-                            var uri = Uri.parse(ph.uri)
-                            if (Build.VERSION.SDK_INT >= 29) {
-                                runCatching { uri = MediaStore.setRequireOriginal(uri) }
-                            }
-                            val latLon = runCatching {
-                                context.contentResolver.openInputStream(uri)?.use { ExifInterface(it).latLong }
-                            }.getOrNull() ?: return@withContext null
-                            val id = cities.city(latLon[0], latLon[1]) ?: return@withContext null
+                            val id = cities.city(lat, lon) ?: return@withContext null
                             val city = cities.cities.getOrNull(id) ?: return@withContext null
                             val country = countryName(city.country)
                             if (country.isNotBlank()) "${city.name}, $country" else city.name
@@ -317,6 +325,12 @@ fun BackThenApp(vm: AppViewModel) {
         // Full-screen ReelScreen overlay with reduced-motion-aware AnimatedVisibility.
         var lastReel by remember { mutableStateOf(reel) }
         if (reel != null) lastReel = reel
+        LaunchedEffect(reel) {
+            if (reel == null && lastReel != null) {
+                if (!reduce) delay(200)
+                lastReel = null
+            }
+        }
         AnimatedVisibility(
             visible = reel != null,
             enter = if (reduce) EnterTransition.None else fadeIn(tween(200)),

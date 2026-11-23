@@ -12,7 +12,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
-import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -179,11 +179,9 @@ import com.njarrar.backthen.core.fullDate
 import com.njarrar.backthen.core.homeCity
 import com.njarrar.backthen.core.label
 import com.njarrar.backthen.core.localDate
-import com.njarrar.backthen.core.masonryColumns
 import com.njarrar.backthen.core.nearbyDays
 import com.njarrar.backthen.core.shortLabel
 import com.njarrar.backthen.core.swipeTarget
-import com.njarrar.backthen.core.tileAspect
 import com.njarrar.backthen.core.yearsForDay
 import com.njarrar.backthen.data.CAN_SAVE_TO_GALLERY
 import com.njarrar.backthen.data.YearLayout
@@ -485,6 +483,10 @@ fun TodayScreen(
     val day by vm.day.collectAsStateWithLifecycle()
     val indexing by vm.indexing.collectAsStateWithLifecycle()
     val placesScanning by vm.placesScanning.collectAsStateWithLifecycle()
+    val hasCities by vm.hasCities.collectAsStateWithLifecycle()
+    val partialAccess by vm.partialAccess.collectAsStateWithLifecycle()
+    val notificationsGranted by vm.notificationsGranted.collectAsStateWithLifecycle()
+    val openTodayToken by vm.openTodayToken.collectAsStateWithLifecycle()
     val demo by vm.demoScene.collectAsStateWithLifecycle()
     val placeCard by vm.placeCard.collectAsStateWithLifecycle()
 
@@ -499,8 +501,18 @@ fun TodayScreen(
     var placeOpenId by rememberSaveable { mutableStateOf<Int?>(null) }
     var placeAsk by rememberSaveable { mutableStateOf(false) }
     var cityList by remember { mutableStateOf<CityList?>(null) }
-    LaunchedEffect(vm.places.hasCities) {
-        if (vm.places.hasCities) cityList = vm.places.cities()
+    LaunchedEffect(hasCities) {
+        if (hasCities) cityList = vm.places.cities()
+    }
+    LaunchedEffect(openTodayToken) {
+        if (openTodayToken > 0) {
+            placeOpenId = null
+            calendar = false
+            settings = false
+            albumFor = null
+            shareFor = null
+            placeAsk = false
+        }
     }
     val placeOpenCity: City? = remember(placeOpenId, cityList, placeCard) {
         val id = placeOpenId ?: return@remember null
@@ -522,8 +534,8 @@ fun TodayScreen(
     val askPlaces = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { vm.setPlaces(true) }
 
     // Guard PlaceAskSheet against active sheets, viewer, reel, selecting, or place screen.
-    LaunchedEffect(index.isEmpty(), state.places.asked, demo) {
-        if (index.isEmpty() || state.places.asked || demo != null || !vm.places.hasCities) return@LaunchedEffect
+    LaunchedEffect(index.isEmpty(), state.places.asked, demo, hasCities) {
+        if (index.isEmpty() || state.places.asked || demo != null || !hasCities) return@LaunchedEffect
         delay(1500)
         if (!calendar && !settings && !selecting && placeOpenId == null && vm.viewer.value == null && vm.reel.value == null) {
             placeAsk = true
@@ -610,11 +622,15 @@ fun TodayScreen(
                 }
                 onPickedKeysChange(next)
             },
+            startAll = { batch ->
+                Haptics.longPress(view)
+                onSelectingChange(true)
+                onPickedKeysChange(batch.map { it.key })
+            },
         )
     }
 
     val favorites = remember(state.favorites) { state.favorites.map { it.key }.toSet() }
-    val partialAccess = vm.library.hasPartialAccess()
 
     // Delta-time normalized auto-scroll (consistent across 60Hz/90Hz/120Hz) + post-layout recheck.
     val drag = remember { DragSelect() }
@@ -622,9 +638,8 @@ fun TodayScreen(
         if (state.layout == YearLayout.STRIP && !groups.isNullOrEmpty()) {
             val years = groups.map { it.year }
             val at = stripPick?.let { years.indexOf(it) }?.takeIf { it >= 0 } ?: 0
-            val g = groups[at]
-            val cols = masonryColumns(g.photos.map { tileAspect(it.width, it.height) })
-            cols.flatten().map { g.photos[it] }
+            // Keep chronological row order so horizontal drags don't sweep entire off-screen columns.
+            groups[at].photos
         } else {
             allPhotos
         }
@@ -641,17 +656,18 @@ fun TodayScreen(
                 val now = withFrameNanos { it }
                 val dt = ((now - prev) / 1e9f).coerceIn(0f, 0.05f)
                 prev = now
-                list.scrollBy(factor * maxAutoScrollPxPerSec * dt)
-                // Wait one frame for layout to commit updated tile rects before rechecking hit-test.
-                withFrameNanos {}
                 drag.recheck?.invoke()
+                list.scrollBy(factor * maxAutoScrollPxPerSec * dt)
             }
         }
     }
 
-    // Sideways day-swipe: no per-delta coroutine spawns, dp-based flick velocity, YearPills exclusion, Reduce Motion aware.
-    var swipeDragPx by remember { mutableFloatStateOf(0f) }
+    // Sideways day-swipe: Animatable cancels competing animations cleanly; YearPills bounds cleared outside STRIP.
+    val swipeDragPx = remember { Animatable(0f) }
     var yearPillsBounds by remember { mutableStateOf<Rect?>(null) }
+    LaunchedEffect(state.layout) {
+        if (state.layout != YearLayout.STRIP) yearPillsBounds = null
+    }
     var listOriginY by remember { mutableFloatStateOf(0f) }
     var listOriginX by remember { mutableFloatStateOf(0f) }
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
@@ -836,8 +852,8 @@ fun TodayScreen(
                         onDragCancel = {
                             if (ignored) return@detectHorizontalDragGestures
                             scope.launch {
-                                if (reduce) swipeDragPx = 0f
-                                else animate(swipeDragPx, 0f, animationSpec = spring()) { v, _ -> swipeDragPx = v }
+                                if (reduce) swipeDragPx.snapTo(0f)
+                                else swipeDragPx.animateTo(0f, animationSpec = spring())
                             }
                         },
                         onDragEnd = {
@@ -848,18 +864,18 @@ fun TodayScreen(
                             scope.launch {
                                 if (t != null && far) {
                                     if (reduce) {
-                                        swipeDragPx = 0f
+                                        swipeDragPx.snapTo(0f)
                                         land(t)
                                     } else {
                                         val out = if (dx < 0) -size.width.toFloat() else size.width.toFloat()
-                                        animate(swipeDragPx, out, animationSpec = tween(150)) { cur, _ -> swipeDragPx = cur }
+                                        swipeDragPx.animateTo(out, animationSpec = tween(150))
                                         land(t)
-                                        swipeDragPx = -out
-                                        animate(-out, 0f, animationSpec = tween(220)) { cur, _ -> swipeDragPx = cur }
+                                        swipeDragPx.snapTo(-out)
+                                        swipeDragPx.animateTo(0f, animationSpec = tween(220))
                                     }
                                 } else {
-                                    if (reduce) swipeDragPx = 0f
-                                    else animate(swipeDragPx, 0f, animationSpec = spring()) { cur, _ -> swipeDragPx = cur }
+                                    if (reduce) swipeDragPx.snapTo(0f)
+                                    else swipeDragPx.animateTo(0f, animationSpec = spring())
                                 }
                             }
                         },
@@ -868,12 +884,14 @@ fun TodayScreen(
                         change.consume()
                         dx += amount
                         tracker.addPosition(change.uptimeMillis, change.position)
-                        swipeDragPx = if (target(dx) == null) dx / 4f else dx
+                        val dragTarget = if (target(dx) == null) dx / 4f else dx
+                        scope.launch { swipeDragPx.snapTo(dragTarget) }
                     }
                 }
                 .graphicsLayer {
-                    translationX = swipeDragPx
-                    alpha = if (size.width > 0f) 1f - (abs(swipeDragPx) / size.width).coerceIn(0f, 1f) * 0.5f else 1f
+                    val curDrag = swipeDragPx.value
+                    translationX = curDrag
+                    alpha = if (size.width > 0f) 1f - (abs(curDrag) / size.width).coerceIn(0f, 1f) * 0.5f else 1f
                 }
 
             PullToRefreshBox(
@@ -906,6 +924,14 @@ fun TodayScreen(
                                 onManage = askPhotos,
                                 onSettings = { openAppSettings(context) },
                                 modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
+                            )
+                        }
+                        placeCard?.takeIf { !selecting }?.let { card ->
+                            PlaceCardView(
+                                vm,
+                                card,
+                                onOpen = { placeOpenId = card.city.id },
+                                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 10.dp),
                             )
                         }
                         YearCards(
@@ -1032,14 +1058,17 @@ fun TodayScreen(
                                 }
                             }
 
-                            // Single floating YearBar overlay for the currently scrolled-past year.
-                            pinnedYear?.let { g ->
+                            // Single floating YearBar overlay retaining lastPinned so its 150ms fade animates smoothly.
+                            var lastPinned by remember(day.key) { mutableStateOf<YearGroup?>(null) }
+                            if (pinnedYear != null) lastPinned = pinnedYear
+                            lastPinned?.let { g ->
+                                val isPinned = pinnedYear != null
                                 val yearAllPicked = g.photos.isNotEmpty() && g.photos.all { it.key in pickedSet }
                                 YearBar(
                                     year = g.year,
                                     count = g.photos.size,
                                     day = day,
-                                    pinned = true,
+                                    pinned = isPinned,
                                     onShare = { onShareYear(g) },
                                     selecting = selecting,
                                     allPicked = yearAllPicked,
@@ -1103,19 +1132,22 @@ fun TodayScreen(
             state = state,
             day = day,
             partialAccess = partialAccess,
+            notificationsBlocked = !notificationsGranted,
             placesScanning = placesScanning,
+            activeHomeId = activeHomeId,
             homeCityName = homeName,
             visitedCities = visitedCities,
             onConnectDevice = { if (!state.sources.device) askPhotos() },
             onManagePhotos = askPhotos,
             onOpenSettings = { openAppSettings(context) },
+            onOpenNotificationSettings = { openNotificationSettings(context) },
             onReminder = { on -> if (on) askNotify() else vm.setReminder { it.copy(on = false) } },
             onReminderTime = { h, m -> vm.setReminder { it.copy(hour = h, minute = m) } },
             onLayout = vm::setLayout,
             onHidden = { md, on -> vm.setHidden(md, on); if (md == day) settings = false },
             onHomeCity = { id -> vm.setHomeCity(id) },
             onDismiss = { settings = false },
-            onPlaces = if (!vm.places.hasCities) null else { on -> if (on) askPlaces.launch(vm.places.permissions) else vm.setPlaces(false) },
+            onPlaces = if (!hasCities) null else { on -> if (on) askPlaces.launch(vm.places.permissions) else vm.setPlaces(false) },
         )
     }
 
@@ -1320,6 +1352,7 @@ fun FavoritesScreen(
 ) {
     val p = LocalPalette.current
     val context = LocalContext.current
+    val density = LocalDensity.current
     val view = LocalView.current
     val reduce = LocalReduceMotion.current
     val state by vm.saved.collectAsStateWithLifecycle()
@@ -1361,70 +1394,105 @@ fun FavoritesScreen(
         )
     }
 
+    val drag = remember { DragSelect() }
+    val orderNow by rememberUpdatedState(favs)
+    val pickedNow by rememberUpdatedState(picked)
+    val selectingNow by rememberUpdatedState(selecting)
+    val maxAutoScrollPxPerSec = with(density) { 480.dp.toPx() }
+    LaunchedEffect(drag, maxAutoScrollPxPerSec) {
+        snapshotFlow { drag.edge.floatValue }.collectLatest { factor ->
+            if (factor == 0f) return@collectLatest
+            var prev = withFrameNanos { it }
+            while (true) {
+                val now = withFrameNanos { it }
+                val dt = ((now - prev) / 1e9f).coerceIn(0f, 0.05f)
+                prev = now
+                drag.recheck?.invoke()
+                grid.scrollBy(factor * maxAutoScrollPxPerSec * dt)
+            }
+        }
+    }
+    val langVersion = L.version.value
+
     BoxWithConstraints(Modifier.fillMaxSize().background(p.bg)) {
         val cols = maxOf(3, (maxWidth / 120.dp).toInt())
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(cols),
-            state = grid,
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 0.dp, bottom = bottomPadding + 24.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-            modifier = Modifier.fillMaxSize().statusBarsPadding(),
-        ) {
-            item(key = "favs-header", span = { GridItemSpan(maxLineSpan) }) {
-                val years = remember(favs) { favs.map { localDate(it.time).year }.toSet().size }
-                val allPicked = favs.isNotEmpty() && pickedSet.size >= favs.size
-                Header(
-                    L.s("tab_favorites"),
-                    if (favs.isEmpty()) L.s("favorites_none")
-                    else L.s("photos_from_years", "photos" to L.p("photos", favs.size), "years" to L.p("years", years)),
-                    horizontalPadding = 4.dp,
-                    trailing = if (favs.isEmpty()) null else {
-                        {
-                            if (selecting) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    TextButton(onClick = {
-                                        Haptics.tick(view)
-                                        onPickedKeysChange(if (allPicked) emptyList() else favs.map { it.key })
-                                    }) {
-                                        T(L.s(if (allPicked) "clear_selection" else "select_all"), size = 14, weight = FontWeight.SemiBold, color = Accent)
-                                    }
-                                    TextButton(onClick = ::stopSelecting) {
-                                        T(L.s("cancel"), size = 15, weight = FontWeight.SemiBold)
-                                    }
-                                }
-                            } else {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    if (favs.size >= 2) {
-                                        IconButton(onClick = { vm.startReel(favs) }, modifier = Modifier.size(48.dp)) {
-                                            Icon(Icons.Outlined.Movie, L.s("make_reel"), tint = p.ink, modifier = Modifier.size(22.dp))
+        CompositionLocalProvider(LocalDragSelect provides drag) {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(cols),
+                state = grid,
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 0.dp, bottom = bottomPadding + 24.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .then(
+                        drag.modifier(
+                            order = { orderNow },
+                            selecting = { selectingNow },
+                            picked = { pickedNow },
+                        ) { nextPicked ->
+                            if (nextPicked.size != pickedNow.size) Haptics.tick(view)
+                            onPickedKeysChange(nextPicked.map { it.key })
+                        },
+                    ),
+            ) {
+                item(key = "favs-header", span = { GridItemSpan(maxLineSpan) }) {
+                    val years = remember(favs) { favs.map { localDate(it.time).year }.toSet().size }
+                    val allPicked = favs.isNotEmpty() && pickedSet.size >= favs.size
+                    Header(
+                        L.s("tab_favorites"),
+                        if (favs.isEmpty()) L.s("favorites_none")
+                        else L.s("photos_from_years", "photos" to L.p("photos", favs.size), "years" to L.p("years", years)),
+                        horizontalPadding = 4.dp,
+                        trailing = if (favs.isEmpty()) null else {
+                            {
+                                if (selecting) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        TextButton(onClick = {
+                                            Haptics.tick(view)
+                                            onPickedKeysChange(if (allPicked) emptyList() else favs.map { it.key })
+                                        }) {
+                                            T(L.s(if (allPicked) "clear_selection" else "select_all"), size = 14, weight = FontWeight.SemiBold, color = Accent)
+                                        }
+                                        TextButton(onClick = ::stopSelecting) {
+                                            T(L.s("cancel"), size = 15, weight = FontWeight.SemiBold)
                                         }
                                     }
-                                    TextButton(onClick = { onSelectingChange(true) }) {
-                                        T(L.s("select"), size = 15, weight = FontWeight.SemiBold)
+                                } else {
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        if (favs.size >= 2) {
+                                            IconButton(onClick = { vm.startReel(favs) }, modifier = Modifier.size(48.dp)) {
+                                                Icon(Icons.Outlined.Movie, L.s("make_reel"), tint = p.ink, modifier = Modifier.size(22.dp))
+                                            }
+                                        }
+                                        TextButton(onClick = { onSelectingChange(true) }) {
+                                            T(L.s("select"), size = 15, weight = FontWeight.SemiBold)
+                                        }
                                     }
                                 }
                             }
-                        }
-                    },
-                )
-            }
-            if (favs.isEmpty()) {
-                item(key = "favs-empty", span = { GridItemSpan(maxLineSpan) }) {
-                    EmptyNote(Icons.Outlined.FavoriteBorder, L.s("favorites_empty_title"), L.s("favorites_empty_body"))
+                        },
+                    )
                 }
-            } else {
-                itemsIndexed(favs, key = { _, ph -> ph.key }) { i, photo ->
-                    Box(Modifier.aspectRatio(1f)) {
-                        PhotoTile(
-                            photo = photo,
-                            radius = 12.dp,
-                            favorite = false,
-                            selection = selection,
-                            onOpen = { vm.viewer.value = Viewer(favs, i) },
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                        DateChip(formatDate(localDate(photo.time), "yMMMd"), Modifier.align(Alignment.BottomStart).padding(6.dp))
+                if (favs.isEmpty()) {
+                    item(key = "favs-empty", span = { GridItemSpan(maxLineSpan) }) {
+                        EmptyNote(Icons.Outlined.FavoriteBorder, L.s("favorites_empty_title"), L.s("favorites_empty_body"))
+                    }
+                } else {
+                    itemsIndexed(favs, key = { _, ph -> ph.key }) { i, photo ->
+                        val chipText = remember(photo.time, langVersion) { formatDate(localDate(photo.time), "yMMMd") }
+                        Box(Modifier.aspectRatio(1f)) {
+                            PhotoTile(
+                                photo = photo,
+                                radius = 12.dp,
+                                favorite = false,
+                                selection = selection,
+                                onOpen = { vm.viewer.value = Viewer(favs, i) },
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                            DateChip(chipText, Modifier.align(Alignment.BottomStart).padding(6.dp))
+                        }
                     }
                 }
             }
@@ -1633,6 +1701,9 @@ fun AlbumScreen(vm: AppViewModel, album: Album, bottomPadding: Dp, scrollTop: Fl
     var editing by rememberSaveable { mutableStateOf(false) }
     val grid = rememberLazyGridState()
 
+    LaunchedEffect(album.photos.isEmpty()) {
+        if (album.photos.isEmpty()) editing = false
+    }
     LaunchedEffect(Unit) {
         scrollTop.collect {
             if (reduce) grid.scrollToItem(0) else grid.animateScrollToItem(0)
@@ -1789,13 +1860,13 @@ fun AlbumScreen(vm: AppViewModel, album: Album, bottomPadding: Dp, scrollTop: Fl
                                 Box(
                                     Modifier
                                         .align(Alignment.TopEnd)
-                                        .size(36.dp)
+                                        .size(48.dp)
                                         .clickable(role = Role.Button) { removePhoto(photo) }
                                         .semantics { contentDescription = L.s("remove_from_album") },
-                                    contentAlignment = Alignment.Center,
+                                    contentAlignment = Alignment.TopEnd,
                                 ) {
                                     Box(
-                                        Modifier.size(24.dp).clip(CircleShape).background(AccentFill),
+                                        Modifier.padding(6.dp).size(24.dp).clip(CircleShape).background(AccentFill),
                                         contentAlignment = Alignment.Center,
                                     ) {
                                         Icon(Icons.Filled.Close, null, tint = Color.White, modifier = Modifier.size(15.dp))
