@@ -28,7 +28,7 @@
     <plurals name="years">
         <item quantity="zero">لا سنوات</item>
         <item quantity="one">سنة واحدة</item>
-        <item quantity="two">سنتان</item>
+        <item quantity="two">سنتين</item>
         <item quantity="few">{n} سنوات</item>
         <item quantity="many">{n} سنة</item>
         <item quantity="other">{n} سنة</item>
@@ -114,7 +114,7 @@
     <string name="days_photos">{days}، {photos}</string>
     <string name="see_city">عرض {city}</string>
     <string name="places_title">أماكن تعود إليها</string>
-    <string name="places_note">عندما تكون في مدينة زرتها من قبل، تعرض «اليوم» صورك من رحلاتك السابقة. يبقى موقعك على هذا الهاتف. قائمة المدن من GeoNames (CC BY 4.0).</string>
+    <string name="places_note">عندما تكون في مدينة زرتها من قبل، تعرض «اليوم» صورك من رحلاتك السابقة. يبقى موقعك على هذا الهاتف. قائمة المدن من &#x2066;GeoNames (CC BY 4.0)&#x2069;.</string>
     <string name="places_ask_title">هل تريد عرض صور الأماكن التي تعود إليها؟</string>
     <string name="places_ask_body">عندما تزور مدينة زرتها من قبل، يعرض Flashback صورك من آخر مرة كنت فيها هناك.</string>
     <string name="places_ask_private">المدينة فقط، تُحدَّد على هذا الهاتف. لا يُرسَل أي شيء.</string>
@@ -127,8 +127,6 @@
     <string name="next_day_photos">اليوم التالي الذي فيه صور</string>
     <string name="back_to_today">العودة إلى اليوم</string>
     <string name="select">تحديد</string>
-    <string name="selected">محددة</string>
-    <string name="not_selected">غير محددة</string>
     <string name="select_hint">اضغط على الصور لتحديدها</string>
     <string name="n_selected">المحدد: {photos}</string>
     <string name="album">ألبوم</string>
@@ -218,7 +216,6 @@
     <string name="toast_unfavorited">أُزيلت من المفضلة</string>
     <string name="toast_album_created">تم إنشاء الألبوم</string>
     <string name="toast_added_to">أُضيفت إلى {name}</string>
-    <string name="toast_new_album_hint">اضغط «تحديد» واختر الصور، ثم اضغط «ألبوم»</string>
     <string name="toast_allow_save">اسمح بالوصول إلى الصور للحفظ</string>
     <string name="toast_saved_photos">تم الحفظ في الصور</string>
     <string name="toast_saved_gallery">تم الحفظ في &#x2066;Pictures/Flashback&#x2069;</string>
@@ -272,7 +269,7 @@
     <string name="reel_end_card">بطاقة الختام</string>
     <string name="reel_on">تشغيل</string>
     <string name="reel_off">إيقاف</string>
-    <string name="reel_years_range">{years} · من {from} إلى {to}</string>
+    <string name="reel_years_range">خلال {years} · من {from} إلى {to}</string>
     <string name="reel_making">جارٍ صنع الريل</string>
     <string name="reel_making_note">يُصنع على هاتفك. صورك لا تغادره أبدًا.</string>
     <string name="reel_failed">تعذّر صنع الريل. حاول مرة أخرى.</string>

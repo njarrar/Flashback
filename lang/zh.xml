@@ -22,7 +22,7 @@
         <item quantity="other">{n} 张照片</item>
     </plurals>
     <plurals name="years">
-        <item quantity="other">{n} 年</item>
+        <item quantity="other">{n}年</item>
     </plurals>
     <plurals name="skipped_days">
         <item quantity="other">已跳过 {n} 天没有照片的日子</item>
@@ -60,9 +60,9 @@
     <string name="privacy_line">你的照片只留在这部手机上。</string>
 
     <!-- Daily reminder, on the welcome screen and in the notification -->
-    <string name="reminder_title_years">{day}有 {years} 的照片</string>
+    <string name="reminder_title_years">{day}有{years}的照片</string>
     <string name="reminder_title_any">{day}有往年的照片</string>
-    <string name="reminder_body_oldest">最早的一张拍于 {year} 年。轻点回顾。</string>
+    <string name="reminder_body_oldest">最早的一张拍于{year}年。轻点回顾。</string>
     <string name="reminder_body">轻点回顾。</string>
     <string name="reminder_onboarding_title">每天一条提醒</string>
     <string name="reminder_onboarding_body">只在有往年照片的日子提醒。时间可以稍后更改。</string>
@@ -73,7 +73,7 @@
     <string name="today_none">这一天没有照片</string>
     <string name="pick_another_day">选择其他日期</string>
     <string name="layout_cards">年份卡片</string>
-    <string name="place_card_range">{trips}，从 {first} 到 {last}。{photos}。</string>
+    <string name="place_card_range">{trips}，从{first}到{last}。{photos}。</string>
     <string name="place_card_one">{trips}，{first}。{photos}。</string>
     <string name="place_been_before">你以前来过{city}</string>
     <string name="trips_photos">{trips} · {photos}</string>
@@ -93,12 +93,10 @@
     <string name="next_day_photos">下一个有照片的日子</string>
     <string name="back_to_today">回到今天</string>
     <string name="select">选择</string>
-    <string name="selected">已选择</string>
-    <string name="not_selected">未选择</string>
     <string name="select_hint">轻点照片进行选择</string>
     <string name="n_selected">已选择 {photos}</string>
     <string name="album">相簿</string>
-    <string name="share_year">分享 {year} 年</string>
+    <string name="share_year">分享{year}年</string>
     <string name="empty_no_sources_title">没有连接照片</string>
     <string name="empty_title">{day}还没有照片</string>
     <string name="empty_no_sources_ios">允许 Flashback 使用 Apple 照片，查看往年的这一天。</string>
@@ -184,7 +182,6 @@
     <string name="toast_unfavorited">已从收藏中移除</string>
     <string name="toast_album_created">相簿已创建</string>
     <string name="toast_added_to">已添加到“{name}”</string>
-    <string name="toast_new_album_hint">轻点“选择”，选择照片，再轻点“相簿”</string>
     <string name="toast_allow_save">允许访问照片才能保存</string>
     <string name="toast_saved_photos">已存储到“照片”</string>
     <string name="toast_saved_gallery">已保存到 Pictures/Flashback</string>

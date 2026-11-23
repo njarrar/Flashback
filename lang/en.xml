@@ -107,8 +107,6 @@
     <string name="next_day_photos">Next day with photos</string>
     <string name="back_to_today">Back to today</string>
     <string name="select">Select</string>
-    <string name="selected">Selected</string>
-    <string name="not_selected">Not selected</string>
     <string name="select_hint">Tap photos to select</string>
     <string name="n_selected">{photos} selected</string>
     <string name="album">Album</string>
@@ -198,7 +196,6 @@
     <string name="toast_unfavorited">Removed from Favorites</string>
     <string name="toast_album_created">Album created</string>
     <string name="toast_added_to">Added to {name}</string>
-    <string name="toast_new_album_hint">Tap Select, pick photos, then tap Album</string>
     <string name="toast_allow_save">Allow photo access to save</string>
     <string name="toast_saved_photos">Saved to Photos</string>
     <string name="toast_saved_gallery">Saved to Pictures/Flashback</string>
