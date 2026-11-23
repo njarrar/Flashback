@@ -93,9 +93,7 @@ struct TodayView: View {
                 Group {
                     headerView(day: day, today: today, stackHeader: stackHeader, largeTitleOpacity: largeTitleOpacity, showCompact: showCompact, summary: summary)
 
-                    if store.saved.layout == .mosaic, !hidden, let groups, groups.count >= 3 {
-                        yearJumpStrip(years: groups.map(\.year), scroll: scroll)
-                    }
+                    yearJump(groups: hidden ? nil : groups, scroll: scroll)
 
                     dayContent(day: day, today: today, groups: groups, hidden: hidden, selection: selection, activeStripGroup: activeStripGroup)
                     Color.clear.frame(height: 120)
@@ -156,10 +154,10 @@ struct TodayView: View {
                     reel: { startReel(picked) }
                 )
                 .padding(.bottom, 4)
-                .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
+                .transition(selectBarTransition)
             }
         }
-        .animation(reduceMotion ? nil : .spring(response: 0.32, dampingFraction: 0.84), value: selecting)
+        .animation(selectBarAnimation, value: selecting)
         .sheet(isPresented: $calendar) {
             // The screenshot demo opens on last month until the 15th, so the calendar shot
             // has a month of photo days rather than days still to come (see make_photos.py).
@@ -257,6 +255,21 @@ struct TodayView: View {
         .padding(.bottom, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .id("top")
+    }
+
+    private var selectBarTransition: AnyTransition {
+        reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity)
+    }
+
+    private var selectBarAnimation: Animation? {
+        reduceMotion ? nil : .spring(response: 0.32, dampingFraction: 0.84)
+    }
+
+    @ViewBuilder
+    private func yearJump(groups: [YearGroup]?, scroll: ScrollViewProxy) -> some View {
+        if store.saved.layout == .mosaic, let groups, groups.count >= 3 {
+            yearJumpStrip(years: groups.map(\.year), scroll: scroll)
+        }
     }
 
     /// Compact horizontal Year Jump pill strip for jumping across multi-year mosaic days.

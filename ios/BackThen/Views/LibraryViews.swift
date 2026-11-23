@@ -156,46 +156,7 @@ struct FavoritesView: View {
             if favs.isEmpty {
                 EmptyNote(icon: "heart", title: L.s("favorites_empty_title"), text: L.s("favorites_empty_body"))
             } else {
-                LazyVStack(alignment: .leading, spacing: 20) {
-                    ForEach(groups) { group in
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                Text(L.num(group.year))
-                                    .font(.nunito(26, .black, maxSize: 34))
-                                    .tight(26)
-                                    .foregroundStyle(Palette.ink)
-                                    .accessibilityAddTraits(.isHeader)
-                                Text(L.p("photos", group.photos.count))
-                                    .font(.nunito(13, .semibold, maxSize: 16))
-                                    .foregroundStyle(Palette.muted)
-                                Spacer()
-                            }
-                            .padding(.horizontal, 20)
-
-                            SquareGrid(
-                                photos: group.photos,
-                                showDate: true,
-                                compactDate: true,
-                                selection: selection,
-                                removeLabel: L.s("unfavorite"),
-                                onRemove: { photo in store.toggleFavorite(photo) },
-                                viewerPhotos: favs,
-                                viewerOffset: group.offset
-                            )
-                        }
-                    }
-                }
-                .background(
-                    DragSelectHook(
-                        drag: drag,
-                        enabled: selecting,
-                        active: true,
-                        order: { favs },
-                        selecting: $selecting,
-                        picked: $picked
-                    )
-                )
-                .environment(\.dragSelect, drag)
+                favYearList(groups: groups, favs: favs, selection: selection)
             }
             Color.clear.frame(height: 120)
         }
@@ -211,10 +172,10 @@ struct FavoritesView: View {
                     reel: { startReel(picked) }
                 )
                 .padding(.bottom, 4)
-                .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
+                .transition(selectBarTransition)
             }
         }
-        .animation(reduceMotion ? nil : .spring(response: 0.32, dampingFraction: 0.84), value: selecting)
+        .animation(selectBarAnimation, value: selecting)
         .sheet(item: $shareFor) { ShareSheetView(request: $0) }
         .sheet(isPresented: Binding(get: { albumFor != nil }, set: { if !$0 { albumFor = nil } })) {
             AlbumSheet(photos: albumFor ?? [], created: { album in store.openAlbumID = album.id }, done: stopSelecting)
@@ -224,6 +185,57 @@ struct FavoritesView: View {
         .onChange(of: store.tab) { _, _ in stopSelecting() }
         .onChange(of: favs.count) { _, n in if n == 0 && selecting { stopSelecting() } }
         .onDisappear { drag.cancel() }
+    }
+
+    private func favYearList(groups: [FavYearGroup], favs: [Photo], selection: Selection) -> some View {
+        LazyVStack(alignment: .leading, spacing: 20) {
+            ForEach(groups) { group in
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(L.num(group.year))
+                            .font(.nunito(26, .black, maxSize: 34))
+                            .tight(26)
+                            .foregroundStyle(Palette.ink)
+                            .accessibilityAddTraits(.isHeader)
+                        Text(L.p("photos", group.photos.count))
+                            .font(.nunito(13, .semibold, maxSize: 16))
+                            .foregroundStyle(Palette.muted)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 20)
+
+                    SquareGrid(
+                        photos: group.photos,
+                        showDate: true,
+                        compactDate: true,
+                        selection: selection,
+                        removeLabel: L.s("unfavorite"),
+                        onRemove: { photo in store.toggleFavorite(photo) },
+                        viewerPhotos: favs,
+                        viewerOffset: group.offset
+                    )
+                }
+            }
+        }
+        .background(
+            DragSelectHook(
+                drag: drag,
+                enabled: selecting,
+                active: true,
+                order: { favs },
+                selecting: $selecting,
+                picked: $picked
+            )
+        )
+        .environment(\.dragSelect, drag)
+    }
+
+    private var selectBarTransition: AnyTransition {
+        reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity)
+    }
+
+    private var selectBarAnimation: Animation? {
+        reduceMotion ? nil : .spring(response: 0.32, dampingFraction: 0.84)
     }
 
     private func startReel(_ photos: [Photo]) {
