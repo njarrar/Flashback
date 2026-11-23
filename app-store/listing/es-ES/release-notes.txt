@@ -1,1 +1,1 @@
-Pequeñas mejoras. El recordatorio diario revisa su texto antes de programarse, y cada versión se revisa en los seis idiomas antes de salir.
+Muchas correcciones. Mantener pulsado y arrastrar vuelve a elegir fotos, ahora también en Favoritos. Las fotos que añades con acceso limitado aparecen al momento. El recordatorio diario mantiene su hora al cambiar de zona horaria. Los reels cargan y se guardan mejor, con un botón Reintentar si una foto no carga.

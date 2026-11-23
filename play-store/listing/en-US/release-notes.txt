@@ -1,1 +1,1 @@
-Fixes a bug where the app and the daily reminder showed code words such as "reminder_title_years" in place of text. All words are back, in every language.
+Many bug fixes. Long press and drag picks photos again, now in Favorites too. Photos you add with limited access show up right away. The daily reminder keeps its time after you change time zone. Reels load and save more reliably, with a Retry button when a photo can't load. Better Arabic grammar.

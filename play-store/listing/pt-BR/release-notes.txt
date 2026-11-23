@@ -1,1 +1,1 @@
-Corrige um erro em que o app e o lembrete diário mostravam palavras de código como "reminder_title_years" no lugar do texto. Todo o texto voltou, em todos os idiomas.
+Muitas correções. Tocar e segurar e depois arrastar volta a escolher fotos, agora também em Favoritos. Fotos adicionadas com acesso limitado aparecem na hora. O lembrete diário mantém o horário quando você muda de fuso. Os reels carregam e salvam melhor, com um botão Tentar de novo quando uma foto não carrega.

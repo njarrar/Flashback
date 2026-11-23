@@ -124,6 +124,35 @@ rather than take shots without real photos.
   that grows with the system text size; a large top app bar and navigation bar on
   Android. Light and dark mode.
 
+## What's new in 1.28
+
+Bug fixes from a full audit of both apps. Nothing changes how the app looks.
+
+- **Picking photos.** On iPhone, long press and drag picks a row of photos again, and it
+  now works in Favorites on both apps. The drag no longer stops the list from scrolling.
+- **Limited photo access.** Photos you add in Apple's "Selected Photos" picker, or in
+  Android's photo picker, show up as soon as you close it. Revoked access in Settings is
+  noticed when you come back to the app, on both phones.
+- **Reminder.** On Android the reminder no longer cancels itself after it runs, and it
+  sets itself again when the phone changes time zone or clock time. A reminder tap no
+  longer gets undone when the app catches up to today.
+- **Reels.** A photo that can't load shows a Retry button instead of spinning forever.
+  The phone stays awake while a reel is being made. Android picks another video encoder
+  when the first one fails, and no longer crashes on a recycled photo. Long titles shrink
+  to fit, and Arabic dates no longer jump across the dot.
+- **Widget.** The iPhone widget uses less memory and doesn't wait long for iCloud.
+- **Places.** Turning location off in Settings, or an "Allow once" that ran out, now
+  turns Places off cleanly. Home city picks match by city, not by name.
+- **Store rules.** The iPhone app now lists why it reads saved dates and file times
+  (Apple asks for this), and the widget says why it reads photos.
+- **Text.** Better Arabic for "two years", Chinese without stray spaces, and three unused
+  words removed. Store pages mention Places and the photo calendar. The privacy policy
+  now says Android backup is off and reels save to Movies/Flashback.
+- **Video ad.** Screen recordings in the ad now play to the end, instead of a frozen frame.
+- **Release checks.** Every language file is checked for matching words, `{slots}` and
+  plural forms, and unused words fail the check. Android store shots now catch the first
+  welcome screen and hide the Wi-Fi "!" mark. Workflows get only the access they need.
+
 ## What's new in 1.27
 
 - **Release QA in six gates.** Every update now passes the checks in [docs/QA.md](docs/QA.md)

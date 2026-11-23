@@ -1,1 +1,1 @@
-Corrige un bug où l'app et le rappel quotidien affichaient des mots de code comme « reminder_title_years » au lieu du texte. Tous les mots sont de retour, dans toutes les langues.
+De nombreuses corrections. Appui long puis glisser choisit à nouveau les photos, aussi dans Favoris. Les photos ajoutées avec un accès limité s'affichent tout de suite. Le rappel quotidien garde son heure après un changement de fuseau horaire. Les reels se chargent et s'enregistrent mieux, avec un bouton Réessayer si une photo ne se charge pas.

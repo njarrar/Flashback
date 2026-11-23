@@ -1,1 +1,1 @@
-Corrige un error por el que la app y el recordatorio diario mostraban palabras de código como «reminder_title_years» en lugar del texto. Todo el texto ha vuelto, en todos los idiomas.
+Muchas correcciones. Mantener pulsado y arrastrar vuelve a elegir fotos, ahora también en Favoritos. Las fotos que añades con acceso limitado aparecen al momento. El recordatorio diario mantiene su hora al cambiar de zona horaria. Los reels cargan y se guardan mejor, con un botón Reintentar si una foto no carga.

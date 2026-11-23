@@ -1,1 +1,1 @@
-Small fixes. The daily reminder now checks its text before it is set, and every release is checked in all six languages before it ships.
+Many bug fixes. Long press and drag picks photos again, now in Favorites too. Photos you add with limited access show up right away. The daily reminder keeps its time after you change time zone. Reels load and save more reliably, with a Retry button when a photo can't load. Better Arabic grammar.
