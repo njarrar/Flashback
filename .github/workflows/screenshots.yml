@@ -7,6 +7,9 @@ on:
   push:
     paths: [".github/workflows/screenshots.yml", ".github/screenshots/**", "lang/**"]
 
+permissions:
+  contents: read
+
 jobs:
   ios:
     runs-on: macos-15

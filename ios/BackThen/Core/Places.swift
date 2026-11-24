@@ -89,7 +89,7 @@ final class CityList: @unchecked Sendable {
         if lat == 0 && lon == 0 { return nil }
         let baseLat = Self.latIndex(lat)
         let baseLon = Self.lonIndex(lon)
-        let cosLat = cos(lat * .pi / 180)
+        let cosLat = cos(min(89.9, abs(lat) + 1.0) * .pi / 180)
         let kmPerLonDeg = 111.32 * max(cosLat, 0.0001)
         let lonRadius = min(180, max(1, Int(ceil(Self.reachKm / kmPerLonDeg))))
         let lonOffsets: [Int] = lonRadius >= 180 ? Array(0..<360) : Array(-lonRadius...lonRadius)
@@ -160,13 +160,30 @@ struct Trip: Equatable, Hashable, Sendable {
     let photos: Int
 }
 
+private let utcGregorianCalendar: Calendar = {
+    var c = Calendar(identifier: .gregorian)
+    c.timeZone = TimeZone(secondsFromGMT: 0) ?? .gmt
+    return c
+}()
+
+private func utcDayStamp(_ key: String) -> Date? {
+    let p = key.split(separator: "-").compactMap { Int($0) }
+    guard p.count == 3 else { return nil }
+    return utcGregorianCalendar.date(from: DateComponents(year: p[0], month: p[1], day: p[2]))
+}
+
 /// A city's visits, newest first.
 func trips(_ days: [String: Int], calendar: Calendar = .app) -> [Trip] {
-    let sorted = days.compactMap { k, n in dateOf(dayKey: k, calendar: calendar).map { ($0, n) } }.sorted { $0.0 < $1.0 }
+    let sorted = days.compactMap { k, n -> (local: Date, utc: Date, count: Int)? in
+        guard let local = dateOf(dayKey: k, calendar: calendar),
+              let utc = utcDayStamp(k) else { return nil }
+        return (local, utc, n)
+    }.sorted { $0.utc < $1.utc }
     var out: [Trip] = []
-    var start: Date?, last: Date?, count = 0, photos = 0
-    for (day, n) in sorted {
-        if let l = last, let gap = calendar.dateComponents([.day], from: l, to: day).day, gap <= 3 {
+    var start: Date?, last: Date?, lastUTC: Date?, count = 0, photos = 0
+    for (day, utc, n) in sorted {
+        // Compute day gaps in UTC Gregorian so midnight DST transitions never skew the 3-day window.
+        if let lUTC = lastUTC, let gap = utcGregorianCalendar.dateComponents([.day], from: lUTC, to: utc).day, gap <= 3 {
             count += 1
             photos += n
         } else {
@@ -176,6 +193,7 @@ func trips(_ days: [String: Int], calendar: Calendar = .app) -> [Trip] {
             photos = n
         }
         last = day
+        lastUTC = utc
     }
     if let s = start, let l = last { out.append(Trip(start: s, end: l, days: count, photos: photos)) }
     return out.reversed()
@@ -183,9 +201,11 @@ func trips(_ days: [String: Int], calendar: Calendar = .app) -> [Trip] {
 
 /// Home: the city with the most photo days in the two years before today, or ever.
 func homeCity(_ index: PlaceIndex, today: Date = Date(), calendar: Calendar = .app) -> Int? {
+    let nonEmpty = index.filter { !$0.value.isEmpty }
+    guard !nonEmpty.isEmpty else { return nil }
     let since = dayKey(calendar.date(byAdding: .year, value: -2, to: today) ?? today, calendar: calendar)
-    let recent = index.mapValues { days in days.keys.filter { $0 >= since }.count }
-    let pick = recent.values.contains { $0 > 0 } ? recent : index.mapValues(\.count)
+    let recent = nonEmpty.mapValues { days in days.keys.filter { $0 >= since }.count }
+    let pick = recent.values.contains { $0 > 0 } ? recent : nonEmpty.mapValues(\.count)
     return pick.max { a, b in a.value < b.value || (a.value == b.value && a.key > b.key) }?.key
 }
 

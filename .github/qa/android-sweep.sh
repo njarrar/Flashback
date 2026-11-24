@@ -33,6 +33,13 @@ grant() {
   fi
 }
 
+launch() { # label extra_args...
+  local label=$1; shift
+  if ! timeout 30 adb shell am start -W -n $PKG/.MainActivity "$@"; then
+    echo "api$API/$label: activity launch failed or timed out" >> "$QA_DIR/problems.txt"
+  fi
+}
+
 shot() { # label
   local file="$OUT/$1.png"
   adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS >/dev/null 2>&1 || true
@@ -61,15 +68,17 @@ sweep() { # mode languages...
   local mode=$1; shift
   if [ "$mode" = dark ]; then adb shell cmd uimode night yes || true; else adb shell cmd uimode night no || true; fi
   for l in "$@"; do
+    # Capture Step 1 Welcome BEFORE granting photo access so onboarding does not auto-skip to Step 2.
     adb shell pm clear $PKG >/dev/null || true
-    grant
     adb logcat -b all -c || true
-    timeout 30 adb shell am start -W -n $PKG/.MainActivity --es lang $l || true
+    launch "$mode-$l-welcome" --es lang "$l"
     sleep 6
     shot "$mode-$l-welcome"
+    # Grant permissions only after Step 1 Welcome is verified.
+    grant
     for scene in $SCENES; do
       adb shell am force-stop $PKG
-      timeout 30 adb shell am start -W -n $PKG/.MainActivity --es scene $scene --es lang $l || true
+      launch "$mode-$l-$scene" --es scene "$scene" --es lang "$l"
       sleep 8
       shot "$mode-$l-$scene"
     done

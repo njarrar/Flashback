@@ -63,11 +63,12 @@ fun nearbyDays(index: DayIndex, md: MonthDay, today: LocalDate = LocalDate.now()
  */
 fun swipeTarget(index: DayIndex, from: MonthDay, step: Int, today: LocalDate = LocalDate.now()): Pair<MonthDay, Int>? {
     if (step == 0) return null
+    val dir = if (step > 0) 1 else -1
     val leap = today.isLeapYear
     var at = from
     var skipped = 0
     for (i in 0 until 366) {
-        val next = at.shift(step)
+        val next = at.shift(dir)
         if (next == from) return null
         if (hasPhotos(index, next, today)) return next to skipped
         if (leap || next.month != 1 || next.day != 29) skipped++

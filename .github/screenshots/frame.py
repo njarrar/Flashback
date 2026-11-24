@@ -63,8 +63,8 @@ def backdrop():
     return im.convert("RGBA")
 
 
-def phone(shot):
-    sw = PHONE_W
+def phone(shot, width=PHONE_W):
+    sw = width
     sh = round(shot.height * sw / shot.width)
     shot = shot.resize((sw, sh), Image.LANCZOS)
     b, edge, r = 26, 6, round(sw * 0.15)
@@ -105,10 +105,21 @@ def wrap(d, text, f, width, kw):
 def calendar_card(shot):
     """The calendar sheet cut from the shot: the screen behind it is dimmed, so the
     sheet shows on its own, larger, over the Today screen."""
+    sw, sh = shot.size
     px = shot.load()
-    top = next(y for y in range(900, H - 200)
-               if all(px[x, y + k] == (255, 255, 255) for x in (200, W // 2, W - 200) for k in (0, 8, 16)))
-    return shot.crop((24, top + 30, W - 24, H - 148))
+    xs = (min(200, sw // 6), sw // 2, max(sw - 200, sw * 5 // 6))
+
+    def is_sheet(rgb):
+        return rgb[0] >= 242 and rgb[1] >= 240 and rgb[2] >= 236
+
+    top = next(
+        (
+            y for y in range(sh // 3, sh - 200)
+            if all(is_sheet(px[x, y + k]) for x in xs for k in (0, 8, 16))
+        ),
+        sh // 2,
+    )
+    return shot.crop((24, top + 30, sw - 24, max(top + 200, sh - 148)))
 
 
 def frame(raw, lang, head, sub):
@@ -138,8 +149,16 @@ def frame(raw, lang, head, sub):
     under = shot
     if name == "3-calendar":
         under = Image.open(raw.with_name("2-today.png")).convert("RGB")
-    p = phone(under)
-    top = max(y + 90, 820)
+    # Keep the entire Welcome phone inside the 2868px frame so the bottom privacy tagline
+    # ("Your photos stay on this phone.") is never sliced across any of the 6 languages.
+    if name == "1-welcome":
+        top = max(y + 60, 760)
+        max_phone_h = H - top - 72
+        sw = min(900, round((max_phone_h - 52) * under.width / under.height))
+        p = phone(under, width=sw)
+    else:
+        p = phone(under)
+        top = max(y + 90, 820)
     x = (W - p.width) // 2
     shadow(im, (x, top + 30, x + p.width, top + 30 + p.height), 180, 110, 50)
     im.alpha_composite(p, (x, top))

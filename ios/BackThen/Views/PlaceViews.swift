@@ -39,17 +39,7 @@ struct PlaceCardView: View {
         .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Palette.line, lineWidth: 1))
         .overlay(alignment: .topTrailing) {
             Button {
-                let prev = store.saved.placeDismissed
                 store.dismissPlaceCard()
-                store.showToast(
-                    card.city.name,
-                    kind: .info,
-                    undoLabel: L.s("undo"),
-                    undo: {
-                        store.saved.placeDismissed = prev
-                        Task { await store.checkPlace() }
-                    }
-                )
             } label: {
                 Image(systemName: "xmark").font(.system(size: 13, weight: .bold)).foregroundStyle(Palette.muted)
                     .frame(width: 44, height: 44).contentShape(Rectangle())
@@ -149,9 +139,6 @@ struct TripSection: View {
                     Spacer(minLength: 4)
                     if all.count >= 2 {
                         Button {
-                            if all.count > ReelPlan.maxPhotos {
-                                store.showToast(L.p("reel_too_many", ReelPlan.maxPhotos), kind: .info, undoLabel: nil, undo: nil)
-                            }
                             store.reel = ReelRequest(photos: all)
                         } label: {
                             Image(systemName: "play.rectangle").font(.system(size: 18)).foregroundStyle(Palette.ink)

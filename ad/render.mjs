@@ -20,6 +20,7 @@ const langs = arg("langs", Object.keys(LOCALES)).filter((l) => fs.existsSync(pat
 const cuts = arg("cuts", ["ad-30", "ad-15", "preview"]);
 const NAMES = { "ad-30": "flashback-ad-30s", "ad-15": "flashback-ad-15s", preview: "flashback-app-store-preview" };
 const SCENES = ["today", "viewer", "favorites", "calendar", "select", "album", "reel", "welcome", "cards"];
+const TAIL_SECONDS = 4.5;
 const text = JSON.parse(fs.readFileSync(path.join(here, "text.json"), "utf8"));
 const dateFile = path.join(shots, "date.txt");
 const date = fs.existsSync(dateFile) ? fs.readFileSync(dateFile, "utf8").trim() : new Date().toISOString().slice(0, 10);
@@ -32,11 +33,18 @@ function captions(lang) {
   return blocks.map(([h, s]) => [h, s ?? ""]);
 }
 
-// Keeps the last 4.5 seconds of each screen recording, once the scene has settled.
-// The simulator writes a frame only when the screen changes, so a still scene can end
-// long before the recording does. The clip is first made a steady 30 fps and held on its
-// last frame, then cut. A clip that still comes out empty is left out, and the cut uses
-// the screenshot instead.
+function probeDuration(file) {
+  try {
+    const out = execFileSync("ffprobe", [
+      "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", file,
+    ]).toString().trim();
+    const d = Number(out);
+    return Number.isFinite(d) && d > 0 ? d : 0;
+  } catch {
+    return 0;
+  }
+}
+
 function frameCount(file) {
   try {
     return Number(execFileSync("ffprobe", ["-v", "error", "-select_streams", "v:0", "-count_frames",
@@ -45,24 +53,40 @@ function frameCount(file) {
     return 0;
   }
 }
+
+// Keeps the last 4.5 seconds of real live motion from each screen recording.
+// Only pads the exact deficit when a VFR simulator capture ended earlier than 4.5s
+// so long recordings (such as reel.mp4 or Preview scenes) are never frozen into a still tail.
 function tails(lang) {
   const clips = {};
   for (const s of SCENES) {
     const src = path.join(shots, lang, `${s}.mp4`);
-    const held = path.join(shots, lang, `${s}-held.mp4`);
     const out = path.join(shots, lang, `${s}-tail.mp4`);
     if (!fs.existsSync(src)) continue;
     if (!fs.existsSync(out)) {
       try {
-        execFileSync("ffmpeg", ["-v", "error", "-y", "-i", src, "-an",
-          "-vf", "fps=30,tpad=stop_mode=clone:stop_duration=5,scale=1320:-2",
-          "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18", held]);
-        execFileSync("ffmpeg", ["-v", "error", "-y", "-sseof", "-4.5", "-i", held, "-c:v", "libx264",
-          "-pix_fmt", "yuv420p", "-crf", "18", out]);
+        const dur = probeDuration(src);
+        if (dur >= TAIL_SECONDS) {
+          execFileSync("ffmpeg", [
+            "-v", "error", "-y", "-sseof", `-${TAIL_SECONDS}`, "-i", src, "-an",
+            // Simulator recordings skip frames while the screen is still, so the last
+            // stretch can be short. Holding the last frame keeps the tail full length.
+            "-vf", `fps=30,tpad=stop_mode=clone:stop_duration=${TAIL_SECONDS},scale=1320:-2`,
+            "-t", String(TAIL_SECONDS),
+            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18", out,
+          ]);
+        } else if (dur > 0) {
+          const pad = Math.max(0, TAIL_SECONDS + 0.1 - dur).toFixed(3);
+          execFileSync("ffmpeg", [
+            "-v", "error", "-y", "-i", src, "-an",
+            "-vf", `fps=30,tpad=stop_mode=clone:stop_duration=${pad},scale=1320:-2`,
+            "-t", String(TAIL_SECONDS),
+            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18", out,
+          ]);
+        }
       } catch (e) {
         console.warn(`${lang}/${s}.mp4: ${e.message}`);
       }
-      fs.rmSync(held, { force: true });
     }
     const n = fs.existsSync(out) ? frameCount(out) : 0;
     if (n >= 120) clips[s] = true;
@@ -72,6 +96,25 @@ function tails(lang) {
     }
   }
   return clips;
+}
+
+function checkLoudness(file) {
+  try {
+    const res = execFileSync("ffmpeg", [
+      "-hide_banner", "-i", file, "-af", "ebur128=peak=true", "-f", "null", "-",
+    ], { stdio: ["ignore", "ignore", "pipe"] }).toString();
+    const lufs = [...res.matchAll(/I:\s+([-\d.]+)\s+LUFS/g)].pop()?.[1];
+    const tp = [...res.matchAll(/Peak:\s+([-\d.]+)\s+dBFS/g)].pop()?.[1];
+    if (lufs && tp) {
+      const i = Number(lufs), p = Number(tp);
+      console.log(`  Audio ${path.basename(file)}: ${i.toFixed(1)} LUFS, ${p.toFixed(1)} dBTP`);
+      if (i < -17.5 || i > -12.5 || p > -0.8) {
+        console.warn(`  WARNING: loudness out of target (-16..-14 LUFS, <= -1.0 dBTP): ${i} LUFS / ${p} dBTP`);
+      }
+    }
+  } catch {
+    // Non-fatal if ffmpeg probe fails.
+  }
 }
 
 if (!langs.length) {
@@ -93,7 +136,8 @@ const serveUrl = await bundle({ entryPoint: path.join(here, "src", "index.ts") }
 const browserExecutable = process.env.BROWSER || null;
 for (const props of all) {
   for (const id of cuts) {
-    const inputProps = { ...props, cut: id === "ad-15" ? "ad15" : "ad30" };
+    const cut = id === "ad-15" ? "ad15" : id === "preview" ? "preview" : "ad30";
+    const inputProps = { ...props, cut };
     const composition = await selectComposition({ serveUrl, id, inputProps, browserExecutable });
     const outputLocation = path.join(here, "out", props.lang, `${NAMES[id]}-${props.lang}.mp4`);
     await renderMedia({
@@ -104,5 +148,6 @@ for (const props of all) {
       enforceAudioTrack: true,
     });
     console.log(`Made ${path.relative(here, outputLocation)}`);
+    if (props.music) checkLoudness(outputLocation);
   }
 }

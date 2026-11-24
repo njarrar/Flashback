@@ -1,1 +1,1 @@
-Pequeñas mejoras. El recordatorio diario revisa su texto antes de programarse, y cada versión se revisa en los seis idiomas antes de salir.
+Un aspecto nuevo: colores más cálidos, una fila de años en Hoy para saltar entre ellos, puntos en los días del calendario con fotos, nuevas imágenes de bienvenida y favoritos agrupados por año. El visor tiene una barra de botones oscura y botones de año. Nuevos iconos oscuro y tintado. Además, correcciones: mantener pulsado y arrastrar vuelve a elegir fotos, y el recordatorio mantiene su hora al cambiar de zona horaria.

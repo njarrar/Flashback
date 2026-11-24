@@ -26,6 +26,9 @@ on:
   push:
     paths: [".github/workflows/play.yml", ".github/play/**"]
 
+permissions:
+  contents: read
+
 jobs:
   bundle:
     runs-on: ubuntu-latest
@@ -58,7 +61,8 @@ jobs:
           if jarsigner -verify out/BackThen-Android.aab | grep -q "jar verified"; then
             echo "Signed with the upload key." | tee -a "$GITHUB_STEP_SUMMARY"
           else
-            echo "Not signed. Add the upload key secrets and run again before uploading to Play." | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "::error::Bundle is not signed. Add the upload key secrets before building a Play release." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
           fi
       - uses: actions/upload-artifact@v4
         with: { name: bundle, path: out }

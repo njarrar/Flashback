@@ -42,6 +42,16 @@
             </intent-filter>
         </activity>
 
+        <!-- Sets the daily reminder again when the phone changes time zone or clock time. -->
+        <receiver
+            android:name=".data.TimezoneChangedReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.intent.action.TIME_SET" />
+            </intent-filter>
+        </receiver>
+
         <!-- Hands a finished reel to the app picked in the share sheet. -->
         <provider
             android:name="androidx.core.content.FileProvider"

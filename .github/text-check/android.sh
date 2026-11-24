@@ -12,8 +12,6 @@ adb shell mkdir -p /sdcard/DCIM/Camera
 for f in /tmp/photos/*.jpg; do adb push "$f" /sdcard/DCIM/Camera/ >/dev/null; done
 adb shell content call --uri content://media/ --method scan_volume --arg external_primary || true
 sleep 5
-adb shell pm grant $PKG android.permission.READ_MEDIA_IMAGES
-adb shell pm grant $PKG android.permission.POST_NOTIFICATIONS
 adb shell cmd overlay enable com.android.internal.systemui.navbar.threebutton || true
 SCENES=$(cat .github/text-check/scenes.txt)
 shoot() {
@@ -28,15 +26,16 @@ run() { # folder font_scale density
   adb shell wm density "$3"
   sleep 3
   for l in en ar; do
+    # Capture Step 1 Welcome BEFORE granting READ_MEDIA_IMAGES so onboarding does not auto-skip to Step 2.
     adb shell pm clear $PKG >/dev/null || true
-    adb shell pm grant $PKG android.permission.READ_MEDIA_IMAGES
-    adb shell pm grant $PKG android.permission.POST_NOTIFICATIONS
-    timeout 30 adb shell am start -W -n $PKG/.MainActivity --es lang $l || true
+    timeout 30 adb shell am start -W -n $PKG/.MainActivity --es lang "$l" || true
     sleep 6
     shoot "$OUT/$l-welcome.png"
+    adb shell pm grant $PKG android.permission.READ_MEDIA_IMAGES
+    adb shell pm grant $PKG android.permission.POST_NOTIFICATIONS
     for scene in $SCENES; do
       adb shell am force-stop $PKG
-      timeout 30 adb shell am start -W -n $PKG/.MainActivity --es scene $scene --es lang $l || true
+      timeout 30 adb shell am start -W -n $PKG/.MainActivity --es scene "$scene" --es lang "$l" || true
       sleep 8
       shoot "$OUT/$l-$scene.png"
     done
@@ -45,6 +44,8 @@ run() { # folder font_scale density
 # Makes a real reel on the emulator and keeps four of its frames. Fails the run if no video comes out.
 reel_check() {
   OUT="shots/reel-check"; mkdir -p "$OUT"
+  adb shell pm grant $PKG android.permission.READ_MEDIA_IMAGES
+  adb shell pm grant $PKG android.permission.POST_NOTIFICATIONS
   adb shell am force-stop $PKG
   adb logcat -c
   timeout 30 adb shell am start -W -n $PKG/.MainActivity --es scene reelexport --es lang en || true

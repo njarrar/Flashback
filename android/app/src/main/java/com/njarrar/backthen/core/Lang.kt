@@ -62,7 +62,7 @@ fun pluralForm(n: Int, language: String): String {
     val a = abs(n.toLong())
     val n10 = a % 10L
     val n100 = a % 100L
-    return when (language.take(2)) {
+    return when (language.lowercase(Locale.ROOT).take(2)) {
         "ar" -> when {
             a == 0L -> "zero"
             a == 1L -> "one"
@@ -112,6 +112,9 @@ object L {
 
     /** True when [key] has words in the current language or in English. */
     fun has(key: String): Boolean = state.lang.strings.containsKey(key) || state.english.strings.containsKey(key)
+
+    /** True when [key] has plural forms in the current language or in English. */
+    fun hasPlural(key: String): Boolean = state.lang.plurals.containsKey(key) || state.english.plurals.containsKey(key)
 
     val english: Strings get() = state.english
     val lang: Strings get() = state.lang
@@ -180,7 +183,12 @@ object L {
         if (args.isEmpty() || '{' !in text) return text
         return slot.replace(text) { m ->
             val value = args[m.groupValues[1]] ?: return@replace m.value
-            if (value is Int) num(value) else value.toString()
+            when (value) {
+                is Int -> num(value)
+                is Long -> NumberFormat.getIntegerInstance(state.locale).apply { isGroupingUsed = false }.format(value)
+                is Number -> NumberFormat.getNumberInstance(state.locale).format(value)
+                else -> value.toString()
+            }
         }
     }
 

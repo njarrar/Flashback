@@ -8,6 +8,9 @@ on:
   push:
     paths: [".github/workflows/build.yml"]
 
+permissions:
+  contents: read
+
 jobs:
   ios:
     runs-on: macos-15

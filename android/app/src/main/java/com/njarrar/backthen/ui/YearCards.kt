@@ -153,19 +153,22 @@ fun YearCards(
 private fun yearSelection(photos: List<Photo>, base: Selection): Selection {
     val all = photos.all { it.key in base.keys }
     val batch = base.toggleAll
+    val startAll = base.startAll
     return Selection(
         on = base.on,
         keys = if (all) photos.map { it.key }.toSet() else emptySet(),
-        start = base.start?.let { start ->
-            { _: Photo ->
+        start = when {
+            startAll != null -> { _: Photo -> startAll(photos) }
+            base.start != null -> { _: Photo ->
                 if (batch != null) {
-                    start(photos[0])
+                    base.start.invoke(photos[0])
                     if (photos.size > 1) batch(photos, true)
                 } else {
-                    start(photos[0])
+                    base.start.invoke(photos[0])
                     photos.drop(1).forEach(base.toggle)
                 }
             }
+            else -> null
         },
         toggle = { _ ->
             if (batch != null) {

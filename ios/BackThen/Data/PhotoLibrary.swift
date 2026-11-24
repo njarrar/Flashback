@@ -31,19 +31,23 @@ enum PhotoLibrary {
         }
     }
 
+    static var authorizationStatus: PHAuthorizationStatus {
+        PHPhotoLibrary.authorizationStatus(for: .readWrite)
+    }
+
     static var hasAccess: Bool {
-        let s = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        let s = authorizationStatus
         return s == .authorized || s == .limited
     }
 
-    static var isLimited: Bool { PHPhotoLibrary.authorizationStatus(for: .readWrite) == .limited }
+    static var isLimited: Bool { authorizationStatus == .limited }
 
     static var isDenied: Bool {
-        let s = PHPhotoLibrary.authorizationStatus(for: .readWrite)
+        let s = authorizationStatus
         return s == .denied || s == .restricted
     }
 
-    static var canAsk: Bool { PHPhotoLibrary.authorizationStatus(for: .readWrite) == .notDetermined }
+    static var canAsk: Bool { authorizationStatus == .notDetermined }
 
     static func requestAccess() async -> Bool {
         let s = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
@@ -51,9 +55,11 @@ enum PhotoLibrary {
     }
 
     @MainActor
-    static func presentLimitedPicker() {
+    static func presentLimitedPicker(completion: (@MainActor () -> Void)? = nil) {
         guard let top = topViewController() else { return }
-        PHPhotoLibrary.shared().presentLimitedLibraryPicker(from: top)
+        PHPhotoLibrary.shared().presentLimitedLibraryPicker(from: top) { _ in
+            Task { @MainActor in completion?() }
+        }
     }
 
     @MainActor
@@ -61,7 +67,7 @@ enum PhotoLibrary {
         let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
         let active = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
         var vc = (active?.keyWindow ?? active?.windows.first(where: \.isKeyWindow) ?? active?.windows.first)?.rootViewController
-        while let next = vc?.presentedViewController { vc = next }
+        while let next = vc?.presentedViewController, !next.isBeingDismissed { vc = next }
         return vc
     }
 
@@ -77,10 +83,35 @@ enum PhotoLibrary {
         }
     }
 
-    private static func imageOptions() -> PHFetchOptions {
+    static func imageOptions() -> PHFetchOptions {
         let o = PHFetchOptions()
         o.includeAssetSourceTypes = [.typeUserLibrary, .typeCloudShared, .typeiTunesSynced]
         return o
+    }
+
+    /// Batch-checks which local asset identifiers still exist in the library.
+    static func existingIdentifiers(from ids: [String]) async -> Set<String> {
+        guard !ids.isEmpty else { return [] }
+        return await Task.detached(priority: .utility) {
+            var present = Set<String>()
+            present.reserveCapacity(ids.count)
+            PHAsset.fetchAssets(withLocalIdentifiers: ids, options: imageOptions()).enumerateObjects { a, _, _ in
+                present.insert(a.localIdentifier)
+                assetCache.setObject(a, forKey: a.localIdentifier as NSString)
+            }
+            return present
+        }.value
+    }
+
+    /// Small in-memory asset cache populated by day/trip queries to avoid per-tile PhotoKit IPC lookups.
+    private static let assetCache: NSCache<NSString, PHAsset> = {
+        let c = NSCache<NSString, PHAsset>()
+        c.countLimit = 400
+        return c
+    }()
+
+    static func clearAssetCache() {
+        assetCache.removeAllObjects()
     }
 
     /// Photo counts per day for the whole library, built off the main thread. Nil when the
@@ -179,6 +210,7 @@ enum PhotoLibrary {
             let cal = Calendar.app
             var out: [Int: [Photo]] = [:]
             result.enumerateObjects { a, _, _ in
+                assetCache.setObject(a, forKey: a.localIdentifier as NSString)
                 let time = a.creationDate ?? Date()
                 let y = cal.component(.year, from: time)
                 out[y, default: []].append(
@@ -232,7 +264,15 @@ enum PhotoLibrary {
         let bucketed = ImageCache.bucket(size)
         let key = ImageCache.key(id, bucketed, fit: fit)
         if let hit = ImageCache.get(key) { return hit }
-        guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [id], options: imageOptions()).firstObject else { return nil }
+        let asset: PHAsset
+        if let cached = assetCache.object(forKey: id as NSString) {
+            asset = cached
+        } else if let fetched = PHAsset.fetchAssets(withLocalIdentifiers: [id], options: imageOptions()).firstObject {
+            assetCache.setObject(fetched, forKey: id as NSString)
+            asset = fetched
+        } else {
+            return nil
+        }
         let o = PHImageRequestOptions()
         o.isNetworkAccessAllowed = true
         o.deliveryMode = preview == nil ? .highQualityFormat : .opportunistic
@@ -261,7 +301,15 @@ enum PhotoLibrary {
 
     /// Full image data for sharing, with its type ("public.jpeg", "public.heic", ...).
     static func data(id: String) async -> (Data, String?)? {
-        guard let asset = PHAsset.fetchAssets(withLocalIdentifiers: [id], options: imageOptions()).firstObject else { return nil }
+        let asset: PHAsset
+        if let cached = assetCache.object(forKey: id as NSString) {
+            asset = cached
+        } else if let fetched = PHAsset.fetchAssets(withLocalIdentifiers: [id], options: imageOptions()).firstObject {
+            assetCache.setObject(fetched, forKey: id as NSString)
+            asset = fetched
+        } else {
+            return nil
+        }
         let o = PHImageRequestOptions()
         o.isNetworkAccessAllowed = true
         o.version = .current
@@ -345,9 +393,11 @@ enum ImageCache {
 
     static func bucket(_ size: CGSize) -> CGSize {
         let step: CGFloat = 64
+        let w = size.width.isFinite && size.width > 0 ? min(size.width, 4096) : step
+        let h = size.height.isFinite && size.height > 0 ? min(size.height, 4096) : step
         return CGSize(
-            width: max(step, ceil(size.width / step) * step),
-            height: max(step, ceil(size.height / step) * step)
+            width: max(step, ceil(w / step) * step),
+            height: max(step, ceil(h / step) * step)
         )
     }
 
@@ -358,10 +408,10 @@ enum ImageCache {
 
     static func get(_ key: NSString) -> UIImage? { cache.object(forKey: key) }
 
-    /// Full-screen images are skipped, so a few of them can't push out every thumbnail.
+    /// Full-screen viewer images are skipped, while 3x YearCards and hero mosaic tiles stay cached.
     static func set(_ image: UIImage, _ key: NSString) {
         let px = image.size.width * image.scale * image.size.height * image.scale
-        guard px <= 1200 * 1200 else { return }
+        guard px.isFinite, px > 0, px <= 2_400_000 else { return }
         cache.setObject(image, forKey: key, cost: Int(px * 4))
     }
 
@@ -381,5 +431,24 @@ enum ImageCache {
             return UIImage(contentsOfFile: url.path)
         }
         return UIImage(cgImage: cg)
+    }
+}
+
+/// Bridges PhotoKit change notifications (including Limited Photos edits) back to `@MainActor`.
+final class PhotoLibraryObserver: NSObject, PHPhotoLibraryChangeObserver, @unchecked Sendable {
+    private let onChange: @Sendable () -> Void
+
+    init(onChange: @escaping @Sendable () -> Void) {
+        self.onChange = onChange
+        super.init()
+        PHPhotoLibrary.shared().register(self)
+    }
+
+    deinit {
+        PHPhotoLibrary.shared().unregisterChangeObserver(self)
+    }
+
+    func photoLibraryDidChange(_ changeInstance: PHChange) {
+        onChange()
     }
 }

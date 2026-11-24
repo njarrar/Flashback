@@ -61,7 +61,13 @@ object ReelExport {
                 // Prune only stale reels (> 1 hour old) so an active share target isn't disrupted.
                 val cutoff = System.currentTimeMillis() - STALE_CACHE_MS
                 dir.listFiles()?.forEach { if (it.lastModified() < cutoff) it.delete() }
-                val file = File(dir, "${fileName()}.mp4")
+                val baseName = fileName()
+                var file = File(dir, "$baseName.mp4")
+                var suffix = 1
+                while (file.exists()) {
+                    file = File(dir, "$baseName-$suffix.mp4")
+                    suffix++
+                }
                 try {
                     write(renderer, file, load, progress)
                     file
@@ -78,15 +84,24 @@ object ReelExport {
     /** "Flashback 2026-11-03 19.40.12": a plain name that sorts by date where the file lands. */
     fun fileName(now: Date = Date()): String = "Flashback " + SimpleDateFormat("yyyy-MM-dd HH.mm.ss", Locale.ROOT).format(now)
 
-    private data class EncoderChoice(val codecName: String?, val width: Int, val height: Int)
+    private data class EncoderChoice(
+        val codecName: String?,
+        val width: Int,
+        val height: Int,
+        val bitrate: Int,
+        val includeColorSpace: Boolean = true,
+    )
 
     private fun alignDown(value: Int, alignment: Int): Int {
         val a = maxOf(2, alignment)
         return maxOf(a, (value / a) * a)
     }
 
-    /** Picks a supported AVC encoder (hardware first, then software fallback) and aligns dimensions to its capabilities. */
-    private fun chooseEncoder(reqW: Int, reqH: Int): EncoderChoice {
+    /** Returns prioritized AVC encoder candidates (hardware first, then software fallback) matching capabilities. */
+    private fun chooseEncoders(reqW: Int, reqH: Int): List<EncoderChoice> {
+        val targetBitrate = ((reqW.toLong() * reqH.toLong() * 9_000_000L) / (1080L * 1920L))
+            .toInt()
+            .coerceIn(4_500_000, 9_000_000)
         val infos = runCatching { MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos }.getOrNull().orEmpty()
         val avcEncoders = infos.filter { info ->
             info.isEncoder && info.supportedTypes.any { it.equals(MediaFormat.MIMETYPE_VIDEO_AVC, ignoreCase = true) }
@@ -95,19 +110,53 @@ object ReelExport {
             val sw = if (Build.VERSION.SDK_INT >= 29) info.isSoftwareOnly else (name.startsWith("omx.google.") || name.startsWith("c2.android."))
             if (sw) 1 else 0
         }
+        val candidates = ArrayList<EncoderChoice>()
         for (info in avcEncoders) {
-            val caps = runCatching { info.getCapabilitiesForType(MediaFormat.MIMETYPE_VIDEO_AVC)?.videoCapabilities }.getOrNull() ?: continue
-            val w = alignDown(reqW, caps.widthAlignment)
-            val h = alignDown(reqH, caps.heightAlignment)
-            if (caps.isSizeSupported(w, h)) {
-                return EncoderChoice(info.name, w, h)
+            val codecCaps = runCatching { info.getCapabilitiesForType(MediaFormat.MIMETYPE_VIDEO_AVC) }.getOrNull() ?: continue
+            val supportsSurface = codecCaps.colorFormats.contains(MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
+            if (!supportsSurface) continue
+            val videoCaps = codecCaps.videoCapabilities ?: continue
+            val w = alignDown(reqW, videoCaps.widthAlignment)
+            val h = alignDown(reqH, videoCaps.heightAlignment)
+            val supported = runCatching { videoCaps.areSizeAndRateSupported(w, h, ReelPlan.FPS.toDouble()) }.getOrDefault(false) ||
+                videoCaps.isSizeSupported(w, h)
+            if (!supported) continue
+            val clampedBitrate = targetBitrate.coerceIn(videoCaps.bitrateRange.lower, videoCaps.bitrateRange.upper)
+            candidates += EncoderChoice(info.name, w, h, clampedBitrate, includeColorSpace = true)
+            candidates += EncoderChoice(info.name, w, h, clampedBitrate, includeColorSpace = false)
+        }
+        if (candidates.isEmpty()) {
+            val w = alignDown(reqW, 16)
+            val h = alignDown(reqH, 16)
+            candidates += EncoderChoice(null, w, h, targetBitrate, includeColorSpace = true)
+            candidates += EncoderChoice(null, w, h, targetBitrate, includeColorSpace = false)
+        }
+        return candidates
+    }
+
+    private fun openEncoder(candidates: List<EncoderChoice>, file: File): Pair<EncoderChoice, Encoder> {
+        var lastError: Throwable? = null
+        for (candidate in candidates) {
+            try {
+                if (file.exists()) file.delete()
+                return candidate to Encoder(
+                    codecName = candidate.codecName,
+                    width = candidate.width,
+                    height = candidate.height,
+                    bitrate = candidate.bitrate,
+                    includeColorSpace = candidate.includeColorSpace,
+                    file = file,
+                )
+            } catch (t: Throwable) {
+                lastError = t
             }
         }
-        return EncoderChoice(null, alignDown(reqW, 16), alignDown(reqH, 16))
+        throw lastError ?: IllegalStateException("No compatible AVC encoder available")
     }
 
     private suspend fun write(renderer: ReelRenderer, file: File, load: suspend (Int) -> Bitmap?, progress: (Float) -> Unit) {
-        val choice = chooseEncoder(renderer.options.size.width, renderer.options.size.height)
+        val candidates = chooseEncoders(renderer.options.size.width, renderer.options.size.height)
+        val (choice, createdEncoder) = openEncoder(candidates, file)
         val w = choice.width
         val h = choice.height
         val plan = renderer.plan
@@ -116,11 +165,13 @@ object ReelExport {
         // Full-size photos, loaded as the reel reaches them and recycled once passed.
         val full = HashMap<Int, Bitmap?>()
         renderer.image = { full[it] }
-        var encoder: Encoder? = null
+        val encoder: Encoder = createdEncoder
+        val ctx = coroutineContext
+        val activeCheck: () -> Unit = { ctx.ensureActive() }
         try {
-            encoder = Encoder(choice.codecName, w, h, file)
             val frames = plan.frameCount
             val evict = ArrayList<Int>(4)
+            var lastReportedPct = -1
             for (f in 0 until frames) {
                 coroutineContext.ensureActive()
                 val t = f.toDouble() / ReelPlan.FPS
@@ -134,13 +185,17 @@ object ReelExport {
                 for (k in evict) full.remove(k)?.recycle()
                 frame.eraseColor(android.graphics.Color.BLACK)
                 renderer.draw(canvas, w.toFloat(), h.toFloat(), t)
-                encoder.frame(frame, f * 1_000_000_000L / ReelPlan.FPS)
+                encoder.frame(frame, f * 1_000_000_000L / ReelPlan.FPS, activeCheck)
                 val pct = (f + 1).toFloat() / frames
-                withContext(Dispatchers.Main.immediate) { progress(pct) }
+                val pctInt = (pct * 100f).toInt().coerceIn(0, 100)
+                if (pctInt != lastReportedPct || f == frames - 1) {
+                    lastReportedPct = pctInt
+                    withContext(Dispatchers.Main.immediate) { progress(pct) }
+                }
             }
-            encoder.finish()
+            encoder.finish(activeCheck)
         } finally {
-            encoder?.release()
+            encoder.release()
             renderer.image = { null }
             for (bmp in full.values) bmp?.recycle()
             full.clear()
@@ -163,7 +218,6 @@ object ReelExport {
             try {
                 resolver.openOutputStream(uri)?.use { out -> file.inputStream().use { it.copyTo(out) } } ?: error("no stream")
                 resolver.update(uri, ContentValues().apply { put(MediaStore.Video.Media.IS_PENDING, 0) }, null, null)
-                if (file.parentFile?.name == "reels") runCatching { file.delete() }
                 true
             } catch (e: Exception) {
                 resolver.delete(uri, null, null)
@@ -176,13 +230,21 @@ object ReelExport {
      * H.264 through the phone's video encoder. Frames go in as pictures drawn with OpenGL onto
      * the encoder's input surface, each with its own time, and come out into an MP4.
      */
-    private class Encoder(codecName: String?, private val width: Int, private val height: Int, file: File) {
+    private class Encoder(
+        codecName: String?,
+        private val width: Int,
+        private val height: Int,
+        bitrate: Int,
+        includeColorSpace: Boolean,
+        file: File,
+    ) {
         private var codec: MediaCodec? = null
         private var codecStarted = false
         private var muxer: MediaMuxer? = null
         private var input: Surface? = null
         private var track = -1
         private var muxing = false
+        private var samplesWritten = 0
         private var lastPtsUs = -1L
         private val info = MediaCodec.BufferInfo()
         private var display: EGLDisplay = EGL14.EGL_NO_DISPLAY
@@ -206,12 +268,14 @@ object ReelExport {
                 muxer = MediaMuxer(file.path, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
                 val format = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, width, height).apply {
                     setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
-                    setInteger(MediaFormat.KEY_BIT_RATE, 9_000_000)
+                    setInteger(MediaFormat.KEY_BIT_RATE, bitrate)
                     setInteger(MediaFormat.KEY_FRAME_RATE, ReelPlan.FPS)
                     setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1)
-                    setInteger(MediaFormat.KEY_COLOR_STANDARD, MediaFormat.COLOR_STANDARD_BT709)
-                    setInteger(MediaFormat.KEY_COLOR_TRANSFER, MediaFormat.COLOR_TRANSFER_SDR_VIDEO)
-                    setInteger(MediaFormat.KEY_COLOR_RANGE, MediaFormat.COLOR_RANGE_LIMITED)
+                    if (includeColorSpace) {
+                        setInteger(MediaFormat.KEY_COLOR_STANDARD, MediaFormat.COLOR_STANDARD_BT709)
+                        setInteger(MediaFormat.KEY_COLOR_TRANSFER, MediaFormat.COLOR_TRANSFER_SDR_VIDEO)
+                        setInteger(MediaFormat.KEY_COLOR_RANGE, MediaFormat.COLOR_RANGE_LIMITED)
+                    }
                 }
                 enc.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
                 input = enc.createInputSurface()
@@ -297,8 +361,8 @@ object ReelExport {
 
         private var uploaded = false
 
-        fun frame(bitmap: Bitmap, timeNs: Long) {
-            drain(false)
+        fun frame(bitmap: Bitmap, timeNs: Long, checkActive: () -> Unit) {
+            drain(false, checkActive)
             GLES20.glViewport(0, 0, width, height)
             GLES20.glUseProgram(program)
             GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
@@ -319,19 +383,24 @@ object ReelExport {
             check(EGL14.eglSwapBuffers(display, surface)) { "EGL swap" }
         }
 
-        fun finish() {
+        fun finish(checkActive: () -> Unit) {
             codec?.signalEndOfInputStream()
-            drain(true)
+            drain(true, checkActive)
+            check(muxing && samplesWritten > 0) { "encoder wrote no frames" }
+            val mux = checkNotNull(muxer) { "muxer missing" }
+            // Finalize the MP4 container explicitly outside runCatching so ENOSPC/moov errors fail cleanly.
+            muxing = false
+            mux.stop()
         }
 
         /** Moves finished video out of the encoder into the file. */
-        private fun drain(end: Boolean) {
+        private fun drain(end: Boolean, checkActive: () -> Unit) {
             val enc = codec ?: return
             val mux = muxer ?: return
             val timeoutUs = if (end) 10_000L else 0L
             var waits = 0
             while (true) {
-                if (end && Thread.interrupted()) throw InterruptedException("reel export interrupted")
+                if (end) checkActive()
                 val index = enc.dequeueOutputBuffer(info, timeoutUs)
                 when {
                     index == MediaCodec.INFO_TRY_AGAIN_LATER -> {
@@ -356,6 +425,7 @@ object ReelExport {
                             data.position(info.offset)
                             data.limit(info.offset + info.size)
                             mux.writeSampleData(track, data, info)
+                            samplesWritten++
                         }
                         enc.releaseOutputBuffer(index, false)
                         if (info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) return

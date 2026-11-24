@@ -2,12 +2,16 @@ name: Text check
 
 # Takes every screen with big text, on a small and a tall phone, in English and
 # Arabic, so text that overlaps, clips or hides under the system bars shows up
-# before a release. The pictures land in the run's artifacts, not in the repo.
+# before a release. Full PNGs land in the run's artifacts, and compressed JPEGs
+# are published to a dedicated text-check-shots/<branch> preview branch.
 on:
   workflow_dispatch:
   push:
     branches-ignore: [main]
     paths: ["ios/**", "android/**", "lang/**", ".github/workflows/text-check.yml", ".github/text-check/**"]
+
+permissions:
+  contents: read
 
 jobs:
   ios:
@@ -97,4 +101,6 @@ jobs:
           git config user.email "41898299+github-actions[bot]@users.noreply.github.com"
           git add -A
           git commit -qm "Text check pictures for $BRANCH at $GITHUB_SHA"
-          git push -fq "https://x-access-token:$TOKEN@github.com/$REPO" "HEAD:refs/heads/text-check-shots/${BRANCH//\//-}"
+          AUTH=$(printf 'x-access-token:%s' "$TOKEN" | base64 -w0)
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $AUTH" \
+            push -fq "https://github.com/$REPO.git" "HEAD:refs/heads/text-check-shots/${BRANCH//\//-}"

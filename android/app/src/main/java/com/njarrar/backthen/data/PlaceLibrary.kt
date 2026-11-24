@@ -114,7 +114,8 @@ class PlaceLibrary(private val context: Context) {
 
     /** The photos from one visit to a city, oldest first. */
     suspend fun photos(city: Int, trip: Trip): List<Photo> = withContext(Dispatchers.IO) {
-        val known = lock.withLock { loadCache(expectedHash = null) }
+        val expectedHash = cities()?.hash
+        val known = lock.withLock { loadCache(expectedHash = expectedHash) }
         val zone = ZoneId.systemDefault()
         val from = trip.start.atStartOfDay(zone).toInstant().toEpochMilli()
         val to = trip.end.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
@@ -232,6 +233,10 @@ class PlaceLibrary(private val context: Context) {
         } catch (_: SecurityException) {
             return ReadCityResult.TransientError
         } catch (_: IOException) {
+            return ReadCityResult.TransientError
+        } catch (_: UnsupportedOperationException) {
+            return ReadCityResult.TransientError
+        } catch (_: IllegalStateException) {
             return ReadCityResult.TransientError
         } catch (_: Exception) {
             return ReadCityResult.NoLocation

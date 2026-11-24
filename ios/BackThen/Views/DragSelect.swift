@@ -2,6 +2,7 @@ import SwiftUI
 import UIKit
 
 /// Weak proxy so `CADisplayLink` never retains `DragSelect`.
+@MainActor
 private final class DisplayLinkProxy: NSObject {
     weak var target: DragSelect?
     init(_ target: DragSelect) { self.target = target }
@@ -14,6 +15,7 @@ private final class DisplayLinkProxy: NSObject {
 /// Everything between the first photo and the one under the finger follows the first
 /// photo: picked if it was not, unpicked if it was. Near the top or bottom edge the list
 /// scrolls on its own.
+@MainActor
 final class DragSelect: NSObject, UIGestureRecognizerDelegate {
     /// Each photo tile's frame in window points, kept up to date by the tiles.
     private var tiles: [String: (photo: Photo, frame: CGRect)] = [:]
@@ -22,16 +24,20 @@ final class DragSelect: NSObject, UIGestureRecognizerDelegate {
     var picked: Binding<[Photo]> = .constant([])
     /// Set when a long press starts selecting, so the same finger can carry on picking.
     var armed = false
+    private var armedPhoto: Photo?
 
     private weak var scrollView: UIScrollView?
     private weak var panRecognizer: UIPanGestureRecognizer?
+    /// Whether this screen currently accepts drag-select (e.g. false in Year Cards).
+    private var active = false
+    /// Whether select mode is currently on.
     private var enabled = false
     private var first: Photo?
     private var last: String?
     private var before: [Photo] = []
     private var adding = true
     private var finger: CGPoint = .zero
-    private var link: CADisplayLink?
+    nonisolated(unsafe) private var link: CADisplayLink?
 
     deinit {
         link?.invalidate()
@@ -40,10 +46,20 @@ final class DragSelect: NSObject, UIGestureRecognizerDelegate {
     func place(_ photo: Photo, _ frame: CGRect) { tiles[photo.key] = (photo, frame) }
     func forget(_ key: String) { tiles.removeValue(forKey: key) }
 
-    func setEnabled(_ on: Bool) {
+    /// Arms continuous drag-selection from a long-press on `photo` while the same finger stays down.
+    func arm(_ photo: Photo? = nil) {
+        armed = true
+        armedPhoto = photo
+        enabled = true
+    }
+
+    func setEnabled(_ on: Bool, active: Bool = true) {
+        self.active = active
         enabled = on
-        panRecognizer?.isEnabled = on
-        if !on { cancel() }
+        // Keep the pan recognizer enabled whenever the screen supports drag-select so it receives
+        // touchesBegan on the long-press touch; gestureRecognizerShouldBegin gates activation.
+        panRecognizer?.isEnabled = active
+        if !active || (!on && !armed) { cancel() }
     }
 
     func cancel() {
@@ -52,6 +68,16 @@ final class DragSelect: NSObject, UIGestureRecognizerDelegate {
         first = nil
         last = nil
         armed = false
+        armedPhoto = nil
+    }
+
+    func detach() {
+        cancel()
+        if let pan = panRecognizer, let scroll = scrollView {
+            scroll.removeGestureRecognizer(pan)
+        }
+        panRecognizer = nil
+        scrollView = nil
     }
 
     private func hit(_ point: CGPoint) -> Photo? {
@@ -66,26 +92,33 @@ final class DragSelect: NSObject, UIGestureRecognizerDelegate {
 
     func attach(to scroll: UIScrollView) {
         guard scrollView !== scroll else { return }
+        detach()
         scrollView = scroll
         let pan = UIPanGestureRecognizer(target: self, action: #selector(pan(_:)))
         pan.delegate = self
         pan.maximumNumberOfTouches = 1
-        pan.isEnabled = enabled
+        pan.isEnabled = active
         scroll.addGestureRecognizer(pan)
         panRecognizer = pan
-        // Only delays scroll recognition while enabled (i.e. selecting && layout != .cards).
+        // Fails immediately on first move when not selecting and not armed, so vertical scroll is unaffected.
         scroll.panGestureRecognizer.require(toFail: pan)
     }
 
     func gestureRecognizer(_ g: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
-        armed = false
-        return enabled
+        // Only clear stale armed state when a brand-new touch begins while idle (never mid-gesture).
+        if g.state == .possible && first == nil {
+            armed = false
+            armedPhoto = nil
+        }
+        return active
     }
 
     func gestureRecognizerShouldBegin(_ g: UIGestureRecognizer) -> Bool {
-        guard enabled, let pan = g as? UIPanGestureRecognizer, selecting.wrappedValue,
-              hit(startPoint(pan)) != nil else { return false }
-        if armed { return true }
+        guard active, let pan = g as? UIPanGestureRecognizer else { return false }
+        if armed {
+            return armedPhoto != nil || hit(startPoint(pan)) != nil
+        }
+        guard enabled, selecting.wrappedValue, hit(startPoint(pan)) != nil else { return false }
         let v = pan.velocity(in: nil)
         return abs(v.x) > abs(v.y)
     }
@@ -98,7 +131,7 @@ final class DragSelect: NSObject, UIGestureRecognizerDelegate {
         finger = g.location(in: nil)
         switch g.state {
         case .began:
-            first = hit(startPoint(g))
+            first = armed ? (armedPhoto ?? hit(startPoint(g))) : hit(startPoint(g))
             before = picked.wrappedValue
             adding = armed || !before.contains { $0.key == first?.key }
             last = nil
@@ -123,9 +156,12 @@ final class DragSelect: NSObject, UIGestureRecognizerDelegate {
               let j = all.firstIndex(where: { $0.key == now.key }) else { return }
         let range = all[min(i, j)...max(i, j)]
         let keys = Set(range.map(\.key))
-        picked.wrappedValue = adding
-            ? before + range.filter { r in !before.contains { $0.key == r.key } }
-            : before.filter { !keys.contains($0.key) }
+        if adding {
+            let beforeKeys = Set(before.map(\.key))
+            picked.wrappedValue = before + range.filter { !beforeKeys.contains($0.key) }
+        } else {
+            picked.wrappedValue = before.filter { !keys.contains($0.key) }
+        }
     }
 
     /// Scrolls while the finger rests near the top or bottom edge, normalized to 60Hz so 120Hz displays match speed.
@@ -153,6 +189,7 @@ final class DragSelect: NSObject, UIGestureRecognizerDelegate {
 struct DragSelectHook: UIViewRepresentable {
     let drag: DragSelect
     let enabled: Bool
+    var active: Bool = true
     let order: () -> [Photo]
     let selecting: Binding<Bool>
     let picked: Binding<[Photo]>
@@ -163,11 +200,11 @@ struct DragSelectHook: UIViewRepresentable {
         drag.order = order
         drag.selecting = selecting
         drag.picked = picked
-        drag.setEnabled(enabled)
+        drag.setEnabled(enabled, active: active)
     }
 
     static func dismantleUIView(_ uiView: Hook, coordinator: ()) {
-        uiView.drag.cancel()
+        uiView.drag.detach()
     }
 
     final class Hook: UIView {

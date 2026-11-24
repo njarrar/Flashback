@@ -1,4 +1,5 @@
 import CoreText
+import ImageIO
 import UIKit
 
 /// The words one photo shows in a reel, worked out once in the app's language.
@@ -43,6 +44,25 @@ final class ReelRenderer: @unchecked Sendable {
     /// Soft blurred copies for the background behind a whole photo.
     let blurred: [UIImage?]
     let icon: UIImage?
+    private let fontLock = NSLock()
+    private var fontCache: [String: UIFont] = [:]
+
+    private static let sRGBColorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
+    private static let bigYearGradient: CGGradient? = CGGradient(
+        colorsSpace: sRGBColorSpace,
+        colors: [UIColor(white: 0, alpha: 0).cgColor, UIColor(white: 0, alpha: 0.6).cgColor] as CFArray,
+        locations: [0, 1]
+    )
+    private static let filmVignetteGradient: CGGradient? = CGGradient(
+        colorsSpace: sRGBColorSpace,
+        colors: [UIColor(white: 0, alpha: 0).cgColor, UIColor(white: 0, alpha: 0.38).cgColor] as CFArray,
+        locations: [0, 1]
+    )
+    private static let filmHaloGradient: CGGradient? = CGGradient(
+        colorsSpace: sRGBColorSpace,
+        colors: [UIColor(red: 18 / 255, green: 14 / 255, blue: 12 / 255, alpha: 0.52).cgColor, UIColor(white: 0, alpha: 0).cgColor] as CFArray,
+        locations: [0, 1]
+    )
 
     private static let noise: CGImage? = {
         let side = 128
@@ -84,12 +104,28 @@ final class ReelRenderer: @unchecked Sendable {
     /// One for every blur: setting one up is slow, and it is safe to share across threads.
     private static let blurContext = CIContext(options: [.useSoftwareRenderer: false])
 
+    private static func cgOrientation(for orientation: UIImage.Orientation) -> CGImagePropertyOrientation {
+        switch orientation {
+        case .up: return .up
+        case .down: return .down
+        case .left: return .left
+        case .right: return .right
+        case .upMirrored: return .upMirrored
+        case .downMirrored: return .downMirrored
+        case .leftMirrored: return .leftMirrored
+        case .rightMirrored: return .rightMirrored
+        @unknown default: return .up
+        }
+    }
+
     /// A soft, darkened copy for the background. Small on purpose: it is blurred anyway.
     static func blur(_ image: UIImage) -> UIImage? {
         guard let cg = image.cgImage else { return nil }
-        let input = CIImage(cgImage: cg)
+        let input = CIImage(cgImage: cg).oriented(cgOrientation(for: image.imageOrientation))
         let side: CGFloat = 96
-        let s = side / max(input.extent.width, input.extent.height)
+        let maxSide = max(input.extent.width, input.extent.height)
+        guard maxSide > 0 else { return nil }
+        let s = side / maxSide
         let scaled = input.transformed(by: CGAffineTransform(scaleX: s, y: s)).clampedToExtent()
         guard let f = CIFilter(name: "CIGaussianBlur") else { return nil }
         f.setValue(scaled, forKey: kCIInputImageKey)
@@ -229,15 +265,15 @@ final class ReelRenderer: @unchecked Sendable {
             c.translateBy(x: 0, y: (1 - a) * W * 0.03)
             let s = W * 0.24, cx = W / 2, cy = H * 0.44
             let r = CGRect(x: cx - s / 2, y: cy - s / 2, width: s, height: s)
-            c.saveGState()
-            c.setShadow(offset: CGSize(width: 0, height: W * 0.015), blur: W * 0.05, color: UIColor(white: 0, alpha: 0.4).cgColor)
-            c.setFillColor(UIColor.white.cgColor)
-            c.addPath(UIBezierPath(roundedRect: r, cornerRadius: s * 0.23).cgPath); c.fillPath()
-            c.restoreGState()
+            let corner = s * 0.23
             if let icon {
                 c.saveGState()
-                c.addPath(UIBezierPath(roundedRect: r, cornerRadius: s * 0.23).cgPath); c.clip()
+                c.setShadow(offset: CGSize(width: 0, height: W * 0.015), blur: W * 0.05, color: UIColor(white: 0, alpha: 0.42).cgColor)
+                c.beginTransparencyLayer(auxiliaryInfo: nil)
+                c.addPath(UIBezierPath(roundedRect: r, cornerRadius: corner).cgPath)
+                c.clip()
                 icon.draw(in: r)
+                c.endTransparencyLayer()
                 c.restoreGState()
             }
             let fs = W * 0.07
@@ -308,8 +344,7 @@ final class ReelRenderer: @unchecked Sendable {
             c.saveGState()
             if radius > 0 { c.addPath(UIBezierPath(roundedRect: R, cornerRadius: radius).cgPath); c.clip() }
             let top = bottom - ys * 2.2
-            let colors = [UIColor(white: 0, alpha: 0).cgColor, UIColor(white: 0, alpha: 0.6).cgColor] as CFArray
-            if let g = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0, 1]) {
+            if let g = Self.bigYearGradient {
                 c.drawLinearGradient(g, start: CGPoint(x: 0, y: top), end: CGPoint(x: 0, y: R.maxY), options: [.drawsAfterEndLocation])
             }
             c.restoreGState()
@@ -322,7 +357,7 @@ final class ReelRenderer: @unchecked Sendable {
             let scaled = ys * maxW / max(yearText.size().width, 1)
             yearText = text(card.year, font(.black, scaled), .white, kern: -0.035 * scaled)
         }
-        let rawLine = "\(card.date) · \(card.ago)"
+        let rawLine = "\(bidiIsolate(card.date)) · \(bidiIsolate(card.ago))"
         var line = text(rawLine, font(.bold, ds), UIColor(white: 1, alpha: 0.9))
         if line.size().width > maxW {
             let scaled = ds * maxW / max(line.size().width, 1)
@@ -336,16 +371,22 @@ final class ReelRenderer: @unchecked Sendable {
         }
     }
 
+    private func bidiIsolate(_ s: String) -> String {
+        "\u{2068}\(s)\u{2069}"
+    }
+
     private func clean(_ c: CGContext, _ W: CGFloat, _ H: CGFloat, _ R: CGRect, _ card: ReelCard, _ a: CGFloat) {
         let fs = W * 0.037, pad = W * 0.04
-        let label = NSMutableAttributedString(attributedString: text(card.short, font(.heavy, fs), .white))
-        label.append(text("  ·  \(card.ago)", font(.semibold, fs), UIColor(white: 1, alpha: 0.82)))
+        // 3-span isolated layout matching Android so mixed RTL/LTR date and ago strings never reorder across the dot.
+        let label = NSMutableAttributedString(attributedString: text(bidiIsolate(card.short), font(.heavy, fs), .white))
+        label.append(text("  ·  ", font(.semibold, fs), UIColor(white: 1, alpha: 0.65)))
+        label.append(text(bidiIsolate(card.ago), font(.semibold, fs), UIColor(white: 1, alpha: 0.88)))
         let size = label.size()
         let h = fs * 2.1, w = min(size.width + fs * 1.6, max(R.width - pad * 2, fs * 3))
         let y = max(R.minY + pad, options.fill ? H * 0.1 : 0)
         let x = rtl ? R.maxX - pad - w : R.minX + pad
         layer(c, a) {
-            c.setFillColor(UIColor(white: 0, alpha: 0.42).cgColor)
+            c.setFillColor(UIColor(red: 24 / 255, green: 22 / 255, blue: 21 / 255, alpha: 0.64).cgColor)
             c.addPath(UIBezierPath(roundedRect: CGRect(x: x, y: y, width: w, height: h), cornerRadius: h / 2).cgPath); c.fillPath()
             label.draw(with: CGRect(x: x + fs * 0.8, y: y + (h - size.height) / 2, width: max(w - fs * 1.6, 1), height: size.height),
                        options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], context: nil)
@@ -360,8 +401,7 @@ final class ReelRenderer: @unchecked Sendable {
         c.setFillColor(UIColor(red: 1, green: 236 / 255, blue: 212 / 255, alpha: 1).cgColor)
         c.fill(R)
         c.setBlendMode(.normal)
-        let colors = [UIColor(white: 0, alpha: 0).cgColor, UIColor(white: 0, alpha: 0.38).cgColor] as CFArray
-        if let g = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0, 1]) {
+        if let g = Self.filmVignetteGradient {
             let mid = CGPoint(x: R.midX, y: R.midY)
             c.drawRadialGradient(g, startCenter: mid, startRadius: min(R.width, R.height) * 0.35,
                                  endCenter: mid, endRadius: hypot(R.width, R.height) * 0.62, options: [.drawsAfterEndLocation])
@@ -390,6 +430,14 @@ final class ReelRenderer: @unchecked Sendable {
         }
         let x = R.maxX - pad - width
         let y = safeBottom(R, H) - pad - h
+        // Subtle dark corner halo beneath LED digits guarantees contrast over bright snow or sky.
+        if let halo = Self.filmHaloGradient {
+            c.saveGState()
+            let haloCenter = CGPoint(x: x + width / 2, y: y + h / 2)
+            let rad = max(width, h) * 0.85
+            c.drawRadialGradient(halo, startCenter: haloCenter, startRadius: 0, endCenter: haloCenter, endRadius: rad, options: [])
+            c.restoreGState()
+        }
         layer(c, a) {
             // Leans right like the real thing.
             c.concatenate(CGAffineTransform(a: 1, b: 0, c: -0.1, d: 1, tx: (y + h) * 0.1, ty: 0))
@@ -460,6 +508,14 @@ final class ReelRenderer: @unchecked Sendable {
     private enum Weight { case black, heavy, bold, semibold }
 
     private func font(_ weight: Weight, _ size: CGFloat) -> UIFont {
+        let key = "\(weight)-\(Int((size * 2).rounded()))-\(arabic)"
+        fontLock.lock()
+        if let cached = fontCache[key] {
+            fontLock.unlock()
+            return cached
+        }
+        fontLock.unlock()
+
         let primary: String
         let fallback: String
         switch (weight, arabic) {
@@ -472,6 +528,7 @@ final class ReelRenderer: @unchecked Sendable {
         case (.bold, true): primary = "Tajawal-Bold"; fallback = "Nunito-Bold"
         case (.semibold, true): primary = "Tajawal-Bold"; fallback = "Nunito-SemiBold"
         }
+        let made: UIFont
         if UIFont(name: primary, size: size) != nil {
             let fallbackDesc = CTFontDescriptorCreateWithNameAndSize(fallback as CFString, size)
             let attrs: [CFString: Any] = [
@@ -479,15 +536,20 @@ final class ReelRenderer: @unchecked Sendable {
                 kCTFontCascadeListAttribute: [fallbackDesc] as CFArray,
             ]
             let desc = CTFontDescriptorCreateWithAttributes(attrs as CFDictionary)
-            return CTFontCreateWithFontDescriptor(desc, size, nil) as UIFont
+            made = CTFontCreateWithFontDescriptor(desc, size, nil) as UIFont
+        } else {
+            let w: UIFont.Weight = switch weight {
+            case .black: .black
+            case .heavy: .heavy
+            case .bold: .bold
+            case .semibold: .semibold
+            }
+            made = .systemFont(ofSize: size, weight: w)
         }
-        let w: UIFont.Weight = switch weight {
-        case .black: .black
-        case .heavy: .heavy
-        case .bold: .bold
-        case .semibold: .semibold
-        }
-        return .systemFont(ofSize: size, weight: w)
+        fontLock.lock()
+        fontCache[key] = made
+        fontLock.unlock()
+        return made
     }
 
     private func text(_ s: String, _ font: UIFont, _ color: UIColor, kern: CGFloat = 0) -> NSAttributedString {

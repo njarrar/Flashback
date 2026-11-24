@@ -7,7 +7,7 @@ Writes <out>/icon-512.png and <out>/<lang>/feature-graphic.png.
 import pathlib
 import sys
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, features
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 RES = ROOT / "android/app/src/main/res"
@@ -100,6 +100,8 @@ def feature(out, lang):
 
 
 def main(out):
+    if not features.check("raqm"):
+        sys.exit("Pillow has no raqm, so Arabic would come out in the wrong order.")
     out = pathlib.Path(out)
     out.mkdir(parents=True, exist_ok=True)
     icon(out)

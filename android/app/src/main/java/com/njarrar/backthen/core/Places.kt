@@ -5,6 +5,7 @@ import java.security.MessageDigest
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
+import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.cos
 import kotlin.math.floor
@@ -57,7 +58,8 @@ class CityList(lines: Sequence<String>) {
     fun city(lat: Double, lon: Double): Int? {
         if (!lat.isFinite() || !lon.isFinite() || lat !in -90.0..90.0 || lon !in -180.0..180.0) return null
         if (lat == 0.0 && lon == 0.0) return null
-        val cosLat = max(0.05, cos(lat * Math.PI / 180.0))
+        val polewardLat = minOf(90.0, abs(lat) + 1.0)
+        val cosLat = max(0.05, cos(polewardLat * Math.PI / 180.0))
         val lonSpan = minOf(180, ceil(REACH_KM / (111.32 * cosLat)).toInt())
         var best = -1
         var bestScore = 0.0
@@ -144,7 +146,10 @@ fun homeCity(index: PlaceIndex, today: LocalDate = LocalDate.now()): Int? {
     val since = today.minusYears(2).toString()
     val recent = index.mapValues { (_, days) -> days.keys.count { it >= since } }
     val pick = if (recent.values.any { it > 0 }) recent else index.mapValues { it.value.size }
-    return pick.entries.sortedWith(compareByDescending<Map.Entry<Int, Int>> { it.value }.thenBy { it.key }).firstOrNull()?.key
+    return pick.entries
+        .filter { it.value > 0 }
+        .sortedWith(compareByDescending<Map.Entry<Int, Int>> { it.value }.thenBy { it.key })
+        .firstOrNull()?.key
 }
 
 /** Visits to a city that ended at least a week ago, newest first. A trip still going on isn't "before". */

@@ -25,9 +25,9 @@ a test phone. A failed gate stops the store upload job.
 
 | Gate | When | What it checks |
 | --- | --- | --- |
-| 1. Quick checks | Every push | Unit tests on both apps. Versions match on both apps and the README. Store text in every language, within store limits. Android asks for no new permission. Every word the code asks for exists in `lang/en.xml`. |
+| 1. Quick checks | Every push | Unit tests on both apps. Versions match on both apps and the README. Store text in every language, within store limits. Android asks for no new permission. Every `lang/*.xml` file and Android `values*/strings.xml` parses cleanly with matching keys, `{slot}` placeholders, and required CLDR plural forms, with zero dead keys and immutable `places/cities.tsv` rows against `origin/main`. |
 | 2. Phone tests | Every pull request | Tests that run inside Android and the iPhone simulator in all six languages: language files load with the phone's own reader, reminder text, plural forms. |
-| 3. Full emulator sweep | Store workflows, before upload | A "QA" build (release with code shrinking, plus the hooks that open each screen) on the oldest and newest systems, small and large phones. Every screen in six languages, dark mode and largest text in English and Arabic. No raw keys, empty labels, cut text, blank screens, crashes or freezes. Main flows, the reminder, the widget, denied access, an update over the last shipped build, awkward photos and dates. Then a launch test of the true store build. |
+| 3. Full emulator sweep | Store workflows, before upload | A "QA" build (release with code shrinking, plus the hooks that open each screen) on the oldest and newest systems, small and large phones. Every screen in six languages (including Android Step 1 Welcome captured before granting photo permissions), dark mode and largest text in English and Arabic. No raw keys, unfilled `{slot}` placeholders, failed UI dumps, blank screens, crashes or freezes. Main flows, the reminder, the widget, denied access, an update over the last shipped build, awkward photos and dates. Then a launch test of the true store build. |
 | 4. Google's real phones | Each Play upload | Internal test track first. Firebase Test Lab runs the phone tests on real Android phones. Google's pre-launch report crawls it. The same bundle then moves to production the same day. |
 | 5. QA report | Before production | Machine checks decide pass or fail. A side-by-side of every screen against the last release is read for changes nobody meant; any such change fails the build. The report goes to the owner. |
 | 6. Release and watch | Release day and two days after | 100% at once on both stores. New reviews and Play crash numbers every 2 hours on day one, then daily. |
@@ -75,7 +75,7 @@ gate again, and ask Apple for an expedited review.
 1. Bump the version on both apps and add "What's new" to the README.
 2. Write release notes in every language for both stores.
 3. Open the pull request and wait for every check to pass.
-4. Merge, then run the `Play Store` and `App Store` workflows. They run gates 3 and 4.
+4. Merge, then run the `Play Store` and `App Store` workflows. They run gates 1 to 3 before upload (gate 4 real-device track promotion is manual/planned).
 5. Read the QA report.
 6. Send to production.
 7. Watch reviews and crashes for two days.

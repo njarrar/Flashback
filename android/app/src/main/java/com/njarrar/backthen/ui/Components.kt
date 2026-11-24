@@ -14,6 +14,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -224,16 +225,24 @@ fun Pill(
     enabled: Boolean = true,
     modifier: Modifier = Modifier,
     iconAfter: Boolean = false,
+    maxLines: Int = Int.MAX_VALUE,
+    horizontalPadding: Dp? = null,
     icon: (@Composable (Color) -> Unit)? = null,
 ) {
     val p = LocalPalette.current
     val (bg, fg) = when (kind) {
-        Kind.Primary -> p.ink to p.bg
+        Kind.Primary -> p.brandCobaltFill to p.brandCobaltFillInk
         Kind.Secondary -> p.surface to p.ink
         Kind.Ghost -> Color.Transparent to p.ink
         Kind.Accent -> AccentFill to Color.White
         Kind.Tint -> p.accTint to p.accInk
     }
+    val borderColor = when (kind) {
+        Kind.Secondary -> p.borderControl
+        Kind.Tint -> p.accent.copy(alpha = 0.25f)
+        else -> null
+    }
+    val padH = horizontalPadding ?: if (height < 48.dp) 14.dp else 18.dp
     Row(
         modifier
             .minimumInteractiveComponentSize()
@@ -241,14 +250,21 @@ fun Pill(
             .heightIn(min = height)
             .clip(RoundedCornerShape(50))
             .background(bg)
-            .then(if (kind == Kind.Secondary) Modifier.border(1.dp, p.line, RoundedCornerShape(50)) else Modifier)
+            .then(if (borderColor != null) Modifier.border(1.dp, borderColor, RoundedCornerShape(50)) else Modifier)
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
-            .padding(horizontal = if (height < 48.dp) 16.dp else 20.dp, vertical = 6.dp),
+            .padding(horizontal = padH, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
     ) {
         if (!iconAfter) icon?.invoke(fg.copy(alpha = if (enabled) 1f else 0.4f))
-        T(label, size = if (height < 48.dp) 15 else 16, weight = FontWeight.SemiBold, color = fg.copy(alpha = if (enabled) 1f else 0.4f))
+        T(
+            label,
+            size = if (height < 48.dp) 15 else 16,
+            weight = FontWeight.Bold,
+            color = fg.copy(alpha = if (enabled) 1f else 0.4f),
+            maxLines = maxLines,
+            align = TextAlign.Center,
+        )
         if (iconAfter) icon?.invoke(fg.copy(alpha = if (enabled) 1f else 0.4f))
     }
 }
@@ -316,8 +332,8 @@ fun Toast(
     val shown = state ?: last
     AnimatedVisibility(
         visible = state != null,
-        enter = if (reduce) EnterTransition.None else fadeIn(tween(180)) + slideInVertically(tween(180)) { -it / 2 },
-        exit = if (reduce) ExitTransition.None else fadeOut(tween(150)) + slideOutVertically(tween(150)) { -it / 2 },
+        enter = if (reduce) EnterTransition.None else fadeIn(tween(180)) + slideInVertically(tween(180)) { it / 2 },
+        exit = if (reduce) ExitTransition.None else fadeOut(tween(150)) + slideOutVertically(tween(150)) { it / 2 },
         modifier = modifier,
     ) {
         if (shown != null) {
@@ -385,6 +401,8 @@ data class Selection(
     val toggle: (Photo) -> Unit,
     /** Batch toggle for selecting/deselecting an entire year in one state update and haptic. */
     val toggleAll: ((List<Photo>, Boolean) -> Unit)? = null,
+    /** Long press on a year card while not selecting: enters select mode with all photos in one haptic. */
+    val startAll: ((List<Photo>) -> Unit)? = null,
 )
 
 @Composable
@@ -410,10 +428,13 @@ fun PhotoTile(
     if (drag != null) DisposableEffect(drag, photo.key) { onDispose { drag.forget(photo.key) } }
     var loadFailed by remember(photo.uri) { mutableStateOf(false) }
     val request = rememberThumbnailRequest(photo.uri, maxPx = thumbPx)
-    val label = semanticsLabel ?: L.s(
-        if (favorite) "favorite_photo_from" else "photo_from",
-        "date" to formatDate(localDate(photo.time), "yMMMMd"),
-    )
+    val langVersion = L.version.value
+    val label = remember(photo.time, favorite, semanticsLabel, langVersion) {
+        semanticsLabel ?: L.s(
+            if (favorite) "favorite_photo_from" else "photo_from",
+            "date" to formatDate(localDate(photo.time), "yMMMMd"),
+        )
+    }
     Box(
         modifier
             .then(if (drag != null) Modifier.onGloballyPositioned { drag.place(photo, it.boundsInRoot()) } else Modifier)
@@ -446,38 +467,30 @@ fun PhotoTile(
                 Icon(Icons.Outlined.BrokenImage, null, tint = p.muted, modifier = Modifier.size(24.dp))
             }
         }
-        if (favorite) {
-            // Cached radial corner wash + soft circular shadow (works cleanly on API 26–36 without blur).
+        val reduce = LocalReduceMotion.current
+        val heartScale by animateFloatAsState(
+            targetValue = if (favorite) 1f else 0f,
+            animationSpec = if (reduce) snap() else spring(dampingRatio = 0.52f, stiffness = 520f),
+            label = "heartBadge",
+        )
+        if (favorite || heartScale > 0.05f) {
+            // Crisp circular frosted-dark badge (#181615 @ 62% + subtle white ring) for >= 5.04:1 contrast over bright photos.
             Box(
                 Modifier
                     .align(Alignment.BottomStart)
-                    .size(64.dp)
-                    .drawWithCache {
-                        val x = if (layoutDirection == LayoutDirection.Rtl) size.width else 0f
-                        val wash = Brush.radialGradient(
-                            colors = listOf(Color.Black.copy(alpha = 0.36f), Color.Transparent),
-                            center = Offset(x, size.height),
-                            radius = size.width * 0.9f,
-                        )
-                        onDrawBehind { drawRect(wash) }
-                    },
-            )
-            Box(
-                Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(start = 5.dp, bottom = 4.dp)
-                    .size(22.dp)
-                    .drawWithCache {
-                        val glow = Brush.radialGradient(
-                            colors = listOf(Color.Black.copy(alpha = 0.45f), Color.Transparent),
-                            center = Offset(size.width / 2f, size.height / 2f),
-                            radius = size.minDimension * 0.5f,
-                        )
-                        onDrawBehind { drawCircle(glow) }
-                    },
+                    .padding(start = 6.dp, bottom = 6.dp)
+                    .size(24.dp)
+                    .graphicsLayer {
+                        scaleX = heartScale.coerceAtLeast(0f)
+                        scaleY = heartScale.coerceAtLeast(0f)
+                        alpha = heartScale.coerceIn(0f, 1f)
+                    }
+                    .clip(CircleShape)
+                    .background(PhotoBadgeScrim)
+                    .border(0.5.dp, Color.White.copy(alpha = 0.22f), CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Filled.Favorite, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                Icon(Icons.Filled.Favorite, null, tint = Color.White, modifier = Modifier.size(13.dp))
             }
         }
         if (selectingOn) {
@@ -536,6 +549,8 @@ fun YearHeader(
 ) {
     val p = LocalPalette.current
     val ago = agoLabel(year)
+    val yearsAgo = java.time.LocalDate.now().year - year
+    val milestone = yearsAgo >= 5 && yearsAgo % 5 == 0
     val subtitle = L.s(
         "ago_weekday_photos",
         "ago" to ago,
@@ -547,8 +562,20 @@ fun YearHeader(
             .fillMaxWidth()
             .padding(start = 20.dp, end = 8.dp, top = 8.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            T(L.num(year), size = 40, weight = FontWeight.Black, tight = true, modifier = Modifier.weight(1f).semantics { heading() })
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            T(L.num(year), size = 40, weight = FontWeight.Black, tight = true, modifier = Modifier.semantics { heading() })
+            if (milestone) {
+                Box(
+                    Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(p.brandSunTint)
+                        .padding(horizontal = 10.dp, vertical = 3.dp)
+                        .clearAndSetSemantics {},
+                ) {
+                    T(ago, size = 12, weight = FontWeight.Bold, color = p.brandSunInk, maxLines = 1)
+                }
+            }
+            Spacer(Modifier.weight(1f))
             if (selecting && onToggleYear != null) {
                 Box(
                     Modifier
@@ -732,36 +759,6 @@ fun YearMosaic(photos: List<Photo>, favorites: Set<String>, selection: Selection
     }
 }
 
-/** Lazy square grid rows helper kept for list-based screens; prefer LazyVerticalGrid where possible. */
-fun LazyListScope.squareGridItems(
-    photos: List<Photo>,
-    favorites: Set<String>,
-    showDate: Boolean,
-    columns: Int = 3,
-    selection: Selection? = null,
-    onOpen: (Int) -> Unit,
-) {
-    val cols = columns.coerceAtLeast(1)
-    val gap = 4.dp
-    val rows = photos.chunked(cols)
-    itemsIndexed(rows, key = { r, row -> "row-$r-${row.first().key}" }) { r, rowPhotos ->
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = if (r < rows.lastIndex) gap else 0.dp),
-            horizontalArrangement = Arrangement.spacedBy(gap),
-        ) {
-            rowPhotos.forEachIndexed { c, photo ->
-                Box(Modifier.weight(1f).aspectRatio(1f)) {
-                    PhotoTile(photo, 12.dp, !showDate && photo.key in favorites, selection, onOpen = { onOpen(r * cols + c) }, modifier = Modifier.fillMaxSize())
-                    if (showDate) DateChip(formatDate(localDate(photo.time), "yMMMd"), Modifier.align(Alignment.BottomStart).padding(6.dp))
-                }
-            }
-            repeat(cols - rowPhotos.size) {
-                Spacer(Modifier.weight(1f).aspectRatio(1f))
-            }
-        }
-    }
-}
-
 /** Small date label on a photo tile. */
 @Composable
 fun DateChip(text: String, modifier: Modifier = Modifier) {
@@ -775,27 +772,48 @@ fun DateChip(text: String, modifier: Modifier = Modifier) {
     }
 }
 
-/** A tilted print for the welcome screen. */
+/** A tilted print for the welcome screen. [yearEnd] places the year on the trailing edge so back-right cards never clip. */
 @Composable
-fun Print(year: Int, label: String, @DrawableRes drawing: Int, width: Dp, angle: Float, modifier: Modifier = Modifier) {
+fun Print(
+    year: Int,
+    label: String,
+    @DrawableRes drawing: Int,
+    width: Dp,
+    angle: Float,
+    modifier: Modifier = Modifier,
+    yearEnd: Boolean = false,
+) {
     val p = LocalPalette.current
     val shape = RoundedCornerShape(10.dp)
     Column(
         modifier
             .width(width)
             .rotate(angle)
-            .shadow(12.dp, shape, ambientColor = Color(0x28141416), spotColor = Color(0x28141416))
+            .shadow(14.dp, shape, ambientColor = Color(0x30181615), spotColor = Color(0x30181615))
             .background(p.surface, shape)
             .border(1.dp, p.line, shape)
             .padding(start = 8.dp, end = 8.dp, top = 8.dp),
     ) {
         Image(
             painterResource(drawing), null, contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxWidth().aspectRatio(4f / 5f).clip(RoundedCornerShape(6.dp)),
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(4f / 5f)
+                .clip(RoundedCornerShape(6.dp))
+                .border(0.5.dp, p.line, RoundedCornerShape(6.dp)),
         )
-        Row(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 10.dp, start = 2.dp, end = 2.dp), verticalAlignment = Alignment.Bottom) {
-            T(L.num(year), size = if (width > 160.dp) 26 else 22, weight = FontWeight.Black, tight = true, modifier = Modifier.weight(1f))
-            T(label, size = 11, weight = FontWeight.Medium, muted = true)
+        Row(
+            Modifier.fillMaxWidth().padding(top = 7.dp, bottom = 9.dp, start = 2.dp, end = 2.dp),
+            verticalAlignment = Alignment.Bottom,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            if (yearEnd) {
+                T(label, size = 11, weight = FontWeight.Medium, muted = true, maxLines = 1, modifier = Modifier.weight(1f))
+                T(L.num(year), size = if (width > 160.dp) 25 else 21, weight = FontWeight.Black, tight = true, maxLines = 1)
+            } else {
+                T(L.num(year), size = if (width > 160.dp) 25 else 21, weight = FontWeight.Black, tight = true, maxLines = 1, modifier = Modifier.weight(1f))
+                T(label, size = 11, weight = FontWeight.Medium, muted = true, maxLines = 1)
+            }
         }
     }
 }
@@ -828,12 +846,17 @@ fun timeLabel(hour: Int, minute: Int): String =
 fun YearPills(
     years: List<Int>,
     selected: Int,
-    onBounds: ((Rect) -> Unit)? = null,
+    onBounds: ((Rect?) -> Unit)? = null,
     onPick: (Int) -> Unit,
 ) {
     val p = LocalPalette.current
     val reduce = LocalReduceMotion.current
     val listState = rememberLazyListState()
+    if (onBounds != null) {
+        DisposableEffect(Unit) {
+            onDispose { onBounds(null) }
+        }
+    }
     LaunchedEffect(selected, years) {
         val idx = years.indexOf(selected)
         if (idx >= 0) {

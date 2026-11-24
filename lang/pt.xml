@@ -99,8 +99,6 @@
     <string name="next_day_photos">Próximo dia com fotos</string>
     <string name="back_to_today">Voltar para hoje</string>
     <string name="select">Selecionar</string>
-    <string name="selected">Selecionada</string>
-    <string name="not_selected">Não selecionada</string>
     <string name="select_hint">Toque nas fotos para selecionar</string>
     <string name="n_selected">Seleção: {photos}</string>
     <string name="album">Álbum</string>
@@ -171,7 +169,7 @@
     <string name="day_is_hidden">{day} está oculto</string>
     <string name="hidden_body">Não vai aparecer sozinho nem nos lembretes.</string>
     <string name="show_it_again">Mostrar de novo</string>
-    <string name="toast_day_hidden">{day} oculto</string>
+    <string name="toast_day_hidden">Você ocultou {day}</string>
     <string name="toast_day_shown">{day} visível de novo</string>
     <string name="layout">Layout</string>
     <string name="layout_all_years">Todos os anos</string>
@@ -189,8 +187,7 @@
     <string name="toast_favorited">Adicionada às Favoritas</string>
     <string name="toast_unfavorited">Removida das Favoritas</string>
     <string name="toast_album_created">Álbum criado</string>
-    <string name="toast_added_to">Adicionada a {name}</string>
-    <string name="toast_new_album_hint">Toque em Selecionar, escolha fotos e toque em Álbum</string>
+    <string name="toast_added_to">Adicionado a {name}</string>
     <string name="toast_allow_save">Permita o acesso às fotos para salvar</string>
     <string name="toast_saved_photos">Salvo no Fotos</string>
     <string name="toast_saved_gallery">Salvo em Pictures/Flashback</string>

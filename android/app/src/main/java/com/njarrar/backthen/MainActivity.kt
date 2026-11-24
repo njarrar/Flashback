@@ -1,7 +1,11 @@
 package com.njarrar.backthen
 
 import android.content.Intent
+import android.database.ContentObserver
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.provider.MediaStore
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -16,6 +20,16 @@ import com.njarrar.backthen.widget.TodayWidget
 
 class MainActivity : ComponentActivity() {
     private val vm: AppViewModel by viewModels()
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val pendingRefresh = Runnable {
+        if (vm.saved.value.onboarded && vm.saved.value.sources.device) vm.refreshIndex()
+    }
+    private val mediaObserver = object : ContentObserver(mainHandler) {
+        override fun onChange(selfChange: Boolean) {
+            mainHandler.removeCallbacks(pendingRefresh)
+            mainHandler.postDelayed(pendingRefresh, 750L)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -33,15 +47,23 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        runCatching {
+            contentResolver.registerContentObserver(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, true, mediaObserver)
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         vm.catchUpToToday()
-        // New photos may have been taken since the app was last open.
-        if (vm.saved.value.onboarded && vm.saved.value.sources.device) vm.refreshIndex()
+        vm.syncPermissions()
     }
 
     override fun onStop() {
         super.onStop()
+        mainHandler.removeCallbacks(pendingRefresh)
+        runCatching { contentResolver.unregisterContentObserver(mediaObserver) }
         // Hidden days, sources or new photos may have changed while the app was open.
         TodayWidget.refresh(this)
     }

@@ -23,72 +23,75 @@ struct CalendarSheet: View {
 
     var body: some View {
         let today = MonthDay.today
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .center, spacing: 8) {
-                Menu {
-                    ForEach(0..<12, id: \.self) { m in
-                        let photoDays = (1...daysInMonth[m]).filter { hasPhotos(store.index, MonthDay(month: m, day: $0)) }.count
-                        Button {
-                            turnTask?.cancel()
-                            target = nil
-                            slide = 0
-                            month = m
-                        } label: {
-                            let label = photoDays > 0 ? "\(L.monthName(m)) (\(L.num(photoDays)))" : L.monthName(m)
-                            if m == month {
-                                Label(label, systemImage: "checkmark")
-                            } else {
-                                Text(label)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(alignment: .center, spacing: 8) {
+                    Menu {
+                        ForEach(0..<12, id: \.self) { m in
+                            let photoDays = (1...daysInMonth[m]).filter { hasPhotos(store.index, MonthDay(month: m, day: $0)) }.count
+                            Button {
+                                turnTask?.cancel()
+                                target = nil
+                                slide = 0
+                                month = m
+                            } label: {
+                                let label = photoDays > 0 ? "\(L.monthName(m)) (\(L.num(photoDays)))" : L.monthName(m)
+                                if m == month {
+                                    Label(label, systemImage: "checkmark")
+                                } else {
+                                    Text(label)
+                                }
                             }
                         }
+                    } label: {
+                        HStack(spacing: 6) {
+                            Text(L.monthName(month)).font(.nunito(24, .heavy)).tight(24).foregroundStyle(Palette.ink)
+                            Image(systemName: "chevron.down").font(.system(size: 13, weight: .bold)).foregroundStyle(Palette.accent)
+                        }
+                        .frame(minHeight: 44).contentShape(Rectangle())
                     }
-                } label: {
-                    HStack(spacing: 6) {
-                        Text(L.monthName(month)).font(.nunito(24, .heavy)).tight(24).foregroundStyle(Palette.ink)
-                        Image(systemName: "chevron.down").font(.system(size: 13, weight: .bold)).foregroundStyle(Palette.accent)
-                    }
-                    .frame(minHeight: 44).contentShape(Rectangle())
-                }
-                .accessibilityAddTraits(.isHeader)
+                    .accessibilityAddTraits(.isHeader)
 
-                Spacer(minLength: 0)
-                if month != today.month || store.day != today {
-                    Button { pick(today) } label: {
-                        Text(L.s("today")).font(.nunito(15, .semibold)).foregroundStyle(Palette.ink)
-                            .padding(.horizontal, 14).frame(minHeight: 36)
-                            .background(Palette.fill, in: Capsule())
-                            .frame(minHeight: 44).contentShape(Rectangle())
+                    Spacer(minLength: 0)
+                    if month != today.month || store.day != today {
+                        Button { pick(today) } label: {
+                            Text(L.s("today")).font(.nunito(15, .bold)).foregroundStyle(Palette.brandCobaltInk)
+                                .padding(.horizontal, 14).frame(minHeight: 36)
+                                .background(Palette.brandCobaltTint, in: Capsule())
+                                .frame(minHeight: 44).contentShape(Rectangle())
+                        }
                     }
+                    arrow("chevron.backward", L.s("previous_month")) { turn(-1) }
+                    arrow("chevron.forward", L.s("next_month")) { turn(1) }
                 }
-                arrow("chevron.backward", L.s("previous_month")) { turn(-1) }
-                arrow("chevron.forward", L.s("next_month")) { turn(1) }
-            }
-            grid(today: today)
-                .frame(minHeight: 250, alignment: .top)
-                // SwiftUI mirrors `.offset(x:)` in RTL; negate so drag and month turns match screen direction.
-                .offset(x: rtl ? -slide : slide)
-                .contentShape(Rectangle())
-                .gesture(
-                    DragGesture(minimumDistance: 10)
-                        .onChanged { g in
-                            if !reduceMotion && abs(g.translation.width) > abs(g.translation.height) {
-                                slide = g.translation.width
+                grid(today: today)
+                    .frame(minHeight: 250, alignment: .top)
+                    // SwiftUI mirrors `.offset(x:)` in RTL; negate so drag and month turns match screen direction.
+                    .offset(x: rtl ? -slide : slide)
+                    .contentShape(Rectangle())
+                    .gesture(
+                        DragGesture(minimumDistance: 10)
+                            .onChanged { g in
+                                if !reduceMotion && abs(g.translation.width) > abs(g.translation.height) {
+                                    slide = g.translation.width
+                                }
                             }
-                        }
-                        .onEnded { g in
-                            let w = g.translation.width
-                            // Right to left, the next month comes in from the left.
-                            if abs(w) > 50 && abs(w) > abs(g.translation.height) { turn((w < 0) != rtl ? 1 : -1) }
-                            else { withAnimation(reduceMotion ? nil : .spring(duration: 0.4, bounce: 0)) { slide = 0 } }
-                        }
-                )
+                            .onEnded { g in
+                                let w = g.translation.width
+                                // Right to left, the next month comes in from the left.
+                                if abs(w) > 50 && abs(w) > abs(g.translation.height) { turn((w < 0) != rtl ? 1 : -1) }
+                                else { withAnimation(reduceMotion ? nil : .spring(duration: 0.4, bounce: 0)) { slide = 0 } }
+                            }
+                    )
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
+            .padding(.bottom, 12)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = max($0, 380) }
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 20)
-        .padding(.bottom, 12)
-        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = max($0, 380) }
+        .scrollBounceBehavior(.basedOnSize)
         .sensoryFeedback(.selection, trigger: month)
-        .presentationDetents([.height(height)])
+        .presentationDetents([.height(height), .large])
         .presentationCornerRadius(36)
         .presentationBackground(Palette.surface)
         .presentationDragIndicator(.visible)
@@ -97,21 +100,21 @@ struct CalendarSheet: View {
     private func grid(today: MonthDay) -> some View {
         let index = store.index
         let days = (1...daysInMonth[month]).map { MonthDay(month: month, day: $0) }
-        return LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 7), spacing: 0) {
+        return LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 7), spacing: 4) {
             ForEach(days, id: \.key) { md in
                 let sel = store.day == md
                 let future = md.isAfter(today)
                 // Days after today stay locked and faint, as in 1.7.
-                let photos = !future && hasPhotos(index, md)
+                let yearCount = future ? 0 : yearsForDay(index, md).count
+                let photos = yearCount > 0
                 let hidden = store.isHidden(md)
-                let disabled = future
                 Button { pick(md) } label: {
-                    CalendarDay(md: md, photos: photos, hidden: hidden, selected: sel, today: md == today, future: future)
-                        .frame(maxWidth: .infinity, minHeight: 50)
+                    CalendarDay(md: md, photos: photos, yearCount: yearCount, hidden: hidden, selected: sel, today: md == today, future: future)
+                        .frame(maxWidth: .infinity, minHeight: 54)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .disabled(disabled)
+                .disabled(future)
                 .accessibilityLabel(label(md, index, today: today))
                 .accessibilityAddTraits(sel ? .isSelected : [])
             }
@@ -162,60 +165,82 @@ struct CalendarSheet: View {
     }
 }
 
-/// One day in the calendar: a tiny copy of one of its photos, dimmed, with the number on top, or a plain
-/// number. Hidden days display a micro eye.slash indicator.
+/// One day in the calendar: a tiny copy of one of its photos, dimmed with `calendarWash`, with the
+/// number on top and 1-3 subtle year-density pips underneath. Hidden days show a micro eye.slash.
 private struct CalendarDay: View {
     @Environment(AppStore.self) private var store
     let md: MonthDay
     let photos: Bool
+    let yearCount: Int
     let hidden: Bool
     let selected: Bool
     let today: Bool
     let future: Bool
     @State private var cover: Photo?
 
+    private var densityPips: Int {
+        if yearCount >= 4 { return 3 }
+        if yearCount >= 2 { return 2 }
+        return yearCount >= 1 ? 1 : 0
+    }
+
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 11, style: .continuous)
         let hasCover = photos && cover != nil
-        Text(L.num(md.day))
-            .font(.nunito(16, photos ? .heavy : .semibold, maxSize: 20))
-            .monospacedDigit()
-            .lineLimit(1)
-            .minimumScaleFactor(0.75)
-            .foregroundStyle(hasCover ? .white : future && !photos ? Palette.muted.opacity(0.65) : photos ? Palette.ink : Palette.muted)
-            .shadow(color: hasCover ? .black.opacity(0.45) : .clear, radius: 0.5, y: 0.5)
-            .frame(width: 40, height: 40)
-            .background {
-                if photos {
-                    ZStack {
-                        Palette.fill
-                        // A dark wash under the number, so it reads on bright photos too.
-                        if let cover { PhotoImage(photo: cover); Palette.dayWash }
+        VStack(spacing: 3) {
+            Text(L.num(md.day))
+                .font(.nunito(16, photos ? .heavy : .semibold, maxSize: 20))
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .foregroundStyle(hasCover ? .white : future && !photos ? Palette.inkFuture : photos ? Palette.ink : Palette.muted)
+                .shadow(color: hasCover ? .black.opacity(0.45) : .clear, radius: 0.5, y: 0.5)
+                .frame(width: 40, height: 40)
+                .background {
+                    if photos {
+                        ZStack {
+                            Palette.fill
+                            // 60% dark warm wash guarantees >= 4.71:1 AA over snow/sky.
+                            if let cover { PhotoImage(photo: cover); Palette.dayWash }
+                        }
+                        .clipShape(shape)
                     }
-                    .clipShape(shape)
+                }
+                .overlay(alignment: .bottomTrailing) {
+                    if hidden {
+                        Image(systemName: "eye.slash")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(Palette.muted)
+                            .padding(3)
+                            .accessibilityHidden(true)
+                    }
+                }
+                // The picked day gets a coral ring, set off from the photo by a thin gap. Today gets a crisp ink ring.
+                .overlay {
+                    if selected {
+                        RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Palette.accent, lineWidth: 2.5).padding(-4)
+                    } else if today {
+                        shape.strokeBorder(Palette.ink, lineWidth: 1.5)
+                    }
+                }
+
+            // Subtle year-density pips (1 dot = 1 yr, 2 dots = 2-3 yrs, 3 dots = 4+ yrs).
+            HStack(spacing: 2.5) {
+                if densityPips > 0 {
+                    ForEach(0..<densityPips, id: \.self) { _ in
+                        Circle()
+                            .fill(densityPips == 3 ? Palette.accent : Palette.muted)
+                            .frame(width: 3.5, height: 3.5)
+                    }
                 }
             }
-            .overlay(alignment: .bottomTrailing) {
-                if hidden {
-                    Image(systemName: "eye.slash")
-                        .font(.system(size: 8, weight: .bold))
-                        .foregroundStyle(Palette.muted)
-                        .padding(3)
-                        .accessibilityHidden(true)
-                }
-            }
-            // The picked day gets a coral ring, set off from the photo by a thin gap. Today gets a thin ink ring.
-            .overlay {
-                if selected {
-                    RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(Palette.accent, lineWidth: 2.5).padding(-4)
-                } else if today {
-                    shape.strokeBorder(Palette.ink, lineWidth: 1.5)
-                }
-            }
-            .dynamicTypeSize(...DynamicTypeSize.xxLarge)
-            .task(id: "\(md.key)-\(photos)-\(store.indexVersion)") {
-                cover = photos ? await store.cover(for: md) : nil
-            }
+            .frame(height: 4)
+            .accessibilityHidden(true)
+        }
+        .dynamicTypeSize(...DynamicTypeSize.xxLarge)
+        .task(id: "\(md.key)-\(photos)-\(store.indexVersion)") {
+            cover = photos ? await store.cover(for: md) : nil
+        }
     }
 }
 
@@ -277,7 +302,7 @@ struct AlbumSheet: View {
                             .padding(.vertical, 12)
                             .frame(minHeight: 48)
                             .background(Palette.bg, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(focused ? Palette.accent : Palette.line, lineWidth: 1))
+                            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(focused ? Palette.brandCobaltFill : Palette.borderControl, lineWidth: focused ? 1.5 : 1))
                         Pill(label: L.s("create"), height: 48, wide: textSize >= .xxLarge ? true : false, action: create)
                             .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty)
                     }
@@ -288,10 +313,7 @@ struct AlbumSheet: View {
                         Text(L.s("add_to_existing")).font(.nunito(13, .semibold)).foregroundStyle(Palette.muted2).padding(.bottom, 4)
                         ForEach(store.saved.albums) { a in
                             Button {
-                                let added = store.add(photos, to: a.id)
-                                if added == 0 {
-                                    store.showToast(L.s("already_in_album", ["name": a.name]), kind: .info, undoLabel: nil, undo: nil)
-                                }
+                                _ = store.add(photos, to: a.id)
                                 dismiss()
                                 done()
                             } label: {
@@ -340,10 +362,21 @@ struct AlbumSheet: View {
 struct SettingsSheet: View {
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var notificationsDenied = false
-    @State private var locationDenied = false
     @State private var cityList: CityList?
     @State private var showLicenses = false
+    @State private var sheetToast: (message: String, kind: AppStore.ToastKind)?
+    @State private var sheetToastTask: Task<Void, Never>?
+
+    private func showSheetToast(_ message: String, kind: AppStore.ToastKind = .info) {
+        sheetToastTask?.cancel()
+        sheetToast = (message, kind)
+        sheetToastTask = Task {
+            try? await Task.sleep(for: .seconds(2.4))
+            if !Task.isCancelled { sheetToast = nil }
+        }
+    }
 
     private var reminderTimeBinding: Binding<Date> {
         Binding(
@@ -364,8 +397,11 @@ struct SettingsSheet: View {
 
     var body: some View {
         let s = store.saved
-        let isLimited = PhotoLibrary.isLimited
-        let isDenied = PhotoLibrary.isDenied || store.photoAccessRevoked
+        let isLimited = store.isLimitedPhotoAccess
+        let isDenied = store.photoAuthStatus == .denied || store.photoAuthStatus == .restricted || store.photoAccessRevoked
+        let locStatus = store.locationAuthStatus
+        let locationDenied = locStatus == .denied || locStatus == .restricted
+        let locationNeedsPrompt = s.places.on && locStatus == .notDetermined
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 HStack {
@@ -390,13 +426,13 @@ struct SettingsSheet: View {
                     trailingIcon: isLimited ? "photo.badge.plus" : nil
                 ) {
                     if isLimited {
-                        PhotoLibrary.presentLimitedPicker()
+                        store.presentLimitedPicker()
                     } else if isDenied {
                         openSettings()
                     } else if !s.sources.device {
                         Task {
                             if PhotoLibrary.canAsk || PhotoLibrary.hasAccess {
-                                if await store.connectDevice() { store.say(L.s("toast_apple_connected")) }
+                                if await store.connectDevice() { showSheetToast(L.s("toast_apple_connected"), kind: .success) }
                             } else {
                                 openSettings()
                             }
@@ -407,7 +443,7 @@ struct SettingsSheet: View {
                     Text(L.s("limited_access_note")).font(.nunito(13)).foregroundStyle(Palette.muted)
                     HStack(spacing: 8) {
                         Pill(label: L.s("manage_photos"), kind: .secondary, height: 44) {
-                            PhotoLibrary.presentLimitedPicker()
+                            store.presentLimitedPicker()
                         }
                         .fixedSize()
                         Pill(label: L.s("open_settings"), kind: .ghost, height: 44) {
@@ -439,7 +475,7 @@ struct SettingsSheet: View {
                         Task {
                             if on, !(await Reminders.requestPermission()) {
                                 notificationsDenied = true
-                                store.showToast(L.s("toast_notifications_off"), kind: .error, undoLabel: nil, undo: nil)
+                                showSheetToast(L.s("toast_notifications_off"), kind: .error)
                                 return
                             }
                             notificationsDenied = false
@@ -462,11 +498,12 @@ struct SettingsSheet: View {
                         Image(systemName: "mappin.and.ellipse").foregroundStyle(Palette.ink)
                         Text(L.s("places_title")).font(.nunito(16, .semibold)).foregroundStyle(Palette.ink)
                         Spacer()
-                        Toggle(L.s("places_title"), isOn: Binding(get: { s.places.on }, set: { on in
+                        Toggle(L.s("places_title"), isOn: Binding(get: { s.places.on && !store.locationAccessLost }, set: { on in
                             Task {
                                 await store.setPlaces(on)
-                                let status = CLLocationManager().authorizationStatus
-                                locationDenied = (status == .denied || status == .restricted)
+                                if on && !Locator.shared.allowed {
+                                    showSheetToast(L.s("toast_location_off"), kind: .info)
+                                }
                             }
                         }))
                         .labelsHidden()
@@ -479,13 +516,31 @@ struct SettingsSheet: View {
                             Text(L.s("places_scanning")).font(.nunito(13, .medium)).foregroundStyle(Palette.muted)
                         }
                     }
-                    if s.places.on && !s.placeIndex.isEmpty, let cityList {
+                    if store.locationAccessLost {
+                        Label(L.s("toast_location_off"), systemImage: "exclamationmark.triangle.fill")
+                            .font(.nunito(13, .semibold))
+                            .foregroundStyle(Palette.accInk)
+                            .padding(10)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Palette.accTint, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    }
+                    if s.places.on && !store.locationAccessLost && !s.placeIndex.isEmpty, let cityList {
                         homeCityRow(s: s, cities: cityList)
                     }
                     Text(L.s("places_note")).font(.nunito(13)).foregroundStyle(Palette.muted)
-                    if locationDenied && !s.places.on {
+                    if locationDenied {
                         Pill(label: L.s("open_settings"), systemImage: "gearshape", kind: .secondary, height: 44, action: openSettings)
                             .fixedSize()
+                    } else if locationNeedsPrompt {
+                        Pill(label: L.s("turn_on"), systemImage: "location", kind: .secondary, height: 44) {
+                            Task {
+                                await store.setPlaces(true)
+                                if !Locator.shared.allowed {
+                                    showSheetToast(L.s("toast_location_off"), kind: .info)
+                                }
+                            }
+                        }
+                        .fixedSize()
                     }
                     Divider()
                 }
@@ -513,13 +568,9 @@ struct SettingsSheet: View {
                 Button {
                     store.setHidden(day, !hidden)
                     if !hidden {
-                        store.showToast(
-                            L.s("toast_day_hidden", ["day": day.shortLabel]),
-                            kind: .info,
-                            undoLabel: L.s("undo"),
-                            undo: { store.setHidden(day, false) }
-                        )
                         dismiss()
+                    } else {
+                        showSheetToast(L.s("toast_day_shown", ["day": day.shortLabel]), kind: .success)
                     }
                 } label: {
                     HStack(spacing: 12) {
@@ -544,7 +595,10 @@ struct SettingsSheet: View {
                         HStack {
                             Text(md.label).font(.nunito(16, .medium)).foregroundStyle(Palette.ink)
                             Spacer()
-                            Pill(label: L.s("show"), kind: .secondary, height: 44) { store.setHidden(md, false) }.fixedSize()
+                            Pill(label: L.s("show"), kind: .secondary, height: 44) {
+                                store.setHidden(md, false)
+                                showSheetToast(L.s("toast_day_shown", ["day": md.shortLabel]), kind: .success)
+                            }.fixedSize()
                         }
                         .frame(minHeight: 44)
                     }
@@ -566,6 +620,14 @@ struct SettingsSheet: View {
             }
             .padding(20)
         }
+        .overlay(alignment: .top) {
+            if let sheetToast {
+                ToastView(message: sheetToast.message, kind: sheetToast.kind)
+                    .padding(.top, 10)
+                    .padding(.horizontal, 16)
+            }
+        }
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: sheetToast?.message)
         .presentationDetents([.medium, .large])
         .presentationCornerRadius(36)
         .presentationBackground(Palette.surface)
@@ -573,12 +635,12 @@ struct SettingsSheet: View {
         .task {
             let notif = await UNUserNotificationCenter.current().notificationSettings()
             notificationsDenied = notif.authorizationStatus == .denied
-            let loc = CLLocationManager().authorizationStatus
-            locationDenied = (loc == .denied || loc == .restricted)
+            store.reconcilePhotoAccess()
             if CityList.available {
                 cityList = await CityList.load()
             }
         }
+        .onDisappear { sheetToastTask?.cancel() }
         .alert(L.s("licenses"), isPresented: $showLicenses) {
             Button(L.s("close"), role: .cancel) {}
         } message: {
@@ -589,16 +651,16 @@ struct SettingsSheet: View {
     @ViewBuilder
     private func homeCityRow(s: SavedState, cities: CityList) -> some View {
         let activeID = s.customHomeCity ?? homeCity(s.placeIndex)
-        let activeName = activeID.flatMap { $0 < cities.cities.count ? cities.cities[$0].name : nil }
+        let activeCity = activeID.flatMap { cities.cities.indices.contains($0) ? cities.cities[$0] : nil }
         let visited = s.placeIndex
+            .filter { !$0.value.isEmpty }
             .sorted { $0.value.count > $1.value.count }
-            .prefix(25)
-            .compactMap { id, _ in id < cities.cities.count ? cities.cities[id] : nil }
+            .compactMap { id, _ in cities.cities.indices.contains(id) ? cities.cities[id] : nil }
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(L.s("home_city")).font(.nunito(14, .semibold)).foregroundStyle(Palette.muted)
-                if let activeName {
-                    Text(activeName).font(.nunito(15, .semibold)).foregroundStyle(Palette.ink)
+                if let activeCity {
+                    Text(cityDisplayName(activeCity)).font(.nunito(15, .semibold)).foregroundStyle(Palette.ink)
                 }
             }
             Spacer()
@@ -608,10 +670,11 @@ struct SettingsSheet: View {
                         Button {
                             store.setHomeCity(city.id)
                         } label: {
+                            let label = cityDisplayName(city)
                             if city.id == activeID {
-                                Label(city.name, systemImage: "checkmark")
+                                Label(label, systemImage: "checkmark")
                             } else {
-                                Text(city.name)
+                                Text(label)
                             }
                         }
                     }
@@ -627,6 +690,11 @@ struct SettingsSheet: View {
             }
         }
         .frame(minHeight: 44)
+    }
+
+    private func cityDisplayName(_ city: City) -> String {
+        let country = L.locale.localizedString(forRegionCode: city.country) ?? city.country
+        return country.isEmpty ? city.name : "\(city.name), \(country)"
     }
 
     private func openSettings() {
@@ -667,10 +735,14 @@ struct ShareRequest: Identifiable {
 struct ShareSheetView: View {
     @Environment(AppStore.self) private var store
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let request: ShareRequest
     @State private var height: CGFloat = 310
     @State private var sharing = false
     @State private var saving = false
+    @State private var shareTask: Task<Void, Never>?
+    @State private var sheetError: String?
+    @State private var errorTask: Task<Void, Never>?
 
     var body: some View {
         ScrollView {
@@ -706,11 +778,18 @@ struct ShareSheetView: View {
                 Pill(label: L.s("share"), systemImage: "square.and.arrow.up", busy: sharing) {
                     guard !sharing else { return }
                     sharing = true
-                    Task {
+                    shareTask?.cancel()
+                    shareTask = Task {
                         let ok = await Share.photos(request.photos, title: request.title) { dismiss() }
+                        guard !Task.isCancelled else { return }
                         sharing = false
                         if !ok {
-                            store.showToast(L.s("share_failed"), kind: .error, undoLabel: nil, undo: nil)
+                            errorTask?.cancel()
+                            sheetError = L.s("share_failed")
+                            errorTask = Task {
+                                try? await Task.sleep(for: .seconds(2.4))
+                                if !Task.isCancelled { sheetError = nil }
+                            }
                         }
                     }
                 }
@@ -744,9 +823,21 @@ struct ShareSheetView: View {
             .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = max($0, 300) }
         }
         .scrollBounceBehavior(.basedOnSize)
+        .overlay(alignment: .top) {
+            if let sheetError {
+                ToastView(message: sheetError, kind: .error)
+                    .padding(.top, 10)
+                    .padding(.horizontal, 16)
+            }
+        }
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: sheetError)
         .presentationDetents([.height(min(height, 560)), .large])
         .presentationCornerRadius(32)
         .presentationBackground(Palette.surface)
         .presentationDragIndicator(.visible)
+        .onDisappear {
+            shareTask?.cancel()
+            errorTask?.cancel()
+        }
     }
 }

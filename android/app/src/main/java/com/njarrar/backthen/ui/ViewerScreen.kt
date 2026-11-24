@@ -1,22 +1,24 @@
 package com.njarrar.backthen.ui
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import android.text.format.DateFormat
 import androidx.activity.compose.PredictiveBackHandler
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -39,8 +41,10 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
@@ -81,6 +85,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -96,6 +101,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.exifinterface.media.ExifInterface
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
@@ -140,7 +146,7 @@ fun ViewerScreen(
     onAlbum: (Photo) -> Unit,
     onClose: () -> Unit,
     onShowDay: ((MonthDay) -> Unit)? = null,
-    cityFor: (suspend (Photo) -> String?)? = null,
+    cityAt: (suspend (Double, Double) -> String?)? = null,
 ) {
     val reduce = LocalReduceMotion.current
     val pager = rememberPagerState(initialPage = start.coerceIn(0, (photos.size - 1).coerceAtLeast(0))) { photos.size }
@@ -155,13 +161,14 @@ fun ViewerScreen(
     var chrome by remember { mutableStateOf(true) }
     var zoomed by remember { mutableStateOf(false) }
     var isDragging by remember { mutableStateOf(false) }
+    var dragGen by remember { mutableIntStateOf(0) }
     var showInfo by remember { mutableStateOf(false) }
     var backProgress by remember { mutableFloatStateOf(0f) }
     // Track per-photo broken state so Share is disabled on missing files.
     val brokenKeys = remember { mutableStateMapOf<String, Boolean>() }
 
-    // Drag offset in pixels, read strictly inside drawBehind & graphicsLayer (0 recompositions per drag pixel).
-    var dragY by remember { mutableFloatStateOf(0f) }
+    // Drag offset kept in Animatable so concurrent drags cancel in-flight spring-backs cleanly.
+    val dragY = remember { Animatable(0f) }
     val fullPull = with(density) { 300.dp.toPx() }
     val closeAt = with(density) { 120.dp.toPx() }
     val flick = with(density) { 800.dp.toPx() }
@@ -180,7 +187,8 @@ fun ViewerScreen(
 
     var shown by remember { mutableStateOf(pager.currentPage) }
     LaunchedEffect(pager.currentPage) {
-        dragY = 0f
+        dragGen++
+        dragY.snapTo(0f)
         isDragging = false
         if (pager.currentPage != shown) {
             shown = pager.currentPage
@@ -196,17 +204,49 @@ fun ViewerScreen(
     Box(
         Modifier
             .fillMaxSize()
-            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = {}),
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        awaitPointerEvent().changes.forEach { it.consume() }
+                    }
+                }
+            },
     ) {
         Box(
             Modifier
                 .fillMaxSize()
                 .drawBehind {
-                    val pull = (dragY.coerceAtLeast(0f) / fullPull).coerceIn(0f, 1f)
+                    val pull = (dragY.value.coerceAtLeast(0f) / fullPull).coerceIn(0f, 1f)
                     val combined = maxOf(pull, backProgress * 0.6f)
-                    drawRect(ViewerBg.copy(alpha = (1f - combined).coerceIn(0f, 1f)))
+                    val bgAlpha = (1f - combined).coerceIn(0f, 1f)
+                    drawRect(ViewerBg.copy(alpha = bgAlpha))
+                    // Subtle warm darkroom ambient glow behind framed photos.
+                    drawRect(
+                        Brush.radialGradient(
+                            colors = listOf(Color(0xFF2B241E).copy(alpha = 0.34f * bgAlpha), Color.Transparent),
+                            center = Offset(size.width / 2f, size.height * 0.45f),
+                            radius = size.maxDimension * 0.65f,
+                        ),
+                    )
                 },
         )
+        if (!reduce) {
+            val ambientReq = rememberThumbnailRequest(photo.uri, maxPx = 48, crossfade = true)
+            AsyncImage(
+                model = ambientReq,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        val pull = (dragY.value.coerceAtLeast(0f) / fullPull).coerceIn(0f, 1f)
+                        val combined = maxOf(pull, backProgress * 0.6f)
+                        alpha = 0.14f * (1f - combined).coerceIn(0f, 1f)
+                        scaleX = 1.25f
+                        scaleY = 1.25f
+                    },
+            )
+        }
         HorizontalPager(
             state = pager,
             key = { photos[it].key },
@@ -216,30 +256,40 @@ fun ViewerScreen(
                 .draggable(
                     orientation = Orientation.Vertical,
                     enabled = !zoomed,
-                    onDragStarted = { isDragging = true },
+                    onDragStarted = {
+                        dragGen++
+                    },
                     state = rememberDraggableState { d ->
-                        dragY = (dragY + d).coerceAtLeast(0f)
+                        val next = (dragY.value + d).coerceAtLeast(0f)
+                        if (next > 0f || isDragging) {
+                            isDragging = true
+                            scope.launch { dragY.snapTo(next) }
+                        }
                     },
                     onDragStopped = { velocity ->
-                        if (dragY > 0f && (dragY > closeAt || velocity > flick)) {
+                        val currentGen = dragGen
+                        val curY = dragY.value
+                        if (curY > 0f && (curY > closeAt || velocity > flick)) {
                             scope.launch {
                                 if (!reduce) {
-                                    animate(dragY, screenHeightPx, animationSpec = tween(180)) { v, _ -> dragY = v }
+                                    dragY.animateTo(screenHeightPx, animationSpec = tween(180))
                                 }
-                                onClose()
+                                if (dragGen == currentGen) onClose()
                             }
-                        } else {
+                        } else if (curY > 0f || isDragging) {
                             scope.launch {
-                                if (reduce) {
-                                    dragY = 0f
-                                } else {
-                                    animate(
-                                        initialValue = dragY,
-                                        targetValue = 0f,
-                                        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow),
-                                    ) { v, _ -> dragY = v }
+                                try {
+                                    if (reduce) {
+                                        dragY.snapTo(0f)
+                                    } else {
+                                        dragY.animateTo(
+                                            targetValue = 0f,
+                                            animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow),
+                                        )
+                                    }
+                                } finally {
+                                    if (dragGen == currentGen) isDragging = false
                                 }
-                                isDragging = false
                             }
                         }
                     },
@@ -282,8 +332,8 @@ fun ViewerScreen(
                     .fillMaxSize()
                     .graphicsLayer {
                         if (current) {
-                            translationY = dragY
-                            val pull = (dragY.coerceAtLeast(0f) / fullPull).coerceIn(0f, 1f)
+                            translationY = dragY.value
+                            val pull = (dragY.value.coerceAtLeast(0f) / fullPull).coerceIn(0f, 1f)
                             val backScale = 1f - 0.12f * backProgress
                             val s = (1f - 0.15f * pull) * backScale
                             scaleX = s
@@ -333,7 +383,7 @@ fun ViewerScreen(
                 Modifier
                     .fillMaxSize()
                     .graphicsLayer {
-                        val pull = (dragY.coerceAtLeast(0f) / fullPull).coerceIn(0f, 1f)
+                        val pull = (dragY.value.coerceAtLeast(0f) / fullPull).coerceIn(0f, 1f)
                         alpha = chromeAlpha * (1f - pull) * (1f - backProgress)
                     }
                     .then(if (!chrome) Modifier.clearAndSetSemantics {} else Modifier),
@@ -410,8 +460,19 @@ fun ViewerScreen(
                         }
                         Spacer(Modifier.height(18.dp))
                     }
+                    val heartScale by animateFloatAsState(
+                        targetValue = if (fav) 1.15f else 1f,
+                        animationSpec = if (reduce) snap() else spring(dampingRatio = 0.42f, stiffness = 520f),
+                        label = "viewerHeart",
+                    )
                     Row(
-                        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 10.dp)
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(Color(0xC71B1A19))
+                            .border(0.5.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(24.dp))
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
                         horizontalArrangement = Arrangement.SpaceAround,
                     ) {
                         Action(
@@ -419,8 +480,12 @@ fun ViewerScreen(
                             L.s("favorite_short"),
                             L.s(if (fav) "unfavorite" else "favorite"),
                             tint = if (fav) ViewerHeart else ViewerInk,
+                            iconScale = if (fav) heartScale else 1f,
                             enabled = chrome,
-                        ) { if (!fav) Haptics.confirm(view); onFavorite(photo) }
+                        ) {
+                            if (!fav) Haptics.confirm(view) else Haptics.tick(view)
+                            onFavorite(photo)
+                        }
                         Action(
                             Icons.Outlined.Share,
                             L.s("share"),
@@ -450,7 +515,7 @@ fun ViewerScreen(
         PhotoInfoSheet(
             photo = photo,
             use24 = use24,
-            cityFor = cityFor,
+            cityAt = cityAt,
             onShowDay = onShowDay?.let { openDay ->
                 {
                     showInfo = false
@@ -466,13 +531,14 @@ fun ViewerScreen(
 private data class PhotoExifInfo(
     val camera: String?,
     val details: String?,
+    val latLong: DoubleArray?,
 )
 
 @Composable
 private fun PhotoInfoSheet(
     photo: Photo,
     use24: Boolean,
-    cityFor: (suspend (Photo) -> String?)?,
+    cityAt: (suspend (Double, Double) -> String?)?,
     onShowDay: (() -> Unit)?,
     onDismiss: () -> Unit,
 ) {
@@ -483,14 +549,23 @@ private fun PhotoInfoSheet(
     var city by remember(photo.key) { mutableStateOf<String?>(null) }
 
     LaunchedEffect(photo.key) {
-        exif = withContext(Dispatchers.IO) {
+        val parsed = withContext(Dispatchers.IO) {
             runCatching {
-                var uri = Uri.parse(photo.uri)
-                if (Build.VERSION.SDK_INT >= 29) {
-                    runCatching { uri = MediaStore.setRequireOriginal(uri) }
+                val baseUri = Uri.parse(photo.uri)
+                val hasMediaLocation = Build.VERSION.SDK_INT < 29 ||
+                    ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_MEDIA_LOCATION) == PackageManager.PERMISSION_GRANTED
+                val preferredUri = if (Build.VERSION.SDK_INT >= 29 && hasMediaLocation) {
+                    runCatching { MediaStore.setRequireOriginal(baseUri) }.getOrDefault(baseUri)
+                } else {
+                    baseUri
                 }
-                context.contentResolver.openInputStream(uri)?.use { stream ->
-                    val ex = ExifInterface(stream)
+                val stream = try {
+                    context.contentResolver.openInputStream(preferredUri)
+                } catch (_: SecurityException) {
+                    if (preferredUri != baseUri) context.contentResolver.openInputStream(baseUri) else null
+                }
+                stream?.use { input ->
+                    val ex = ExifInterface(input)
                     val make = ex.getAttribute(ExifInterface.TAG_MAKE)?.trim().orEmpty()
                     val model = ex.getAttribute(ExifInterface.TAG_MODEL)?.trim().orEmpty()
                     val camera = when {
@@ -505,12 +580,15 @@ private fun PhotoInfoSheet(
                         }
                         ex.getAttribute(ExifInterface.TAG_PHOTOGRAPHIC_SENSITIVITY)?.let { add("ISO $it") }
                     }
-                    PhotoExifInfo(camera, parts.joinToString(" · ").ifBlank { null })
+                    val latLong = if (hasMediaLocation) ex.latLong else null
+                    PhotoExifInfo(camera, parts.joinToString(" · ").ifBlank { null }, latLong)
                 }
             }.getOrNull()
         }
-        if (cityFor != null) {
-            city = runCatching { cityFor(photo) }.getOrNull()
+        exif = parsed
+        val coords = parsed?.latLong
+        if (cityAt != null && coords != null && coords.size >= 2) {
+            city = runCatching { cityAt(coords[0], coords[1]) }.getOrNull()
         }
     }
 
@@ -521,28 +599,30 @@ private fun PhotoInfoSheet(
                 Icon(Icons.Filled.Close, L.s("close"), tint = p.muted)
             }
         }
-        InfoRow(
-            Icons.Outlined.CalendarToday,
-            formatDate(date, "yMMMMd"),
-            L.s("ago_weekday", "ago" to agoLabel(date.year), "weekday" to weekdayTime(photo.time, use24)),
-        )
-        if (!city.isNullOrBlank()) {
-            InfoRow(Icons.Outlined.Place, city!!, null)
-        }
-        if (photo.width > 0 && photo.height > 0) {
+        Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             InfoRow(
-                Icons.Outlined.PhotoSizeSelectActual,
-                ltrIsolate("${L.num(photo.width)} × ${L.num(photo.height)}"),
-                null,
+                Icons.Outlined.CalendarToday,
+                formatDate(date, "yMMMMd"),
+                L.s("ago_weekday", "ago" to agoLabel(date.year), "weekday" to weekdayTime(photo.time, use24)),
             )
-        }
-        exif?.let { info ->
-            if (info.camera != null || info.details != null) {
-                InfoRow(Icons.Outlined.CameraAlt, info.camera ?: info.details!!, if (info.camera != null) info.details else null)
+            if (!city.isNullOrBlank()) {
+                InfoRow(Icons.Outlined.Place, city!!, null)
             }
-        }
-        if (onShowDay != null) {
-            Pill(L.s("show_this_day"), onShowDay, kind = Kind.Secondary, height = 48.dp, modifier = Modifier.fillMaxWidth())
+            if (photo.width > 0 && photo.height > 0) {
+                InfoRow(
+                    Icons.Outlined.PhotoSizeSelectActual,
+                    ltrIsolate("${L.num(photo.width)} × ${L.num(photo.height)}"),
+                    null,
+                )
+            }
+            exif?.let { info ->
+                if (info.camera != null || info.details != null) {
+                    InfoRow(Icons.Outlined.CameraAlt, info.camera ?: info.details!!, if (info.camera != null) info.details else null)
+                }
+            }
+            if (onShowDay != null) {
+                Pill(L.s("show_this_day"), onShowDay, kind = Kind.Secondary, height = 48.dp, modifier = Modifier.fillMaxWidth())
+            }
         }
     }
 }
@@ -565,7 +645,15 @@ private fun InfoRow(icon: ImageVector, primary: String, secondary: String?) {
 
 /** An icon with a short word under it. */
 @Composable
-private fun Action(icon: ImageVector, word: String, label: String, tint: Color = ViewerInk, enabled: Boolean, onClick: () -> Unit) {
+private fun Action(
+    icon: ImageVector,
+    word: String,
+    label: String,
+    tint: Color = ViewerInk,
+    iconScale: Float = 1f,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
     Column(
         Modifier
             .widthIn(min = 68.dp)
@@ -577,12 +665,19 @@ private fun Action(icon: ImageVector, word: String, label: String, tint: Color =
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Icon(icon, null, tint = tint, modifier = Modifier.size(26.dp))
+        Icon(
+            icon,
+            null,
+            tint = tint,
+            modifier = Modifier
+                .size(26.dp)
+                .graphicsLayer { scaleX = iconScale; scaleY = iconScale },
+        )
         T(word, size = 11, weight = FontWeight.SemiBold, color = ViewerInk.copy(alpha = if (enabled) 0.85f else 0.4f), maxLines = 1, modifier = Modifier.clearAndSetSemantics {})
     }
 }
 
-/** Small thumbnails of every photo, with the current one wider and outlined, plus year dividers. */
+/** Small thumbnails of every photo, with the current one wider and outlined, plus tappable year pills. */
 @Composable
 private fun Filmstrip(photos: List<Photo>, index: Int, enabled: Boolean, onPick: (Int) -> Unit) {
     val reduce = LocalReduceMotion.current
@@ -591,6 +686,7 @@ private fun Filmstrip(photos: List<Photo>, index: Int, enabled: Boolean, onPick:
         if (reduce) strip.scrollToItem(index) else strip.animateScrollToItem(index)
     }
     val years = remember(photos) { photos.map { localDate(it.time).year } }
+    val multiYear = remember(years) { years.distinct().size > 1 }
     BoxWithConstraints(Modifier.fillMaxWidth().height(56.dp)) {
         val side = (maxWidth / 2 - 34.dp).coerceAtLeast(0.dp)
         LazyRow(
@@ -602,19 +698,20 @@ private fun Filmstrip(photos: List<Photo>, index: Int, enabled: Boolean, onPick:
         ) {
             itemsIndexed(photos, key = { _, p -> p.key }) { i, p ->
                 val on = i == index
-                val yearBoundary = i > 0 && years[i] != years[i - 1]
+                val yearBoundary = multiYear && (i == 0 || years[i] != years[i - 1])
                 val request = rememberThumbnailRequest(p.uri, maxPx = 160, crossfade = false)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (yearBoundary) {
                         Box(
                             Modifier
                                 .padding(horizontal = 4.dp)
-                                .clip(RoundedCornerShape(4.dp))
+                                .clip(RoundedCornerShape(50))
                                 .background(ViewerInk.copy(alpha = 0.18f))
-                                .padding(horizontal = 5.dp, vertical = 2.dp)
-                                .clearAndSetSemantics {},
+                                .clickable(enabled = enabled, role = Role.Button) { onPick(i) }
+                                .padding(horizontal = 7.dp, vertical = 3.dp)
+                                .semantics { contentDescription = L.num(years[i]) },
                         ) {
-                            T(L.num(years[i]), size = 10, weight = FontWeight.Bold, color = ViewerInk)
+                            T(L.num(years[i]), size = 11, weight = FontWeight.ExtraBold, color = ViewerInk)
                         }
                     }
                     Box(

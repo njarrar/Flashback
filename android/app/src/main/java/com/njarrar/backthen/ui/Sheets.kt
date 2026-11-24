@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
@@ -107,6 +108,7 @@ fun BottomSheet(onDismiss: () -> Unit, content: @Composable () -> Unit) {
         containerColor = p.surface,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        contentWindowInsets = { WindowInsets(0, 0, 0, 0) },
     ) {
         Column(
             Modifier
@@ -154,7 +156,7 @@ fun AlbumSheet(
                     singleLine = true,
                     textStyle = TextStyle(fontFamily = Nunito, fontWeight = FontWeight.Medium, fontSize = 16.sp, color = p.ink),
                     shape = RoundedCornerShape(14.dp),
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Accent, unfocusedBorderColor = p.line, cursorColor = Accent),
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = p.brandCobaltFill, unfocusedBorderColor = p.borderControl, cursorColor = p.brandCobaltFill),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(onDone = { create() }),
                     modifier = mod,
@@ -213,12 +215,15 @@ fun SettingsSheet(
     state: SavedState,
     day: MonthDay,
     partialAccess: Boolean = false,
+    notificationsBlocked: Boolean = false,
     placesScanning: Boolean = false,
+    activeHomeId: Int? = null,
     homeCityName: String? = null,
     visitedCities: List<City> = emptyList(),
     onConnectDevice: () -> Unit,
     onManagePhotos: (() -> Unit)? = null,
     onOpenSettings: (() -> Unit)? = null,
+    onOpenNotificationSettings: (() -> Unit)? = null,
     onReminder: (Boolean) -> Unit,
     onReminderTime: (Int, Int) -> Unit,
     onLayout: (YearLayout) -> Unit,
@@ -311,6 +316,14 @@ fun SettingsSheet(
                     }
                 }
             }
+            if (state.reminder.on && notificationsBlocked) {
+                T(L.s("toast_notifications_off"), size = 13, weight = FontWeight.Medium, color = p.accInk)
+                if (onOpenNotificationSettings != null) {
+                    Row {
+                        Pill(L.s("open_settings"), onOpenNotificationSettings, kind = Kind.Secondary, height = 40.dp)
+                    }
+                }
+            }
             T(L.s("reminder_settings_note"), size = 13, muted = true)
 
             HorizontalDivider(color = p.line)
@@ -359,7 +372,7 @@ fun SettingsSheet(
                             }
                         }
                         if (visitedCities.isNotEmpty()) {
-                            T(L.s("change"), size = 14, weight = FontWeight.SemiBold, color = Accent)
+                            T(L.s("change"), size = 14, weight = FontWeight.SemiBold, color = p.accInk)
                         }
                     }
                 }
@@ -451,7 +464,7 @@ fun SettingsSheet(
                 TextButton(onClick = {
                     onReminderTime(pickerState.hour, pickerState.minute)
                     pickingTime = false
-                }) { T(L.s("save"), weight = FontWeight.SemiBold, color = Accent) }
+                }) { T(L.s("save"), weight = FontWeight.SemiBold, color = p.accInk) }
             },
             dismissButton = {
                 TextButton(onClick = { pickingTime = false }) { T(L.s("cancel"), weight = FontWeight.SemiBold) }
@@ -467,7 +480,11 @@ fun SettingsSheet(
             text = {
                 LazyColumn(Modifier.heightIn(max = 320.dp)) {
                     items(visitedCities, key = { it.id }) { city ->
-                        val selectedCity = state.customHomeCity == city.id || (state.customHomeCity == null && homeCityName == city.name)
+                        val selectedCity = if (activeHomeId != null) {
+                            activeHomeId == city.id
+                        } else {
+                            state.customHomeCity == city.id || (state.customHomeCity == null && homeCityName == city.name)
+                        }
                         val country = countryName(city.country)
                         Row(
                             Modifier
@@ -594,51 +611,53 @@ data class ShareRequest(val title: String, val photos: List<Photo>)
 fun ShareSheet(request: ShareRequest, onSend: () -> Unit, onSave: () -> Unit, onDismiss: () -> Unit) {
     val p = LocalPalette.current
     BottomSheet(onDismiss) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-                Box(Modifier.size(64.dp).clearAndSetSemantics {}) {
-                    request.photos.take(3).withIndex().reversed().forEach { (i, ph) ->
-                        val req = rememberThumbnailRequest(ph.uri, maxPx = 160, crossfade = false)
-                        val shape = RoundedCornerShape(10.dp)
-                        AsyncImage(
-                            req,
-                            null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .offset((i * 6).dp, (i * 5).dp)
-                                .size(52.dp)
-                                .rotate(listOf(-6f, 4f, -1f)[i])
-                                .shadow(4.dp, shape)
-                                .clip(shape)
-                                .background(p.fill)
-                                .border(2.dp, p.surface, shape),
-                        )
+        Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                    Box(Modifier.size(64.dp).clearAndSetSemantics {}) {
+                        request.photos.take(3).withIndex().reversed().forEach { (i, ph) ->
+                            val req = rememberThumbnailRequest(ph.uri, maxPx = 160, crossfade = false)
+                            val shape = RoundedCornerShape(10.dp)
+                            AsyncImage(
+                                req,
+                                null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .offset((i * 6).dp, (i * 5).dp)
+                                    .size(52.dp)
+                                    .rotate(listOf(-6f, 4f, -1f)[i])
+                                    .shadow(4.dp, shape)
+                                    .clip(shape)
+                                    .background(p.fill)
+                                    .border(2.dp, p.surface, shape),
+                            )
+                        }
                     }
                 }
+                Column(Modifier.weight(1f)) {
+                    T(request.title, size = 18, weight = FontWeight.Bold, maxLines = 2)
+                    T(L.p("photos", request.photos.size), size = 14, muted = true)
+                }
+                IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
+                    Icon(Icons.Filled.Close, L.s("close"), tint = p.muted)
+                }
             }
-            Column(Modifier.weight(1f)) {
-                T(request.title, size = 18, weight = FontWeight.Bold, maxLines = 2)
-                T(L.p("photos", request.photos.size), size = 14, muted = true)
-            }
-            IconButton(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
-                Icon(Icons.Filled.Close, L.s("close"), tint = p.muted)
-            }
-        }
-        Pill(L.s("share"), onSend, modifier = Modifier.fillMaxWidth(), icon = { Icon(Icons.Outlined.Share, null, tint = it, modifier = Modifier.size(18.dp)) })
-        if (CAN_SAVE_TO_GALLERY) {
-            HorizontalDivider(color = p.line)
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 52.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .clickable(role = Role.Button, onClick = onSave)
-                    .padding(horizontal = 4.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Icon(Icons.Outlined.Download, null, tint = p.ink)
-                T(L.s("save_copies_gallery"), weight = FontWeight.Medium)
+            Pill(L.s("share"), onSend, modifier = Modifier.fillMaxWidth(), icon = { Icon(Icons.Outlined.Share, null, tint = it, modifier = Modifier.size(18.dp)) })
+            if (CAN_SAVE_TO_GALLERY) {
+                HorizontalDivider(color = p.line)
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 52.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable(role = Role.Button, onClick = onSave)
+                        .padding(horizontal = 4.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Icon(Icons.Outlined.Download, null, tint = p.ink)
+                    T(L.s("save_copies_gallery"), weight = FontWeight.Medium)
+                }
             }
         }
     }

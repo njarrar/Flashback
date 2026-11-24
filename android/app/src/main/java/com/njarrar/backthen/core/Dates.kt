@@ -103,7 +103,9 @@ fun weekdayOf(year: Int, md: MonthDay): String =
 fun formatTime(hour: Int, minute: Int, use24: Boolean? = null): String {
     val locale = L.locale
     val zone = ZoneId.systemDefault()
-    val at = Date(LocalDate.of(2024, 1, 1).atTime(hour, minute).atZone(zone).toInstant().toEpochMilli())
+    val h = hour.coerceIn(0, 23)
+    val m = minute.coerceIn(0, 59)
+    val at = Date(LocalDate.of(2024, 1, 1).atTime(h, m).atZone(zone).toInstant().toEpochMilli())
     val skeleton = when (use24) { true -> "Hmm"; false -> "hmm"; null -> "jmm" }
     return synchronized(timeFormats) {
         cachedFormat(timeFormats, locale, zone.id, skeleton).format(at)

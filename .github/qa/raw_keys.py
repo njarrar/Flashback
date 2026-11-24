@@ -15,6 +15,7 @@ keys = set(words) | {e.get("name") for e in en.iter("plurals")}
 # A key whose English word is the key itself (none today) can't be told apart, so skip it.
 keys = {k for k in keys if words.get(k) != k}
 long_keys = [k for k in keys if "_" in k]
+slot_re = re.compile(r"\{[a-z][a-z0-9_]*\}")
 
 hits = []
 for node in ET.parse(screen_path).getroot().iter("node"):
@@ -22,7 +23,11 @@ for node in ET.parse(screen_path).getroot().iter("node"):
         value = (node.get(attr) or "").strip()
         if not value:
             continue
-        if value in keys or any(re.search(rf"(?<![\w]){re.escape(k)}(?![\w])", value) for k in long_keys):
+        if (
+            value in keys
+            or any(re.search(rf"(?<![\w]){re.escape(k)}(?![\w])", value) for k in long_keys)
+            or slot_re.search(value)
+        ):
             hits.append(f"{label}: {attr} \"{value}\"")
 
 if hits:

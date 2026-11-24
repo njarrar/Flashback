@@ -22,21 +22,20 @@ struct BackThenApp: App {
                 .environment(\.locale, L.locale)
                 .onAppear { delegate.store = store }
                 .onChange(of: phase) { _, now in
-                    if now == .active { store.catchUpToToday() }
-                    // New photos may have been taken since the app was last open.
-                    if now == .active, store.saved.onboarded, store.saved.sources.device {
-                        Task { await store.refreshIndex() }
+                    if now == .active {
+                        store.catchUpToToday()
+                        // New photos may have been taken since the app was last open.
+                        if store.saved.onboarded, store.saved.sources.device {
+                            Task { await store.refreshIndex() }
+                        }
+                    } else {
+                        store.flushSave()
                     }
                 }
                 // A tap on the home screen widget opens Today.
                 .onOpenURL { url in
                     guard url.scheme == "backthen" || url.scheme == "flashback", url.host == "today" else { return }
-                    guard store.saved.onboarded else { return }
-                    store.viewer = nil
-                    store.reel = nil
-                    store.openAlbumID = nil
-                    store.day = .today
-                    store.tab = .today
+                    store.openDeepLink(day: .today)
                 }
         }
     }
@@ -79,11 +78,6 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
 
     @MainActor
     private func open(_ md: MonthDay, in store: AppStore) {
-        guard store.saved.onboarded else { return }
-        store.viewer = nil
-        store.reel = nil
-        store.openAlbumID = nil
-        store.day = md
-        store.tab = .today
+        store.openDeepLink(day: md)
     }
 }

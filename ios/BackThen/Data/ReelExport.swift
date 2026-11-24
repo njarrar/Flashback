@@ -8,6 +8,7 @@ enum ReelExport {
     /// Dedicated serial queue for CoreGraphics rendering and AVAssetWriter appends so the
     /// Swift Concurrency cooperative thread pool is never starved.
     private static let encodeQueue = DispatchQueue(label: "com.njarrar.backthen.reelexport", qos: .userInitiated)
+    private static let sRGBColorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
     private static let rootDirectory = FileManager.default.temporaryDirectory.appending(path: "reels")
 
     /// Long side of the photos loaded for the video, the whole photo inside it. Enough to
@@ -163,10 +164,9 @@ enum ReelExport {
         guard let buffer = made else { return nil }
         CVPixelBufferLockBaseAddress(buffer, [])
         defer { CVPixelBufferUnlockBaseAddress(buffer, []) }
-        let colorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
         guard let ctx = CGContext(
             data: CVPixelBufferGetBaseAddress(buffer), width: w, height: h, bitsPerComponent: 8,
-            bytesPerRow: CVPixelBufferGetBytesPerRow(buffer), space: colorSpace,
+            bytesPerRow: CVPixelBufferGetBytesPerRow(buffer), space: sRGBColorSpace,
             bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
         ) else { return nil }
         // UIKit drawing expects the origin at the top left.

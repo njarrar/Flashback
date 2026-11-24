@@ -11,7 +11,9 @@ keeps, what leaves your phone, and the choices you have.
 - Flashback has **no account, no server, no ads, no analytics and no tracking**.
 - Your photos and everything you do in the app stay **on your phone**.
 - I never receive, see, store, sell or share any of your data.
-- The app does not use the internet. It reads only the photos already on your phone.
+- The app never goes online by itself. On Android it has no internet access at all. On
+  iPhone, if you use iCloud Photos or Shared Albums, Apple may download a photo from
+  iCloud when you open it.
 
 ## 1. What the app reads
 
@@ -23,7 +25,7 @@ the Photos library). For each photo it reads:
 - the image itself, to show it on screen;
 - the date and time it was taken, to find photos from the same day in past years;
 - basic details such as its size, to lay it out on screen;
-- if you turn on Places (below), the place it was taken, to find its city.
+- if you turn on Places (below) or open a photo's Info sheet, the place it was taken, to match it to a city using the offline list built into the app.
 
 The app does this on your phone only. It does not upload, copy to a server, scan for
 faces, or send any photo or detail about a photo anywhere.
@@ -61,20 +63,23 @@ The app saves a small file in its own private storage on your phone with:
   on, and whether Places is on.
 
 When you save an album to your gallery, the app writes normal photo files to your
-phone's gallery (Android: Pictures/Flashback; iPhone: a Photos album). Those then
-belong to your gallery like any other photo.
+phone's gallery (Android: `Pictures/Flashback`; iPhone: a Photos album). When you save a
+Reel, the app writes an MP4 video to your gallery (Android: `Movies/Flashback`; iPhone:
+your Photos library). Those then belong to your gallery like any other photo or video.
 
-**Backups.** Your phone may include the app's saved file in its own backup (Android's
-backup to your Google account, or iCloud or computer backup on iPhone), if you have
-backups turned on. Those backups are run by Google or Apple under your account and their
-terms. I have no access to them.
+**Backups.** On Android, cloud backup and device-to-device transfer of the app's saved
+file are turned off in the app's configuration, so Android does not upload Flashback's
+saved data to Google. On iPhone, iCloud and computer backups are opt-in system features
+run by Apple under your Apple Account and their terms (Flashback's local index is
+designed to stay on your device, and I have no access to any Apple backup).
 
 ## 3. Sharing
 
-When you share a photo, a year or an album, the app opens your phone's share screen
-and hands the photos to the app you pick, such as Messages or WhatsApp. From then on,
-that app's privacy policy applies. Flashback does not send anything by itself and does
-not see what happens after you share.
+When you share a photo, a year, an album, or a Reel, the app opens your phone's share
+screen and hands the photos (preserving their original image metadata such as date and
+location) or the exported video to the app you pick, such as Messages or WhatsApp. From
+then on, that app's privacy policy applies. Flashback does not send anything by itself
+and does not see what happens after you share.
 
 ## 4. What I collect
 
@@ -98,15 +103,15 @@ have any.
 
 Your data stays in the app's private storage, which other apps can't read, protected by
 your phone's own security such as its lock screen and encryption. The app sends nothing
-over the internet, so there is nothing to intercept.
+to any server of its own, so there is nothing to intercept.
 
 ## 7. How long data is kept
 
 Everything the app saves stays on your phone until you delete it. Removing a favorite,
 album or hidden date deletes it at once.
-**Uninstalling the app deletes everything it saved**, except albums you saved to your
-gallery and any phone backups you made. The app never changes or deletes your original
-photos.
+**Uninstalling the app deletes everything it saved**, except albums and Reels you saved
+to your gallery and any opt-in device backups you made on iPhone. The app never changes
+or deletes your original photos.
 
 ## 8. Children
 

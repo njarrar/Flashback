@@ -74,11 +74,16 @@ def call(method, path, body=None, soft=False, **params):
     r = requests.request(method, API + path, json=body, params=params,
                          headers={"Authorization": f"Bearer {token()}"}, timeout=60)
     if r.status_code >= 400:
-        for e in r.json().get("errors", []):
+        try:
+            errors = r.json().get("errors", [])
+        except ValueError:
+            errors = []
+            print(f"  Non-JSON error body: {r.text[:200]}")
+        for e in errors:
             print(f"  {e.get('title')}: {e.get('detail')}")
             # Apple lists what blocks a review under associatedErrors.
-            for errors in (e.get("meta") or {}).get("associatedErrors", {}).values():
-                for a in errors:
+            for assoc in (e.get("meta") or {}).get("associatedErrors", {}).values():
+                for a in assoc:
                     print(f"    - {a.get('title')}: {a.get('detail')}")
         if soft:
             print(f"  {method} {path} answered {r.status_code}")
@@ -87,16 +92,26 @@ def call(method, path, body=None, soft=False, **params):
     return r.json() if r.content else {}
 
 
+def editable_app_info(app):
+    infos = [i for i in call("GET", f"/v1/apps/{app['id']}/appInfos")["data"]
+             if i["attributes"].get("state", i["attributes"].get("appStoreState")) != "READY_FOR_DISTRIBUTION"]
+    if not infos:
+        sys.exit("No editable appInfo record found in App Store Connect.")
+    return infos[0]
+
+
 def check(app, version):
     """Prints every store field, per language, and says whether all of them are filled in."""
     ok = True
 
-    def show(label, value):
+    def show(label, value, required=True):
         nonlocal ok
         filled = value not in (None, "", [], 0)
-        ok &= filled
+        if required:
+            ok &= filled
+        tag = "ok  " if filled else ("MISSING" if required else "opt ")
         text = str(value).replace("\n", " ")
-        print(f"  {'ok  ' if filled else 'MISSING'} {label}: {text[:70] + '...' if len(text) > 70 else text}")
+        print(f"  {tag} {label}: {text[:70] + '...' if len(text) > 70 else text}")
 
     v = version["attributes"]
     print("Version:")
@@ -106,11 +121,10 @@ def check(app, version):
     build = call("GET", f"/v1/appStoreVersions/{version['id']}/build").get("data")
     show("build", build and build["attributes"]["version"])
 
-    info = [i for i in call("GET", f"/v1/apps/{app['id']}/appInfos")["data"]
-            if i["attributes"].get("state", i["attributes"].get("appStoreState")) != "READY_FOR_DISTRIBUTION"][0]
+    info = editable_app_info(app)
     print("App information:")
-    for rel in ("primaryCategory", "secondaryCategory"):
-        show(rel, (call("GET", f"/v1/appInfos/{info['id']}/{rel}").get("data") or {}).get("id"))
+    show("primaryCategory", (call("GET", f"/v1/appInfos/{info['id']}/primaryCategory").get("data") or {}).get("id"))
+    show("secondaryCategory", (call("GET", f"/v1/appInfos/{info['id']}/secondaryCategory").get("data") or {}).get("id"), required=False)
     show("content rights", app["attributes"].get("contentRightsDeclaration"))
     for loc in call("GET", f"/v1/appInfos/{info['id']}/appInfoLocalizations")["data"]:
         a = loc["attributes"]
@@ -215,23 +229,33 @@ def text(folder, name):
 
 
 def add_languages(app, version):
-    """Adds every language in app-store/listing that App Store Connect doesn't have yet:
-    name, subtitle and privacy policy on the app, and the store page on this version.
-    The links come from the English page."""
+    """Adds missing languages and syncs name/subtitle updates from app-store/listing."""
     folders = sorted(p for p in LISTING.iterdir() if p.is_dir())
-    info = [i for i in call("GET", f"/v1/apps/{app['id']}/appInfos")["data"]
-            if i["attributes"].get("state", i["attributes"].get("appStoreState")) != "READY_FOR_DISTRIBUTION"][0]
+    info = editable_app_info(app)
     infos = call("GET", f"/v1/appInfos/{info['id']}/appInfoLocalizations")["data"]
     en = next(l for l in infos if l["attributes"]["locale"] == "en-US")["attributes"]
-    have = {l["attributes"]["locale"] for l in infos}
+    by_locale = {l["attributes"]["locale"]: l for l in infos}
     for folder in folders:
-        if folder.name not in have:
+        want_name = text(folder, "name.txt")
+        want_sub = text(folder, "subtitle.txt")
+        if folder.name not in by_locale:
             call("POST", "/v1/appInfoLocalizations", {"data": {
                 "type": "appInfoLocalizations",
-                "attributes": {"locale": folder.name, "name": text(folder, "name.txt"),
-                               "subtitle": text(folder, "subtitle.txt"), "privacyPolicyUrl": en.get("privacyPolicyUrl")},
+                "attributes": {"locale": folder.name, "name": want_name,
+                               "subtitle": want_sub, "privacyPolicyUrl": en.get("privacyPolicyUrl")},
                 "relationships": {"appInfo": {"data": {"type": "appInfos", "id": info["id"]}}}}})
             print(f"Added {folder.name} name and subtitle.")
+        else:
+            existing = by_locale[folder.name]
+            attrs = {}
+            if want_name and existing["attributes"].get("name") != want_name:
+                attrs["name"] = want_name
+            if want_sub and existing["attributes"].get("subtitle") != want_sub:
+                attrs["subtitle"] = want_sub
+            if attrs:
+                call("PATCH", f"/v1/appInfoLocalizations/{existing['id']}", {"data": {
+                    "type": "appInfoLocalizations", "id": existing["id"], "attributes": attrs}})
+                print(f"Updated {folder.name} {', '.join(attrs)}.")
 
     pages = call("GET", f"/v1/appStoreVersions/{version['id']}/appStoreVersionLocalizations")["data"]
     en = next(l for l in pages if l["attributes"]["locale"] == "en-US")["attributes"]
@@ -249,9 +273,8 @@ def add_languages(app, version):
 
 
 def whats_new(app, version):
-    """Sets "What's New" from the listing files (the first release has none), the
-    description and keywords where they differ from the files, and the promotional text
-    where it is empty: a new version record doesn't copy it over."""
+    """Sets "What's New" from the listing files (the first release has none), and syncs
+    description, keywords, and promotional text whenever they differ from git."""
     first = not any(state(v) in RELEASED for v in versions(app))
     pages = call("GET", f"/v1/appStoreVersions/{version['id']}/appStoreVersionLocalizations")["data"]
     # A page added in a new language can come without the support link, so it takes English's.
@@ -261,20 +284,21 @@ def whats_new(app, version):
         attributes = {}
         if support and not loc["attributes"].get("supportUrl"):
             attributes["supportUrl"] = support
-        for field, name in (("description", "description.txt"), ("keywords", "keywords.txt")):
+        for field, name in (
+            ("description", "description.txt"),
+            ("keywords", "keywords.txt"),
+            ("promotionalText", "promotional-text.txt"),
+        ):
             want = text(folder, name)
             if want and loc["attributes"].get(field) != want:
                 attributes[field] = want
         notes = folder / "release-notes.txt"
         if not first and notes.exists():
             attributes["whatsNew"] = notes.read_text(encoding="utf-8").strip()
-        promo = folder / "promotional-text.txt"
-        if not loc["attributes"].get("promotionalText") and promo.exists():
-            attributes["promotionalText"] = promo.read_text(encoding="utf-8").strip()
         if attributes:
             call("PATCH", f"/v1/appStoreVersionLocalizations/{loc['id']}", {"data": {
                 "type": "appStoreVersionLocalizations", "id": loc["id"], "attributes": attributes}})
-    print("What's New, description, keywords and promotional text set.")
+    print("What's New, description, keywords and promotional text synced.")
 
 
 def upload(path, kind, relationship, **extra):

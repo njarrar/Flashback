@@ -13,8 +13,8 @@ android {
         applicationId = "com.njarrar.backthen"
         minSdk = 26
         targetSdk = 36
-        versionCode = 28
-        versionName = "1.27.0"
+        versionCode = 29
+        versionName = "1.28.0"
         resourceConfigurations += listOf("en", "ar", "es", "fr", "pt", "zh")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

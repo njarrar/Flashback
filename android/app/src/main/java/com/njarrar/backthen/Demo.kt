@@ -29,6 +29,7 @@ import kotlinx.coroutines.withContext
  * showing it and logs "Reel check" with the result, for the text check workflow.
  */
 fun AppViewModel.runDemo(scene: String) = viewModelScope.launch {
+    stateReady.await()
     val times = library.readAllTimes()
     val layout = when (scene) { "cards" -> YearLayout.CARDS; "strip" -> YearLayout.STRIP; else -> YearLayout.MOSAIC }
     // The reminder step of the welcome, with the photos found.

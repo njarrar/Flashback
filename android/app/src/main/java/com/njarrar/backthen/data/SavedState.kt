@@ -105,11 +105,17 @@ class StateFile(private val file: File) {
     }
 
     /** Writes the whole state atomically with fsync. A failed write leaves the last good file in place. */
-    fun write(state: SavedState) = synchronized(fileLock) {
+    fun write(state: SavedState) {
+        val bytes = runCatching { json.encodeToString(SavedState.serializer(), state).toByteArray(Charsets.UTF_8) }.getOrNull() ?: return
+        synchronized(fileLock) {
+            writeBytesLocked(bytes)
+        }
+    }
+
+    private fun writeBytesLocked(bytes: ByteArray) {
         val tmp = File(file.path + ".tmp")
         runCatching {
             file.parentFile?.mkdirs()
-            val bytes = json.encodeToString(SavedState.serializer(), state).toByteArray(Charsets.UTF_8)
             FileOutputStream(tmp).use { out ->
                 out.write(bytes)
                 out.flush()
@@ -126,7 +132,8 @@ class StateFile(private val file: File) {
     /** Atomically reads, transforms, and writes [SavedState] under the process-wide lock. */
     fun update(change: (SavedState) -> SavedState): SavedState = synchronized(fileLock) {
         val next = change(read())
-        write(next)
+        val bytes = json.encodeToString(SavedState.serializer(), next).toByteArray(Charsets.UTF_8)
+        writeBytesLocked(bytes)
         next
     }
 
