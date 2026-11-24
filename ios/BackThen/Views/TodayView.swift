@@ -39,7 +39,8 @@ struct TodayView: View {
     @State private var placeAsk = false
     @State private var drag = DragSelect()
 
-    var body: some View {
+    @ViewBuilder
+    private var page: some View {
         let day = store.day
         let groups = result?.day == day ? result?.groups : nil
         let today = MonthDay.today
@@ -136,6 +137,10 @@ struct TodayView: View {
         }
         .overlay(alignment: .bottom) { selectBarOverlay(allSelected: allSelected, visiblePhotos: visiblePhotos) }
         .animation(selectBarAnimation, value: selecting)
+    }
+
+    var body: some View {
+        page
         .sheet(isPresented: $calendar) {
             // The screenshot demo opens on last month until the 15th, so the calendar shot
             // has a month of photo days rather than days still to come (see make_photos.py).
@@ -163,8 +168,8 @@ struct TodayView: View {
         }
         .toolbar(selecting ? .hidden : .visible, for: .tabBar)
         // Skip the 0 -> 1 transition triggered by long-press since PhotoTile already fires its medium impact haptic.
-        .sensoryFeedback(.selection, trigger: picked.count) { old, new in selecting && !(old == 0 && new == 1) }
-        .sensoryFeedback(.selection, trigger: day)
+        .sensoryFeedback(.selection, trigger: picked.count) { (old: Int, new: Int) -> Bool in selecting && !(old == 0 && new == 1) }
+        .sensoryFeedback(.selection, trigger: store.day)
         .sensoryFeedback(.impact(flexibility: .rigid), trigger: boundaryHit)
         .onChange(of: store.tab) { _, _ in stopSelecting() }
         .onChange(of: store.deepLinkToken) { _, _ in
@@ -176,8 +181,8 @@ struct TodayView: View {
             placeOpen = nil
             stopSelecting()
         }
-        .onChange(of: total) { _, n in if n == 0 && selecting { stopSelecting() } }
-        .onChange(of: hidden) { _, h in if h && selecting { stopSelecting() } }
+        .onChange(of: shownTotal) { _, n in if n == 0 && selecting { stopSelecting() } }
+        .onChange(of: store.isHidden(store.day)) { _, h in if h && selecting { stopSelecting() } }
         .onChange(of: store.demoCalendar) { _, on in if on { calendar = true } }
         .onDisappear { drag.cancel() }
         #if DEBUG
@@ -265,6 +270,11 @@ struct TodayView: View {
             .padding(.bottom, 4)
             .transition(selectBarTransition)
         }
+    }
+
+    private var shownTotal: Int {
+        guard let r = result, r.day == store.day else { return 0 }
+        return r.groups.reduce(0) { $0 + $1.photos.count }
     }
 
     private var selectBarTransition: AnyTransition {
