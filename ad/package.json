@@ -4,7 +4,8 @@
   "description": "The Flashback video ad, made from real app screens with Remotion.",
   "scripts": {
     "studio": "remotion studio src/index.ts",
-    "render": "node render.mjs"
+    "render": "node render.mjs",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@remotion/bundler": "4.0.540",
