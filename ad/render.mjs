@@ -69,7 +69,10 @@ function tails(lang) {
         if (dur >= TAIL_SECONDS) {
           execFileSync("ffmpeg", [
             "-v", "error", "-y", "-sseof", `-${TAIL_SECONDS}`, "-i", src, "-an",
-            "-vf", "fps=30,scale=1320:-2", "-t", String(TAIL_SECONDS),
+            // Simulator recordings skip frames while the screen is still, so the last
+            // stretch can be short. Holding the last frame keeps the tail full length.
+            "-vf", `fps=30,tpad=stop_mode=clone:stop_duration=${TAIL_SECONDS},scale=1320:-2`,
+            "-t", String(TAIL_SECONDS),
             "-c:v", "libx264", "-pix_fmt", "yuv420p", "-crf", "18", out,
           ]);
         } else if (dur > 0) {
