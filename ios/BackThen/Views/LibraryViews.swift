@@ -105,54 +105,7 @@ struct FavoritesView: View {
         }
 
         ScrollView {
-            Header(
-                title: L.s("tab_favorites"),
-                subtitle: favs.isEmpty ? L.s("favorites_none")
-                    : L.s("photos_from_years", ["photos": L.p("photos", favs.count), "years": L.p("years", Set(favs.map { yearOf($0.time) }).count)])
-            ) {
-                if !favs.isEmpty {
-                    HStack(spacing: 0) {
-                        if favs.count >= 2 && !selecting {
-                            Button { startReel(favs) } label: {
-                                Image(systemName: "play.rectangle")
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundStyle(Palette.accent)
-                                    .frame(width: 44, height: 40).contentShape(Rectangle())
-                            }
-                            .accessibilityLabel(L.s("make_reel"))
-                            Palette.line.frame(width: 1, height: 20)
-                        }
-                        Button {
-                            if selecting { stopSelecting() } else { selecting = true }
-                        } label: {
-                            Text(L.s(selecting ? "cancel" : "select"))
-                                .font(.nunito(15, .semibold))
-                                .padding(.horizontal, 14).frame(minHeight: 40).contentShape(Rectangle())
-                        }
-                        Palette.line.frame(width: 1, height: 20)
-                        Menu {
-                            if favs.count >= 2 {
-                                Button { startReel(favs) } label: { Label(L.s("make_reel"), systemImage: "play.rectangle") }
-                            }
-                            Button { shareFor = ShareRequest(title: L.s("tab_favorites"), photos: favs) } label: {
-                                Label(L.s("share"), systemImage: "square.and.arrow.up")
-                            }
-                            Picker(L.s("reel_order"), selection: $newestFirst) {
-                                Text(L.s("reel_newest_first")).tag(true)
-                                Text(L.s("reel_oldest_first")).tag(false)
-                            }
-                            .pickerStyle(.inline)
-                        } label: {
-                            Image(systemName: "ellipsis").font(.system(size: 16, weight: .bold))
-                                .frame(width: 44, height: 40).contentShape(Rectangle())
-                        }
-                        .accessibilityLabel(L.s("options"))
-                    }
-                    .foregroundStyle(Palette.ink)
-                    .background(Palette.glass, in: Capsule())
-                    .overlay(Capsule().stroke(Palette.line, lineWidth: 1))
-                }
-            }
+            favHeader(favs)
             if favs.isEmpty {
                 EmptyNote(icon: "heart", title: L.s("favorites_empty_title"), text: L.s("favorites_empty_body"))
             } else {
@@ -185,6 +138,60 @@ struct FavoritesView: View {
         .onChange(of: store.tab) { _, _ in stopSelecting() }
         .onChange(of: favs.count) { _, n in if n == 0 && selecting { stopSelecting() } }
         .onDisappear { drag.cancel() }
+    }
+
+    private func favSubtitle(_ favs: [Photo]) -> String {
+        if favs.isEmpty { return L.s("favorites_none") }
+        let years: Int = Set(favs.map { yearOf($0.time) }).count
+        let args: [String: Any] = ["photos": L.p("photos", favs.count), "years": L.p("years", years)]
+        return L.s("photos_from_years", args)
+    }
+
+    private func favHeader(_ favs: [Photo]) -> some View {
+        Header(title: L.s("tab_favorites"), subtitle: favSubtitle(favs)) {
+            if !favs.isEmpty {
+                HStack(spacing: 0) {
+                    if favs.count >= 2 && !selecting {
+                        Button { startReel(favs) } label: {
+                            Image(systemName: "play.rectangle")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundStyle(Palette.accent)
+                                .frame(width: 44, height: 40).contentShape(Rectangle())
+                        }
+                        .accessibilityLabel(L.s("make_reel"))
+                        Palette.line.frame(width: 1, height: 20)
+                    }
+                    Button {
+                        if selecting { stopSelecting() } else { selecting = true }
+                    } label: {
+                        Text(L.s(selecting ? "cancel" : "select"))
+                            .font(.nunito(15, .semibold))
+                            .padding(.horizontal, 14).frame(minHeight: 40).contentShape(Rectangle())
+                    }
+                    Palette.line.frame(width: 1, height: 20)
+                    Menu {
+                        if favs.count >= 2 {
+                            Button { startReel(favs) } label: { Label(L.s("make_reel"), systemImage: "play.rectangle") }
+                        }
+                        Button { shareFor = ShareRequest(title: L.s("tab_favorites"), photos: favs) } label: {
+                            Label(L.s("share"), systemImage: "square.and.arrow.up")
+                        }
+                        Picker(L.s("reel_order"), selection: $newestFirst) {
+                            Text(L.s("reel_newest_first")).tag(true)
+                            Text(L.s("reel_oldest_first")).tag(false)
+                        }
+                        .pickerStyle(.inline)
+                    } label: {
+                        Image(systemName: "ellipsis").font(.system(size: 16, weight: .bold))
+                            .frame(width: 44, height: 40).contentShape(Rectangle())
+                    }
+                    .accessibilityLabel(L.s("options"))
+                }
+                .foregroundStyle(Palette.ink)
+                .background(Palette.glass, in: Capsule())
+                .overlay(Capsule().stroke(Palette.line, lineWidth: 1))
+            }
+        }
     }
 
     private func favYearList(groups: [FavYearGroup], favs: [Photo], selection: Selection) -> some View {
