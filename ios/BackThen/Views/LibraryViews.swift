@@ -79,7 +79,7 @@ struct FavoritesView: View {
     }
 
     var body: some View {
-        let favs = store.saved.favorites.sorted { newestFirst ? $0.time > $1.time : $0.time < $1.time }
+        let favs: [Photo] = sortedFavorites()
         let groups = groupedByYear(favs)
         let pickedKeys = Set(picked.map(\.key))
         let allSelected = !favs.isEmpty && favs.allSatisfy { pickedKeys.contains($0.key) }
@@ -114,30 +114,42 @@ struct FavoritesView: View {
             Color.clear.frame(height: 120)
         }
         .background(Palette.bg)
-        .overlay(alignment: .bottom) {
-            if selecting {
-                SelectBar(
-                    count: picked.count,
-                    allSelected: allSelected,
-                    onToggleAll: { picked = allSelected ? [] : favs },
-                    share: { shareFor = ShareRequest(title: L.p("photos", picked.count), photos: picked) },
-                    album: { albumFor = picked },
-                    reel: { startReel(picked) }
-                )
-                .padding(.bottom, 4)
-                .transition(selectBarTransition)
-            }
-        }
+        .overlay(alignment: .bottom) { favSelectBar(allSelected: allSelected, favs: favs) }
         .animation(selectBarAnimation, value: selecting)
         .sheet(item: $shareFor) { ShareSheetView(request: $0) }
         .sheet(isPresented: Binding(get: { albumFor != nil }, set: { if !$0 { albumFor = nil } })) {
             AlbumSheet(photos: albumFor ?? [], created: { album in store.openAlbumID = album.id }, done: stopSelecting)
         }
         .toolbar(selecting ? .hidden : .visible, for: .tabBar)
-        .sensoryFeedback(.selection, trigger: picked.count) { old, new in selecting && !(old == 0 && new == 1) }
+        .sensoryFeedback(.selection, trigger: picked.count) { (old: Int, new: Int) -> Bool in tickOnPick(old, new) }
         .onChange(of: store.tab) { _, _ in stopSelecting() }
         .onChange(of: favs.count) { _, n in if n == 0 && selecting { stopSelecting() } }
         .onDisappear { drag.cancel() }
+    }
+
+    private func sortedFavorites() -> [Photo] {
+        let newest = newestFirst
+        return store.saved.favorites.sorted { (a: Photo, b: Photo) -> Bool in newest ? a.time > b.time : a.time < b.time }
+    }
+
+    private func tickOnPick(_ old: Int, _ new: Int) -> Bool {
+        selecting && !(old == 0 && new == 1)
+    }
+
+    @ViewBuilder
+    private func favSelectBar(allSelected: Bool, favs: [Photo]) -> some View {
+        if selecting {
+            SelectBar(
+                count: picked.count,
+                allSelected: allSelected,
+                onToggleAll: { picked = allSelected ? [] : favs },
+                share: { shareFor = ShareRequest(title: L.p("photos", picked.count), photos: picked) },
+                album: { albumFor = picked },
+                reel: { startReel(picked) }
+            )
+            .padding(.bottom, 4)
+            .transition(selectBarTransition)
+        }
     }
 
     private func favSubtitle(_ favs: [Photo]) -> String {
