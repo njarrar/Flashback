@@ -252,10 +252,17 @@ final class AppStore {
                     self.placeCard = nil
                 }
             }
-            libraryObserver = PhotoLibraryObserver { [weak self] in
-                Task { @MainActor [weak self] in
-                    self?.scheduleLibraryChangeRefresh()
-                }
+            startLibraryObserver()
+        }
+    }
+
+    /// Registering a Photos change observer before the user has answered the access prompt
+    /// makes iOS show that prompt, so wait until access is granted.
+    private func startLibraryObserver() {
+        guard persist, libraryObserver == nil, PhotoLibrary.hasAccess else { return }
+        libraryObserver = PhotoLibraryObserver { [weak self] in
+            Task { @MainActor [weak self] in
+                self?.scheduleLibraryChangeRefresh()
             }
         }
     }
@@ -443,6 +450,7 @@ final class AppStore {
     func refreshIndex(force: Bool = false) async {
         reconcilePhotoAccess()
         guard PhotoLibrary.hasAccess else { return }
+        startLibraryObserver()
         if refreshing {
             if force { pendingForceRefresh = true }
             return
