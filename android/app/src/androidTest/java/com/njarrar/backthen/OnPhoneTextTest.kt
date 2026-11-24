@@ -30,6 +30,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.time.LocalDate
+import java.time.ZoneId
 
 /**
  * Runs on a phone or emulator, with Android's own XML reader and the app's packed files.
@@ -109,6 +110,8 @@ class OnPhoneTextTest {
                     sources = Sources(device = true),
                     reminder = Reminder(on = true, hour = 9, minute = 0),
                     deviceIndex = mapOf(key to mapOf(today.year - 3 to 4, today.year - 7 to 2)),
+                    // Same zone as the phone, so the job keeps this index instead of rebuilding it.
+                    indexZone = ZoneId.systemDefault().id,
                 ),
             )
             val worker = TestListenableWorkerBuilder<ReminderWorker>(ctx).build()
