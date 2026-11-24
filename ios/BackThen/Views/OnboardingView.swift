@@ -53,8 +53,8 @@ struct OnboardingView: View {
         HStack(spacing: 6) {
             ForEach(1...2, id: \.self) { i in
                 Capsule()
-                    .fill(i <= step ? Palette.accent : Palette.line)
-                    .frame(width: i == step ? 28 : 14, height: 4)
+                    .fill(i <= step ? Palette.brandCobaltFill : Palette.line)
+                    .frame(width: i == step ? 28 : 12, height: 5)
             }
         }
         .accessibilityHidden(true)
@@ -164,6 +164,13 @@ struct OnboardingView: View {
                         .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Palette.line))
                         .shadow(color: .black.opacity(0.08), radius: 14, y: 6)
 
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text(L.s("reminder_onboarding_title")).font(.nunito(32, .bold)).tight(32).foregroundStyle(Palette.ink).accessibilityAddTraits(.isHeader)
+                            Text(L.s("reminder_onboarding_body")).font(.nunito(16)).foregroundStyle(Palette.muted)
+                        }
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 8) {
                                 ForEach(quickHours, id: \.self) { hour in
@@ -176,11 +183,11 @@ struct OnboardingView: View {
                                     } label: {
                                         Text(formatTime(hour: hour, minute: 0))
                                             .font(.nunito(14, .semibold))
-                                            .foregroundStyle(on ? Palette.bg : Palette.ink)
+                                            .foregroundStyle(on ? Palette.brandCobaltFillInk : Palette.ink)
                                             .padding(.horizontal, 14)
                                             .frame(minHeight: 44)
-                                            .background(on ? Palette.ink : Palette.surface, in: Capsule())
-                                            .overlay(Capsule().stroke(on ? Palette.ink : Palette.line, lineWidth: 1))
+                                            .background(on ? Palette.brandCobaltFill : Palette.surface, in: Capsule())
+                                            .overlay(Capsule().stroke(on ? Palette.brandCobaltFill : Palette.borderControl, lineWidth: 1))
                                     }
                                     .buttonStyle(PressStyle())
                                     .accessibilityAddTraits(on ? .isSelected : [])
@@ -188,13 +195,6 @@ struct OnboardingView: View {
                             }
                             .padding(.vertical, 2)
                         }
-
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text(L.s("reminder_onboarding_title")).font(.nunito(32, .bold)).tight(32).foregroundStyle(Palette.ink).accessibilityAddTraits(.isHeader)
-                            Text(L.s("reminder_onboarding_body")).font(.nunito(16)).foregroundStyle(Palette.muted)
-                        }
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     .frame(minHeight: geo.size.height)
                 }
@@ -253,21 +253,42 @@ private struct WelcomeFit: Layout {
 }
 
 /// The three tilted prints, drawn on a 344 x 400 board and scaled to fit the room they get.
-/// Extra horizontal breathing room keeps the rotated 2016 and 2021 prints from clipping.
-/// Their captions are part of the drawing, so they keep their size whatever the text size.
+/// Fan geometry keeps all three years (2016, 2021, 2025) 100% unobstructed in both LTR and RTL,
+/// with a staggered spring entrance that honors Reduce Motion.
 private struct WelcomePrints: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let label: String
+    @State private var appeared = false
 
     var body: some View {
+        let on = reduceMotion || appeared
         GeometryReader { geo in
             let s = min(geo.size.width / 344, geo.size.height / 400)
             ZStack(alignment: .top) {
-                Print(year: 2016, label: label, image: "welcome-2016-hills", width: 150, angle: -7)
-                    .frame(maxWidth: .infinity, alignment: .leading).padding(.leading, 14).padding(.top, 36)
-                Print(year: 2021, label: label, image: "welcome-2021-sail", width: 150, angle: 6)
-                    .frame(maxWidth: .infinity, alignment: .trailing).padding(.trailing, 14).padding(.top, 8)
-                Print(year: 2025, label: label, image: "welcome-2025-cake", width: 176, angle: -1.5)
-                    .padding(.top, 118)
+                Print(year: 2016, label: label, image: "welcome-2016-hills", width: 144, angle: on ? -10 : -3)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, 4)
+                    .padding(.top, 14)
+                    .scaleEffect(on ? 1 : 0.92)
+                    .offset(y: on ? 0 : 28)
+                    .opacity(on ? 1 : 0)
+                    .animation(reduceMotion ? nil : .spring(response: 0.52, dampingFraction: 0.76).delay(0.06), value: appeared)
+
+                Print(year: 2021, label: label, image: "welcome-2021-sail", width: 144, angle: on ? 10 : 3, yearTrailing: true)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .padding(.trailing, 4)
+                    .padding(.top, 4)
+                    .scaleEffect(on ? 1 : 0.92)
+                    .offset(y: on ? 0 : 28)
+                    .opacity(on ? 1 : 0)
+                    .animation(reduceMotion ? nil : .spring(response: 0.52, dampingFraction: 0.76).delay(0.14), value: appeared)
+
+                Print(year: 2025, label: label, image: "welcome-2025-cake", width: 162, angle: -1.5)
+                    .padding(.top, 158)
+                    .scaleEffect(on ? 1 : 0.90)
+                    .offset(y: on ? 0 : 36)
+                    .opacity(on ? 1 : 0)
+                    .animation(reduceMotion ? nil : .spring(response: 0.52, dampingFraction: 0.76).delay(0.22), value: appeared)
             }
             .frame(width: 344, height: 400, alignment: .top)
             .scaleEffect(max(s, 0.01))
@@ -275,5 +296,6 @@ private struct WelcomePrints: View {
         }
         .dynamicTypeSize(.large)
         .accessibilityHidden(true)
+        .onAppear { appeared = true }
     }
 }

@@ -121,7 +121,7 @@ func loadImage(_ photo: Photo, size px: CGSize, fit: Bool = false, preview: (@Se
     }
 }
 
-enum PillKind { case primary, secondary, ghost, accent, tint }
+enum PillKind { case primary, secondary, ghost, accent, tint, cobaltTint }
 
 struct Pill: View {
     let label: String
@@ -131,6 +131,8 @@ struct Pill: View {
     /// Stretch to the full width given. Defaults to ghost pills and tall pills.
     var wide: Bool?
     var iconAfter = false
+    /// Keep label on a single line with mild scaling for paired sibling buttons (e.g. Album Detail bar).
+    var singleLine = false
     /// Shows a spinner in place of the icon and turns the button off, while its work runs.
     var busy = false
     var action: () -> Void
@@ -139,27 +141,37 @@ struct Pill: View {
 
     var body: some View {
         let (bg, fg): (Color, Color) = switch kind {
-        case .primary: (Palette.ink, Palette.bg)
+        case .primary: (Palette.brandCobaltFill, Palette.brandCobaltFillInk)
         case .secondary: (Palette.surface, Palette.ink)
         case .ghost: (.clear, Palette.ink)
         case .accent: (Palette.accentFill, .white)
         case .tint: (Palette.accTint, Palette.accInk)
+        case .cobaltTint: (Palette.brandCobaltTint, Palette.brandCobaltInk)
+        }
+        let strokeColor: Color = switch kind {
+        case .secondary: Palette.borderControl
+        case .tint: Palette.accent.opacity(0.24)
+        case .cobaltTint: Palette.brandCobaltFill.opacity(0.22)
+        default: .clear
         }
         Button(action: action) {
-            HStack(spacing: 8) {
+            HStack(spacing: singleLine ? 6 : 8) {
                 if busy { ProgressView().tint(fg) }
-                else if let systemImage, !iconAfter { Image(systemName: systemImage).font(.system(size: height < 48 ? 14 : 18, weight: .semibold)) }
-                Text(label).font(.nunito(height < 48 ? 15 : 16, .semibold))
-                    .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
-                if let systemImage, iconAfter { Image(systemName: systemImage).font(.system(size: height < 48 ? 14 : 18, weight: .semibold)) }
+                else if let systemImage, !iconAfter { Image(systemName: systemImage).font(.system(size: height < 48 ? 14 : 17, weight: .semibold)) }
+                Text(label).font(.nunito(height < 48 ? 15 : 16, .bold))
+                    .lineLimit(singleLine ? 1 : nil)
+                    .minimumScaleFactor(singleLine ? 0.78 : 1)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: !singleLine)
+                if let systemImage, iconAfter { Image(systemName: systemImage).font(.system(size: height < 48 ? 14 : 17, weight: .semibold)) }
             }
             .foregroundStyle(fg)
-            .padding(.horizontal, height < 48 ? 16 : 20).padding(.vertical, 6)
+            .padding(.horizontal, singleLine ? 14 : (height < 48 ? 16 : 20)).padding(.vertical, 6)
             // Grows past its usual height when large text wraps the label.
             .frame(minHeight: height)
             .frame(maxWidth: wide ?? (kind == .ghost || height >= 54) ? .infinity : nil)
             .background(bg, in: Capsule())
-            .overlay(Capsule().stroke(kind == .secondary ? Palette.line : .clear, lineWidth: 1))
+            .overlay(Capsule().stroke(strokeColor, lineWidth: 1))
             .opacity(enabled ? 1 : 0.4)
         }
         .buttonStyle(PressStyle())
@@ -247,6 +259,7 @@ struct ToastView: View {
     var kind: AppStore.ToastKind = .success
     var undoLabel: String? = nil
     var onUndo: (() -> Void)? = nil
+    var edge: Edge = .top
 
     private var iconName: String {
         switch kind {
@@ -292,7 +305,7 @@ struct ToastView: View {
         .frame(minHeight: 44)
         .background(Palette.ink, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
         .shadow(color: .black.opacity(0.22), radius: 12, y: 6)
-        .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top)))
+        .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: edge)))
         .onAppear {
             AccessibilityNotification.Announcement(message).post()
         }
@@ -316,6 +329,7 @@ struct Selection {
 struct PhotoTile: View {
     @Environment(AppStore.self) private var store
     @Environment(\.layoutDirection) private var direction
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let photo: Photo
     let radius: CGFloat
     var selection: Selection?
@@ -324,6 +338,8 @@ struct PhotoTile: View {
     let open: () -> Void
     /// Set by a long press, so the tap that ends it doesn't also open or unpick the photo.
     @State private var longPressed = false
+    @State private var longPressTick = 0
+    @State private var heartPop: CGFloat = 1
     @Environment(\.dragSelect) private var drag
 
     var body: some View {
@@ -338,15 +354,17 @@ struct PhotoTile: View {
             PhotoImage(photo: photo)
                 .overlay(alignment: .bottomLeading) {
                     if heart {
-                        // A faint dark wash in the corner keeps the white heart readable on snow or sky.
-                        RadialGradient(colors: [.black.opacity(0.42), .clear], center: direction == .rightToLeft ? .bottomTrailing : .bottomLeading,
-                                       startRadius: 0, endRadius: 56)
-                            .frame(width: 64, height: 64)
+                        // Circular dark-frosted pill guarantees >= 5.04:1 AA contrast over bright snow or sky.
+                        Image(systemName: "heart.fill")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 26, height: 26)
+                            .background(Palette.photoBadgeScrim, in: Circle())
+                            .overlay(Circle().stroke(Color.white.opacity(0.22), lineWidth: 0.5))
+                            .scaleEffect(heartPop)
+                            .padding(7)
                             .allowsHitTesting(false)
-                            .overlay(alignment: .bottomLeading) {
-                                Image(systemName: "heart.fill").font(.system(size: 14)).foregroundStyle(.white)
-                                    .shadow(color: .black.opacity(0.55), radius: 2).padding(.leading, 8).padding(.bottom, 7)
-                            }
+                            .transition(reduceMotion ? .opacity : .scale(scale: 0.6).combined(with: .opacity))
                     }
                 }
                 .overlay {
@@ -382,9 +400,21 @@ struct PhotoTile: View {
         .simultaneousGesture(LongPressGesture(minimumDuration: 0.4).onEnded { _ in
             guard let startSelecting else { return }
             longPressed = true
-            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            longPressTick &+= 1
             startSelecting(photo)
         }, isEnabled: startSelecting != nil)
+        .sensoryFeedback(.impact(weight: .medium), trigger: longPressTick)
+        .onChange(of: heart) { was, now in
+            guard now, !was, !reduceMotion else { return }
+            heartPop = 0.72
+            withAnimation(.spring(response: 0.34, dampingFraction: 0.52)) {
+                heartPop = 1.18
+            } completion: {
+                withAnimation(.spring(response: 0.24, dampingFraction: 0.72)) {
+                    heartPop = 1.0
+                }
+            }
+        }
         .accessibilityActions {
             if let startSelecting { Button(L.s("select")) { startSelecting(photo) } }
         }
@@ -445,10 +475,20 @@ struct YearSection: View {
         let tailPhotos = useLazyTail ? Array(group.photos.dropFirst(6)) : []
         let layout = layoutMosaic(mosaicPhotos.count)
         let rows = CGFloat(layout.rows)
+        let yearsAgo = Calendar.app.component(.year, from: Date()) - group.year
+        let isMilestone = yearsAgo >= 5 && yearsAgo % 5 == 0
         VStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 HStack(alignment: .center, spacing: 10) {
                     year
+                    if isMilestone {
+                        Text(agoLabel(group.year))
+                            .font(.nunito(12, .bold, maxSize: 15))
+                            .foregroundStyle(Palette.brandSunInk)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(Palette.brandSunTint, in: Capsule())
+                    }
                     Spacer(minLength: 0)
                     if selection.on {
                         Button { toggleWholeYear(!allSelected) } label: {
@@ -589,21 +629,27 @@ struct SquareGrid: View {
     @Environment(AppStore.self) private var store
     let photos: [Photo]
     var showDate = false
+    /// When true (e.g. under year headers in Favorites), renders compact month+day chips instead of full dates.
+    var compactDate = false
     var selection: Selection? = nil
     var removeLabel: String? = nil
     var onRemove: ((Photo) -> Void)? = nil
+    /// Optional full photo list & offset so grouped sections still open the viewer across the whole set.
+    var viewerPhotos: [Photo]? = nil
+    var viewerOffset: Int = 0
 
     var body: some View {
         // Same margin, gap and corners as the photos on Today.
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 3), spacing: 4) {
             ForEach(Array(photos.enumerated()), id: \.element.key) { i, photo in
                 PhotoTile(photo: photo, radius: 12, selection: selection, showHeart: !showDate) {
-                    store.viewer = Viewer(photos: photos, start: i)
+                    store.viewer = Viewer(photos: viewerPhotos ?? photos, start: viewerOffset + i)
                 }
                 .aspectRatio(1, contentMode: .fit)
                 .overlay(alignment: .bottomLeading) {
-                    // Favorites come from many days, so the chip names the whole date.
-                    if showDate { DateChip(text: L.date(photo.time, "yMMMd")).padding(6) }
+                    if showDate {
+                        DateChip(text: L.date(photo.time, compactDate ? "MMMd" : "yMMMd")).padding(6)
+                    }
                 }
                 .contextMenu {
                     if let onRemove {
@@ -712,16 +758,25 @@ struct Print: View {
     let image: String
     let width: CGFloat
     let angle: Double
+    /// Places the year on the trailing edge so the outer corner stays 100% legible in fanned compositions.
+    var yearTrailing: Bool = false
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
         VStack(spacing: 0) {
             Image(image).resizable().aspectRatio(4 / 5, contentMode: .fit)
                 .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).stroke(Palette.line.opacity(0.6), lineWidth: 0.5))
             HStack(alignment: .lastTextBaseline) {
-                Text(L.num(year)).font(.nunito(width > 160 ? 26 : 22, .black, fixed: true)).tight(22).foregroundStyle(Palette.ink)
-                Spacer()
-                Text(label).font(.nunito(11, .medium, fixed: true)).foregroundStyle(Palette.muted)
+                if yearTrailing {
+                    Text(label).font(.nunito(11, .medium, fixed: true)).foregroundStyle(Palette.muted).lineLimit(1)
+                    Spacer(minLength: 4)
+                    Text(L.num(year)).font(.nunito(width > 158 ? 26 : 22, .black, fixed: true)).tight(22).foregroundStyle(Palette.ink).lineLimit(1)
+                } else {
+                    Text(L.num(year)).font(.nunito(width > 158 ? 26 : 22, .black, fixed: true)).tight(22).foregroundStyle(Palette.ink).lineLimit(1)
+                    Spacer(minLength: 4)
+                    Text(label).font(.nunito(11, .medium, fixed: true)).foregroundStyle(Palette.muted).lineLimit(1)
+                }
             }
             .padding(.horizontal, 2).padding(.top, 8).padding(.bottom, 10)
         }
@@ -729,7 +784,7 @@ struct Print: View {
         .frame(width: width)
         .background(Palette.surface, in: shape)
         .overlay(shape.stroke(Palette.line, lineWidth: 1))
-        .shadow(color: Palette.hex(0x141416, 0.16), radius: 15, y: 10)
+        .shadow(color: Palette.hex(0x181615, 0.16), radius: 15, y: 10)
         .rotationEffect(.degrees(angle))
     }
 }

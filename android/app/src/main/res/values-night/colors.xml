@@ -1,7 +1,7 @@
 <resources>
-    <color name="bg">#121213</color>
-    <color name="widget_surface">#1C1C1E</color>
-    <color name="widget_ink">#F2F2EF</color>
-    <color name="widget_muted">#9A9A9F</color>
-    <color name="widget_accent">#E5533D</color>
+    <color name="bg">#111010</color>
+    <color name="widget_surface">#1B1A19</color>
+    <color name="widget_ink">#F5F2EC</color>
+    <color name="widget_muted">#9E978F</color>
+    <color name="widget_accent">#FF7A66</color>
 </resources>

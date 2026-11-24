@@ -47,7 +47,8 @@ struct RootView: View {
                     message: toast,
                     kind: store.toastKind,
                     undoLabel: store.toastUndoLabel,
-                    onUndo: store.toastUndoLabel != nil ? { store.triggerToastUndo() } : nil
+                    onUndo: store.toastUndoLabel != nil ? { store.triggerToastUndo() } : nil,
+                    edge: .bottom
                 )
                 .padding(.bottom, 104)
                 .padding(.horizontal, 16)

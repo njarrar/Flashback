@@ -58,6 +58,11 @@ final class ReelRenderer: @unchecked Sendable {
         colors: [UIColor(white: 0, alpha: 0).cgColor, UIColor(white: 0, alpha: 0.38).cgColor] as CFArray,
         locations: [0, 1]
     )
+    private static let filmHaloGradient: CGGradient? = CGGradient(
+        colorsSpace: sRGBColorSpace,
+        colors: [UIColor(red: 18 / 255, green: 14 / 255, blue: 12 / 255, alpha: 0.52).cgColor, UIColor(white: 0, alpha: 0).cgColor] as CFArray,
+        locations: [0, 1]
+    )
 
     private static let noise: CGImage? = {
         let side = 128
@@ -260,15 +265,15 @@ final class ReelRenderer: @unchecked Sendable {
             c.translateBy(x: 0, y: (1 - a) * W * 0.03)
             let s = W * 0.24, cx = W / 2, cy = H * 0.44
             let r = CGRect(x: cx - s / 2, y: cy - s / 2, width: s, height: s)
-            c.saveGState()
-            c.setShadow(offset: CGSize(width: 0, height: W * 0.015), blur: W * 0.05, color: UIColor(white: 0, alpha: 0.4).cgColor)
-            c.setFillColor(UIColor.white.cgColor)
-            c.addPath(UIBezierPath(roundedRect: r, cornerRadius: s * 0.23).cgPath); c.fillPath()
-            c.restoreGState()
+            let corner = s * 0.23
             if let icon {
                 c.saveGState()
-                c.addPath(UIBezierPath(roundedRect: r, cornerRadius: s * 0.23).cgPath); c.clip()
+                c.setShadow(offset: CGSize(width: 0, height: W * 0.015), blur: W * 0.05, color: UIColor(white: 0, alpha: 0.42).cgColor)
+                c.beginTransparencyLayer(auxiliaryInfo: nil)
+                c.addPath(UIBezierPath(roundedRect: r, cornerRadius: corner).cgPath)
+                c.clip()
                 icon.draw(in: r)
+                c.endTransparencyLayer()
                 c.restoreGState()
             }
             let fs = W * 0.07
@@ -374,14 +379,14 @@ final class ReelRenderer: @unchecked Sendable {
         let fs = W * 0.037, pad = W * 0.04
         // 3-span isolated layout matching Android so mixed RTL/LTR date and ago strings never reorder across the dot.
         let label = NSMutableAttributedString(attributedString: text(bidiIsolate(card.short), font(.heavy, fs), .white))
-        label.append(text("  ·  ", font(.semibold, fs), UIColor(white: 1, alpha: 0.82)))
-        label.append(text(bidiIsolate(card.ago), font(.semibold, fs), UIColor(white: 1, alpha: 0.82)))
+        label.append(text("  ·  ", font(.semibold, fs), UIColor(white: 1, alpha: 0.65)))
+        label.append(text(bidiIsolate(card.ago), font(.semibold, fs), UIColor(white: 1, alpha: 0.88)))
         let size = label.size()
         let h = fs * 2.1, w = min(size.width + fs * 1.6, max(R.width - pad * 2, fs * 3))
         let y = max(R.minY + pad, options.fill ? H * 0.1 : 0)
         let x = rtl ? R.maxX - pad - w : R.minX + pad
         layer(c, a) {
-            c.setFillColor(UIColor(white: 0, alpha: 0.42).cgColor)
+            c.setFillColor(UIColor(red: 24 / 255, green: 22 / 255, blue: 21 / 255, alpha: 0.64).cgColor)
             c.addPath(UIBezierPath(roundedRect: CGRect(x: x, y: y, width: w, height: h), cornerRadius: h / 2).cgPath); c.fillPath()
             label.draw(with: CGRect(x: x + fs * 0.8, y: y + (h - size.height) / 2, width: max(w - fs * 1.6, 1), height: size.height),
                        options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine], context: nil)
@@ -425,6 +430,14 @@ final class ReelRenderer: @unchecked Sendable {
         }
         let x = R.maxX - pad - width
         let y = safeBottom(R, H) - pad - h
+        // Subtle dark corner halo beneath LED digits guarantees contrast over bright snow or sky.
+        if let halo = Self.filmHaloGradient {
+            c.saveGState()
+            let haloCenter = CGPoint(x: x + width / 2, y: y + h / 2)
+            let rad = max(width, h) * 0.85
+            c.drawRadialGradient(halo, startCenter: haloCenter, startRadius: 0, endCenter: haloCenter, endRadius: rad, options: [])
+            c.restoreGState()
+        }
         layer(c, a) {
             // Leans right like the real thing.
             c.concatenate(CGAffineTransform(a: 1, b: 0, c: -0.1, d: 1, tx: (y + h) * 0.1, ty: 0))

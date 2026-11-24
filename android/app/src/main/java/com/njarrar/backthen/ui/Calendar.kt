@@ -121,8 +121,12 @@ fun CalendarSheet(
                 DropdownMenu(expanded = monthMenu, onDismissRequest = { monthMenu = false }, containerColor = p.surface) {
                     (0..11).forEach { m ->
                         val on = m == month
+                        val photoDays = remember(m, index) {
+                            (1..DAYS_IN_MONTH[m]).count { d -> hasPhotos(index, MonthDay(m, d)) }
+                        }
+                        val label = if (photoDays > 0) "${monthName(m)} · ${L.num(photoDays)}" else monthName(m)
                         DropdownMenuItem(
-                            text = { T(monthName(m), weight = if (on) FontWeight.Bold else FontWeight.Medium) },
+                            text = { T(label, weight = if (on) FontWeight.Bold else FontWeight.Medium) },
                             trailingIcon = { if (on) Icon(Icons.Filled.Check, null, tint = Accent, modifier = Modifier.size(18.dp)) },
                             onClick = {
                                 monthMenu = false
@@ -137,8 +141,8 @@ fun CalendarSheet(
                     Modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(50)).clickable(role = Role.Button) { onPick(today) },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Box(Modifier.clip(RoundedCornerShape(50)).background(p.fill).padding(horizontal = 14.dp, vertical = 8.dp)) {
-                        T(L.s("today"), size = 15, weight = FontWeight.SemiBold)
+                    Box(Modifier.clip(RoundedCornerShape(50)).background(p.brandCobaltTint).padding(horizontal = 14.dp, vertical = 8.dp)) {
+                        T(L.s("today"), size = 15, weight = FontWeight.Bold, color = p.brandCobaltInk)
                     }
                 }
             }
@@ -159,10 +163,11 @@ fun CalendarSheet(
                             for (d in week) {
                                 val md = MonthDay(m, d)
                                 val future = md.isAfter(today)
+                                val upcomingEmpty = future
                                 Day(
                                     md = md,
                                     index = index,
-                                    photo = if (future) null else covers[md.key],
+                                    photo = if (upcomingEmpty) null else covers[md.key],
                                     selected = start == md,
                                     isToday = today == md,
                                     future = future,
@@ -194,24 +199,30 @@ private fun Day(
     onClick: () -> Unit,
 ) {
     val p = LocalPalette.current
-    // Days after today stay locked and faint, as in 1.7.
-    val photos = !future && hasPhotos(index, md)
+    // Past-year days after today that have photos stay unlocked and tappable; empty upcoming days stay locked.
+    val yearCount = remember(index, md, future) { if (future) 0 else yearsForDay(index, md).size }
+    val photos = yearCount > 0
     val upcomingEmpty = future
     val enabled = !upcomingEmpty
     val shape = RoundedCornerShape(11.dp)
     val request = rememberThumbnailRequest(photo?.uri, maxPx = 160, crossfade = false)
+    val densityPips = when {
+        yearCount >= 4 -> 3
+        yearCount >= 2 -> 2
+        yearCount == 1 -> 1
+        else -> 0
+    }
 
-    val dayDesc = remember(md, index, isToday, upcomingEmpty, hidden) {
+    val dayDesc = remember(md, index, isToday, upcomingEmpty, hidden, yearCount) {
         val base = when {
             upcomingEmpty -> L.s("day_upcoming", "day" to md.label())
             else -> {
-                val years = yearsForDay(index, md).size
-                if (years == 0) L.s("day_no_photos", "day" to md.label())
+                if (yearCount == 0) L.s("day_no_photos", "day" to md.label())
                 else L.s(
                     "day_photos_from",
                     "day" to md.label(),
                     "photos" to L.p("photos", photoCount(index, md)),
-                    "years" to L.p("years", years),
+                    "years" to L.p("years", yearCount),
                 )
             }
         }
@@ -222,54 +233,72 @@ private fun Day(
         }
     }
 
-    Box(
+    Column(
         modifier
-            .height(54.dp)
+            .height(58.dp)
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .clearAndSetSemantics {
                 contentDescription = dayDesc
                 this.selected = selected
                 if (!enabled) disabled()
             },
-        contentAlignment = Alignment.Center,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
     ) {
-        if (selected) Box(Modifier.size(48.dp).border(2.5.dp, Accent, RoundedCornerShape(14.dp)))
-        Box(
-            Modifier
-                .size(42.dp)
-                .clip(shape)
-                .then(if (photos) Modifier.background(p.fill) else Modifier)
-                .then(if (isToday && !selected) Modifier.border(1.5.dp, p.ink, shape) else Modifier),
-            contentAlignment = Alignment.Center,
+        Box(contentAlignment = Alignment.Center) {
+            if (selected) Box(Modifier.size(46.dp).border(2.5.dp, Accent, RoundedCornerShape(14.dp)))
+            Box(
+                Modifier
+                    .size(40.dp)
+                    .clip(shape)
+                    .then(if (photos) Modifier.background(p.fill) else Modifier)
+                    .then(if (isToday && !selected) Modifier.border(1.5.dp, p.ink, shape) else Modifier),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (request != null) {
+                    AsyncImage(request, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+                    Box(Modifier.fillMaxSize().background(DayWash))
+                }
+                val onPhoto = photo != null
+                val textColor = when {
+                    onPhoto -> Color.White
+                    upcomingEmpty -> p.inkFuture
+                    photos -> p.ink
+                    else -> p.muted2
+                }
+                BasicText(
+                    text = L.num(md.day),
+                    maxLines = 1,
+                    style = TextStyle(
+                        color = textColor,
+                        fontFamily = Nunito,
+                        fontWeight = if (photos) FontWeight.ExtraBold else FontWeight.SemiBold,
+                        fontFeatureSettings = "tnum",
+                    ),
+                    autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = 16.sp, stepSize = 0.5.sp),
+                )
+                if (hidden) {
+                    Icon(
+                        Icons.Outlined.VisibilityOff,
+                        contentDescription = null,
+                        tint = if (onPhoto) Color.White else p.muted,
+                        modifier = Modifier.align(Alignment.BottomEnd).padding(2.dp).size(11.dp),
+                    )
+                }
+            }
+        }
+        // Year-density micro-pips so multi-year memory-rich days stand out at a glance.
+        Row(
+            Modifier.height(7.dp).padding(top = 2.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (request != null) {
-                AsyncImage(request, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
-                Box(Modifier.fillMaxSize().background(DayWash))
-            }
-            val onPhoto = photo != null
-            val textColor = when {
-                onPhoto -> Color.White
-                upcomingEmpty -> p.muted.copy(alpha = 0.65f)
-                photos -> p.ink
-                else -> p.muted2
-            }
-            BasicText(
-                text = L.num(md.day),
-                maxLines = 1,
-                style = TextStyle(
-                    color = textColor,
-                    fontFamily = Nunito,
-                    fontWeight = if (photos) FontWeight.ExtraBold else FontWeight.SemiBold,
-                    fontFeatureSettings = "tnum",
-                ),
-                autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = 16.sp, stepSize = 0.5.sp),
-            )
-            if (hidden) {
-                Icon(
-                    Icons.Outlined.VisibilityOff,
-                    contentDescription = null,
-                    tint = if (onPhoto) Color.White else p.muted,
-                    modifier = Modifier.align(Alignment.BottomEnd).padding(2.dp).size(11.dp),
+            repeat(densityPips) {
+                Box(
+                    Modifier
+                        .size(3.5.dp)
+                        .clip(CircleShape)
+                        .background(if (densityPips == 3) Accent else p.muted),
                 )
             }
         }

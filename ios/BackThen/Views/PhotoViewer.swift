@@ -21,6 +21,13 @@ struct PhotoViewer: View {
     /// The photo is being got ready to share.
     @State private var sharing = false
     @State private var shareTask: Task<Void, Never>?
+    /// Subtle blurred copy of the active photo for the darkroom ambient backdrop wash.
+    @State private var ambientImage: UIImage?
+    /// Tactile favorite heart spring animation & explicit tap haptic counter.
+    @State private var heartScale: CGFloat = 1
+    @State private var heartRingScale: CGFloat = 0.4
+    @State private var heartRingOpacity: Double = 0
+    @State private var favoriteTapTick = 0
     private let ink = Palette.viewerInk
 
     init(viewer: Viewer) {
@@ -49,6 +56,25 @@ struct PhotoViewer: View {
 
         ZStack {
             Palette.viewerBg.opacity(1 - pull).ignoresSafeArea()
+
+            // Subtle darkroom ambient color wash derived from the active photo.
+            // Color.clear sets the size, so the filled image can never widen the screen.
+            if !reduceMotion, let ambientImage {
+                Color.clear
+                    .overlay {
+                        Image(uiImage: ambientImage)
+                            .resizable()
+                            .scaledToFill()
+                            .blur(radius: 56)
+                            .scaleEffect(1.25)
+                    }
+                    .clipped()
+                    .opacity(0.16 * Double(1 - pull))
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+                    .animation(.easeInOut(duration: 0.28), value: safeIndex)
+            }
 
             ScrollViewReader { proxy in
                 ScrollView(.horizontal) {
@@ -117,8 +143,13 @@ struct PhotoViewer: View {
                     .padding(.bottom, 20)
                 }
                 HStack(spacing: 4) {
-                    action(fav ? "heart.fill" : "heart", L.s("favorite_short"), L.s(fav ? "unfavorite" : "favorite"), tint: fav ? Palette.viewerHeart : ink) {
+                    favoriteAction(fav: fav) {
+                        let willFav = !fav
                         store.toggleFavorite(photo)
+                        if willFav {
+                            favoriteTapTick &+= 1
+                            animateHeartPop()
+                        }
                     }
                     Spacer()
                     action("square.and.arrow.up", L.s("share"), L.s("share"), tint: ink, busy: sharing) {
@@ -134,11 +165,23 @@ struct PhotoViewer: View {
                     }
                 }
                 .dynamicTypeSize(...DynamicTypeSize.accessibility2)
-                .padding(.horizontal, 16).padding(.vertical, 8)
+                .padding(.horizontal, 14).padding(.vertical, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 28, style: .continuous)
+                        .fill(Palette.viewerBar)
+                        .overlay(RoundedRectangle(cornerRadius: 28, style: .continuous).stroke(Color.white.opacity(0.14), lineWidth: 0.5))
+                )
+                .padding(.horizontal, 12).padding(.bottom, 6)
             }
             .opacity(chromeOpacity)
             .allowsHitTesting(chrome && !dragging)
             .accessibilityHidden(!chrome)
+        }
+        .task(id: photo.key) {
+            guard !reduceMotion else { ambientImage = nil; return }
+            let loaded = await loadImage(photo, size: CGSize(width: 96, height: 96), fit: false)
+            guard !Task.isCancelled else { return }
+            ambientImage = loaded
         }
         .presentationBackground(.clear)
         .overlay(alignment: .top) {
@@ -167,9 +210,58 @@ struct PhotoViewer: View {
             }
         }
         .statusBarHidden(!chrome)
-        .sensoryFeedback(.impact(weight: .light), trigger: store.saved.favorites.count) { old, new in new > old }
+        .sensoryFeedback(.impact(weight: .light), trigger: favoriteTapTick)
         .sensoryFeedback(.selection, trigger: index)
         .onDisappear { shareTask?.cancel() }
+    }
+
+    private func animateHeartPop() {
+        guard !reduceMotion else { return }
+        heartScale = 0.78
+        heartRingScale = 0.45
+        heartRingOpacity = 0.85
+        withAnimation(.spring(response: 0.34, dampingFraction: 0.52)) {
+            heartScale = 1.26
+        } completion: {
+            withAnimation(.spring(response: 0.24, dampingFraction: 0.72)) {
+                heartScale = 1.0
+            }
+        }
+        withAnimation(.easeOut(duration: 0.32)) {
+            heartRingScale = 1.65
+            heartRingOpacity = 0
+        }
+    }
+
+    private func favoriteAction(fav: Bool, run: @escaping () -> Void) -> some View {
+        Button(action: run) {
+            VStack(spacing: 4) {
+                ZStack {
+                    Circle()
+                        .stroke(Palette.viewerHeart, lineWidth: 1.5)
+                        .frame(width: 28, height: 28)
+                        .scaleEffect(heartRingScale)
+                        .opacity(heartRingOpacity)
+                    Image(systemName: fav ? "heart.fill" : "heart")
+                        .font(.system(size: 22))
+                        .foregroundStyle(fav ? Palette.viewerHeart : ink)
+                        .scaleEffect(heartScale)
+                }
+                .frame(height: 28)
+                Text(L.s("favorite_short"))
+                    .font(.nunito(11, .semibold, maxSize: 14))
+                    .foregroundStyle(ink.opacity(0.85))
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.75)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(minWidth: 64, minHeight: 56)
+            .contentShape(Rectangle())
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(L.s(fav ? "unfavorite" : "favorite"))
+        .accessibilityAddTraits(.isButton)
     }
 
     private func sharePhoto(_ photo: Photo) {
@@ -350,35 +442,59 @@ private struct PhotoInfoSheet: View {
     }
 }
 
-/// Small thumbnails of every photo, with the current one wider and outlined.
+/// Small thumbnails of every photo, with labeled tappable year pills at year boundaries.
 private struct Filmstrip: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let photos: [Photo]
     let index: Int
     let pick: (Int) -> Void
 
+    private var hasMultipleYears: Bool {
+        guard let first = photos.first else { return false }
+        let y0 = yearOf(first.time)
+        return photos.contains { yearOf($0.time) != y0 }
+    }
+
     var body: some View {
+        let multiYear = hasMultipleYears
+        let activeYear = photos.indices.contains(index) ? yearOf(photos[index].time) : nil
         GeometryReader { geo in
             ScrollViewReader { proxy in
                 ScrollView(.horizontal) {
-                    LazyHStack(spacing: 2) {
+                    LazyHStack(spacing: 3) {
                         ForEach(Array(photos.enumerated()), id: \.element.key) { i, p in
                             let on = i == index
-                            if i > 0 && yearOf(p.time) != yearOf(photos[i - 1].time) {
-                                Rectangle()
-                                    .fill(Palette.viewerInk.opacity(0.35))
-                                    .frame(width: 1, height: 28)
-                                    .padding(.horizontal, 4)
-                                    .accessibilityHidden(true)
+                            let yr = yearOf(p.time)
+                            let isYearStart = multiYear && (i == 0 || yr != yearOf(photos[i - 1].time))
+                            if isYearStart {
+                                let yearActive = yr == activeYear
+                                Button { pick(i) } label: {
+                                    Text(L.num(yr))
+                                        .font(.nunito(11, .heavy, maxSize: 13))
+                                        .monospacedDigit()
+                                        .foregroundStyle(yearActive ? Palette.viewerBg : Palette.viewerInk)
+                                        .padding(.horizontal, 8)
+                                        .frame(height: 26)
+                                        .background(
+                                            yearActive ? Palette.viewerInk : Color.white.opacity(0.18),
+                                            in: Capsule()
+                                        )
+                                        .frame(minHeight: 44)
+                                        .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                                .padding(.leading, i == 0 ? 0 : 6)
+                                .padding(.trailing, 3)
+                                .accessibilityLabel(L.num(yr))
                             }
                             Button { pick(i) } label: {
                                 PhotoImage(photo: p)
                                     .frame(width: on ? 60 : 44, height: 44)
-                                    .clipShape(RoundedRectangle(cornerRadius: 2, style: .continuous))
+                                    .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
                                     .opacity(on ? 1 : 0.72)
                                     .overlay {
                                         if on {
-                                            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                            RoundedRectangle(cornerRadius: 5, style: .continuous)
                                                 .stroke(Palette.viewerInk, lineWidth: 2)
                                                 .padding(-2)
                                         }

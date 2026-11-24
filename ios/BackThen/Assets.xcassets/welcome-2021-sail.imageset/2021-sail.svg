@@ -1,1 +1,43 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 125" width="400" height="500"><rect width="100" height="125" fill="#A9D2FF"/><circle cx="26" cy="34" r="11" fill="#FFC93C"/><rect y="84" width="100" height="41" fill="#2E7BFF"/><path d="M0 92 q12.5 -5 25 0 t25 0 t25 0 t25 0" fill="none" stroke="#FFFFFF" stroke-opacity="0.6" stroke-width="2"/><path d="M58 40 L58 78 L80 78z" fill="#FFFFFF"/><path d="M55 48 L55 78 L40 78z" fill="#FF4B3E"/><path d="M38 81 H82 L76 89 H44z" fill="#1D1B2E"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 125" width="400" height="500">
+  <defs>
+    <linearGradient id="sail-sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6CB2FF"/>
+      <stop offset="58%" stop-color="#B3D9FF"/>
+      <stop offset="100%" stop-color="#FFE6C2"/>
+    </linearGradient>
+    <radialGradient id="sail-sun" cx="25%" cy="27%" r="32%">
+      <stop offset="0%" stop-color="#FFF5C4" stop-opacity="0.95"/>
+      <stop offset="50%" stop-color="#FFD15C" stop-opacity="0.42"/>
+      <stop offset="100%" stop-color="#FFD15C" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="sail-sea" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2E7BFF"/>
+      <stop offset="55%" stop-color="#1E5CE0"/>
+      <stop offset="100%" stop-color="#133B94"/>
+    </linearGradient>
+    <linearGradient id="sail-main" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#F1EDE4"/>
+    </linearGradient>
+    <linearGradient id="sail-jib" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FF634D"/>
+      <stop offset="100%" stop-color="#D63622"/>
+    </linearGradient>
+  </defs>
+  <rect width="100" height="125" fill="url(#sail-sky)"/>
+  <rect width="100" height="125" fill="url(#sail-sun)"/>
+  <circle cx="25" cy="33" r="10.5" fill="#FFC93C"/>
+  <circle cx="25" cy="33" r="7.5" fill="#FFF0A8" fill-opacity="0.8"/>
+  <rect x="61" y="21" width="21" height="5.5" rx="2.75" fill="#FFFFFF" fill-opacity="0.65"/>
+  <rect y="83" width="100" height="42" fill="url(#sail-sea)"/>
+  <rect x="16" y="86" width="19" height="2" rx="1" fill="#FFE699" fill-opacity="0.55"/>
+  <rect x="19" y="91" width="13" height="1.8" rx="0.9" fill="#FFE699" fill-opacity="0.38"/>
+  <path d="M0 95 q12.5 -4 25 0 t25 0 t25 0 t25 0" fill="none" stroke="#FFFFFF" stroke-opacity="0.35" stroke-width="1.6"/>
+  <path d="M0 107 q14 -3.5 28 0 t28 0 t28 0 t28 0" fill="none" stroke="#8AB7FF" stroke-opacity="0.28" stroke-width="1.4"/>
+  <path d="M58 37 Q70 57 81 77 L58 77 Z" fill="url(#sail-main)"/>
+  <path d="M55 46 Q46 62 39 77 L55 77 Z" fill="url(#sail-jib)"/>
+  <rect x="55.8" y="36" width="1.6" height="44" rx="0.8" fill="#1D1B2E" fill-opacity="0.7"/>
+  <path d="M36 80 H83 L76.5 88.5 H43 Z" fill="#181615"/>
+  <path d="M39 81.5 H80" stroke="#FAF8F4" stroke-opacity="0.55" stroke-width="1.2"/>
+  <path d="M44 91 H75 L71 95 H48 Z" fill="#0A1429" fill-opacity="0.3"/>
+</svg>

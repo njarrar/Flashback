@@ -1,1 +1,40 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 125" width="400" height="500"><rect width="100" height="125" fill="#FFE7A3"/><circle cx="70" cy="40" r="15" fill="#FF8A3D"/><path d="M0 92 Q25 66 52 86 T100 78 V125 H0z" fill="#3DD18E"/><path d="M0 108 Q35 86 70 104 T100 100 V125 H0z" fill="#1FA56B"/><rect x="18" y="26" width="22" height="7" rx="3.5" fill="#FFFFFF" fill-opacity="0.9"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 125" width="400" height="500">
+  <defs>
+    <linearGradient id="hills-sky" x1="0" y1="0" x2="0.2" y2="1">
+      <stop offset="0%" stop-color="#F6B57A"/>
+      <stop offset="52%" stop-color="#FFE0A3"/>
+      <stop offset="100%" stop-color="#FFF2CF"/>
+    </linearGradient>
+    <radialGradient id="hills-glow" cx="72%" cy="32%" r="38%">
+      <stop offset="0%" stop-color="#FFF5C2" stop-opacity="0.95"/>
+      <stop offset="45%" stop-color="#FFAE52" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#FF8A3D" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="hills-far" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#6FC7A4"/>
+      <stop offset="100%" stop-color="#3E9C7B"/>
+    </linearGradient>
+    <linearGradient id="hills-mid" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3EB580"/>
+      <stop offset="100%" stop-color="#217A57"/>
+    </linearGradient>
+    <linearGradient id="hills-near" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1E7452"/>
+      <stop offset="100%" stop-color="#134C36"/>
+    </linearGradient>
+  </defs>
+  <rect width="100" height="125" fill="url(#hills-sky)"/>
+  <rect width="100" height="125" fill="url(#hills-glow)"/>
+  <circle cx="72" cy="39" r="13.5" fill="#FF9844"/>
+  <circle cx="72" cy="39" r="10" fill="#FFD36B" fill-opacity="0.85"/>
+  <g fill="#FFFDF8" fill-opacity="0.72">
+    <rect x="13" y="24" width="24" height="6.5" rx="3.25"/>
+    <rect x="21" y="20.5" width="14" height="6" rx="3"/>
+    <rect x="52" y="16" width="16" height="4.5" rx="2.25" fill-opacity="0.5"/>
+  </g>
+  <path d="M0 80 Q28 60 58 74 T100 68 V125 H0 Z" fill="url(#hills-far)"/>
+  <path d="M0 91 Q26 68 54 85 T100 79 V125 H0 Z" fill="url(#hills-mid)"/>
+  <path d="M0 91 Q26 68 54 85 T100 79" fill="none" stroke="#B7F0C9" stroke-opacity="0.45" stroke-width="1.2"/>
+  <path d="M0 107 Q36 88 70 104 T100 98 V125 H0 Z" fill="url(#hills-near)"/>
+  <path d="M48 125 Q54 110 66 102 Q58 112 56 125 Z" fill="#F2D29B" fill-opacity="0.45"/>
+</svg>

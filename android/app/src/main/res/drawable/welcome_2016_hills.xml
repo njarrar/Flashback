@@ -1,24 +1,93 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Welcome screen print drawing. Same colors in light and dark mode. -->
+<!-- Welcome screen 2016 print: golden-hour layered hills with warm sunset gradient and haze. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="100dp"
     android:height="125dp"
     android:viewportWidth="100"
     android:viewportHeight="125">
+    <!-- Warm golden-hour sky -->
+    <path android:pathData="M0,0h100v125h-100z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="50"
+                android:startY="0"
+                android:endX="50"
+                android:endY="95"
+                android:type="linear">
+                <item android:color="#FFD188" android:offset="0.0" />
+                <item android:color="#FFE8B5" android:offset="0.55" />
+                <item android:color="#FFF3D9" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Soft sun halo -->
+    <path android:pathData="M70,40m-28,0a28,28 0 1,0 56,0a28,28 0 1,0 -56,0">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:centerX="70"
+                android:centerY="40"
+                android:gradientRadius="28"
+                android:type="radial">
+                <item android:color="#88FFAE4D" android:offset="0.0" />
+                <item android:color="#00FFAE4D" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Sun disc -->
+    <path android:pathData="M56,40a14,14 0 1,0 28,0a14,14 0 1,0 -28,0">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="70"
+                android:startY="26"
+                android:endX="70"
+                android:endY="54"
+                android:type="linear">
+                <item android:color="#FFFFC55C" android:offset="0.0" />
+                <item android:color="#FFFF7A38" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Soft clouds -->
     <path
-        android:pathData="M0,0h100v125h-100z"
-        android:fillColor="#FFE7A3" />
-    <path
-        android:pathData="M55,40a15,15 0 1 0 30,0a15,15 0 1 0 -30,0z"
-        android:fillColor="#FF8A3D" />
-    <path
-        android:pathData="M0 92 Q25 66 52 86 T100 78 V125 H0z"
-        android:fillColor="#3DD18E" />
-    <path
-        android:pathData="M0 108 Q35 86 70 104 T100 100 V125 H0z"
-        android:fillColor="#1FA56B" />
-    <path
-        android:pathData="M21.5,26h15a3.5,3.5 0 0 1 3.5,3.5a3.5,3.5 0 0 1 -3.5,3.5h-15a3.5,3.5 0 0 1 -3.5,-3.5a3.5,3.5 0 0 1 3.5,-3.5z"
+        android:pathData="M18,24h16a3.5,3.5 0 0,1 3.5,3.5a3.5,3.5 0 0,1 -3.5,3.5h-16a3.5,3.5 0 0,1 -3.5,-3.5a3.5,3.5 0 0,1 3.5,-3.5z"
         android:fillColor="#FFFFFF"
-        android:fillAlpha="0.9" />
+        android:fillAlpha="0.82" />
+    <path
+        android:pathData="M28,35h11a2.5,2.5 0 0,1 2.5,2.5a2.5,2.5 0 0,1 -2.5,2.5h-11a2.5,2.5 0 0,1 -2.5,-2.5a2.5,2.5 0 0,1 2.5,-2.5z"
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.58" />
+    <!-- Distant misty ridge -->
+    <path
+        android:pathData="M0,78 Q22,58 48,72 T100,66 V125 H0 Z"
+        android:fillColor="#7CCBA2"
+        android:fillAlpha="0.65" />
+    <!-- Mid sunlit hill -->
+    <path android:pathData="M0,90 Q26,65 54,84 T100,77 V125 H0 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="50"
+                android:startY="68"
+                android:endX="50"
+                android:endY="115"
+                android:type="linear">
+                <item android:color="#49CF8E" android:offset="0.0" />
+                <item android:color="#249E68" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- Foreground deep valley -->
+    <path android:pathData="M0,106 Q34,85 68,102 T100,98 V125 H0 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="50"
+                android:startY="88"
+                android:endX="50"
+                android:endY="125"
+                android:type="linear">
+                <item android:color="#1E8B5B" android:offset="0.0" />
+                <item android:color="#145E3E" android:offset="1.0" />
+            </gradient>
+        </aapt:attr>
+    </path>
 </vector>

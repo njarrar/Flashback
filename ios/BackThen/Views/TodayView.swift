@@ -39,7 +39,8 @@ struct TodayView: View {
     @State private var placeAsk = false
     @State private var drag = DragSelect()
 
-    var body: some View {
+    @ViewBuilder
+    private var page: some View {
         let day = store.day
         let groups = result?.day == day ? result?.groups : nil
         let today = MonthDay.today
@@ -90,12 +91,9 @@ struct TodayView: View {
 
         ScrollViewReader { scroll in
             ScrollView {
-                Group {
-                    headerView(day: day, today: today, stackHeader: stackHeader, largeTitleOpacity: largeTitleOpacity, showCompact: showCompact, summary: summary)
-
-                    dayContent(day: day, today: today, groups: groups, hidden: hidden, selection: selection, activeStripGroup: activeStripGroup)
-                    Color.clear.frame(height: 120)
-                }
+                pageContent(day: day, today: today, groups: groups, hidden: hidden, selection: selection,
+                            activeStripGroup: activeStripGroup, stackHeader: stackHeader,
+                            largeTitleOpacity: largeTitleOpacity, showCompact: showCompact, summary: summary, scroll: scroll)
                 .background(
                     DragSelectHook(
                         drag: drag,
@@ -137,23 +135,12 @@ struct TodayView: View {
             let groups = await store.photos(for: day)
             result = (day, groups)
         }
-        .overlay(alignment: .bottom) {
-            if selecting {
-                SelectBar(
-                    count: picked.count,
-                    allSelected: allSelected,
-                    onToggleAll: {
-                        picked = allSelected ? [] : visiblePhotos
-                    },
-                    share: {
-                        shareFor = ShareRequest(title: L.p("photos", picked.count), photos: picked)
-                    },
-                    album: { albumFor = picked },
-                    reel: { startReel(picked) }
-                )
-                .padding(.bottom, 4)
-            }
-        }
+        .overlay(alignment: .bottom) { selectBarOverlay(allSelected: allSelected, visiblePhotos: visiblePhotos) }
+        .animation(selectBarAnimation, value: selecting)
+    }
+
+    var body: some View {
+        page
         .sheet(isPresented: $calendar) {
             // The screenshot demo opens on last month until the 15th, so the calendar shot
             // has a month of photo days rather than days still to come (see make_photos.py).
@@ -180,8 +167,9 @@ struct TodayView: View {
             AlbumSheet(photos: albumFor ?? [], created: { album in store.openAlbumID = album.id }, done: stopSelecting)
         }
         .toolbar(selecting ? .hidden : .visible, for: .tabBar)
-        .sensoryFeedback(.selection, trigger: picked.count) { _, _ in selecting }
-        .sensoryFeedback(.selection, trigger: day)
+        // Skip the 0 -> 1 transition triggered by long-press since PhotoTile already fires its medium impact haptic.
+        .sensoryFeedback(.selection, trigger: picked.count) { (old: Int, new: Int) -> Bool in selecting && !(old == 0 && new == 1) }
+        .sensoryFeedback(.selection, trigger: store.day)
         .sensoryFeedback(.impact(flexibility: .rigid), trigger: boundaryHit)
         .onChange(of: store.tab) { _, _ in stopSelecting() }
         .onChange(of: store.deepLinkToken) { _, _ in
@@ -193,8 +181,8 @@ struct TodayView: View {
             placeOpen = nil
             stopSelecting()
         }
-        .onChange(of: total) { _, n in if n == 0 && selecting { stopSelecting() } }
-        .onChange(of: hidden) { _, h in if h && selecting { stopSelecting() } }
+        .onChange(of: shownTotal) { _, n in if n == 0 && selecting { stopSelecting() } }
+        .onChange(of: store.isHidden(store.day)) { _, h in if h && selecting { stopSelecting() } }
         .onChange(of: store.demoCalendar) { _, on in if on { calendar = true } }
         .onDisappear { drag.cancel() }
         #if DEBUG
@@ -241,7 +229,7 @@ struct TodayView: View {
                 Spacer(minLength: 4)
             }
             if day != today {
-                Pill(label: L.s("back_to_today"), systemImage: "arrow.uturn.backward", kind: .tint, height: 44) { go(today) }
+                Pill(label: L.s("back_to_today"), systemImage: "arrow.uturn.backward", kind: .cobaltTint, height: 44) { go(today) }
                     .fixedSize().padding(.top, 6)
             }
         }
@@ -250,6 +238,89 @@ struct TodayView: View {
         .padding(.bottom, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .id("top")
+    }
+
+    @ViewBuilder
+    private func pageContent(day: MonthDay, today: MonthDay, groups: [YearGroup]?, hidden: Bool, selection: Selection,
+                             activeStripGroup: YearGroup?, stackHeader: Bool, largeTitleOpacity: CGFloat,
+                             showCompact: Bool, summary: String, scroll: ScrollViewProxy) -> some View {
+        Group {
+            headerView(day: day, today: today, stackHeader: stackHeader, largeTitleOpacity: largeTitleOpacity, showCompact: showCompact, summary: summary)
+            yearJump(groups: hidden ? nil : groups, scroll: scroll)
+            dayContent(day: day, today: today, groups: groups, hidden: hidden, selection: selection, activeStripGroup: activeStripGroup)
+            Color.clear.frame(height: 120)
+        }
+    }
+
+    @ViewBuilder
+    private func selectBarOverlay(allSelected: Bool, visiblePhotos: [Photo]) -> some View {
+        if selecting {
+            SelectBar(
+                count: picked.count,
+                allSelected: allSelected,
+                onToggleAll: {
+                    picked = allSelected ? [] : visiblePhotos
+                },
+                share: {
+                    shareFor = ShareRequest(title: L.p("photos", picked.count), photos: picked)
+                },
+                album: { albumFor = picked },
+                reel: { startReel(picked) }
+            )
+            .padding(.bottom, 4)
+            .transition(selectBarTransition)
+        }
+    }
+
+    private var shownTotal: Int {
+        guard let r = result, r.day == store.day else { return 0 }
+        return r.groups.reduce(0) { $0 + $1.photos.count }
+    }
+
+    private var selectBarTransition: AnyTransition {
+        reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity)
+    }
+
+    private var selectBarAnimation: Animation? {
+        reduceMotion ? nil : .spring(response: 0.32, dampingFraction: 0.84)
+    }
+
+    @ViewBuilder
+    private func yearJump(groups: [YearGroup]?, scroll: ScrollViewProxy) -> some View {
+        if store.saved.layout == .mosaic, let groups, groups.count >= 3 {
+            yearJumpStrip(years: groups.map(\.year), scroll: scroll)
+        }
+    }
+
+    /// Compact horizontal Year Jump pill strip for jumping across multi-year mosaic days.
+    private func yearJumpStrip(years: [Int], scroll: ScrollViewProxy) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                ForEach(years, id: \.self) { y in
+                    let active = pinnedYears.contains(y)
+                    Button {
+                        withAnimation(reduceMotion ? nil : .spring(response: 0.36, dampingFraction: 0.86)) {
+                            scroll.scrollTo("year-\(y)", anchor: .top)
+                        }
+                    } label: {
+                        Text(L.num(y))
+                            .font(.nunito(13, .bold, maxSize: 16))
+                            .monospacedDigit()
+                            .foregroundStyle(active ? Palette.brandCobaltFillInk : Palette.ink)
+                            .padding(.horizontal, 12)
+                            .frame(minHeight: 34)
+                            .background(active ? Palette.brandCobaltFill : Palette.surface, in: Capsule())
+                            .overlay(Capsule().stroke(active ? Palette.brandCobaltFill : Palette.line, lineWidth: 1))
+                            .frame(minHeight: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(PressStyle())
+                }
+            }
+            .padding(.horizontal, 20)
+        }
+        .padding(.bottom, 6)
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { pillsFrame = $0 }
     }
 
     @ViewBuilder
@@ -337,6 +408,7 @@ struct TodayView: View {
                             PinnedYear(group: g, day: day, barBottom: barBottom, pinned: $pinnedYears, selection: selection) {
                                 shareFor = ShareRequest(title: fullDate(year: g.year, day), photos: g.photos)
                             }
+                            .id("year-\(g.year)")
                         }
                     }
                 }
@@ -538,9 +610,9 @@ struct TodayView: View {
 
     private func sideways(_ v: DragGesture.Value) -> Bool {
         if selecting || turning { return false }
-        // Ignore screen-edge drags to avoid conflicting with system gestures.
+        // Ignore screen-edge drags and horizontal pill/card strips to avoid gesture conflicts.
         if v.startLocation.x < 20 || v.startLocation.x > pageWidth - 20 { return false }
-        if store.saved.layout == .strip, pillsFrame.contains(v.startLocation) { return false }
+        if (store.saved.layout == .strip || store.saved.layout == .mosaic), pillsFrame.contains(v.startLocation) { return false }
         if store.saved.layout == .cards, cardsFrame.contains(v.startLocation) { return false }
         return abs(v.translation.width) > abs(v.translation.height) * 1.5
     }
