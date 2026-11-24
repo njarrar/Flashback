@@ -126,7 +126,26 @@ rather than take shots without real photos.
 
 ## What's new in 1.28
 
-Bug fixes from a full audit of both apps. Nothing changes how the app looks.
+A new look and bug fixes from a full audit of both apps.
+
+### New look
+
+- **Warmer colors.** Colors shift a little warmer, and the main button on Welcome and
+  Album turns blue. Coral stays only on hearts, the picked day and the active tab.
+- **Year row on Today.** A row of year buttons under the date jumps straight to that year.
+  On Android the date moves up next to Select, so photos start higher.
+- **Calendar dots.** A small dot under each day that has photos.
+- **Welcome art.** New picture cards, and Android now shows them too.
+- **Photo viewer.** The buttons sit in a dark rounded bar, the heart pops when you tap it,
+  a soft glow takes its color from the photo, and year buttons sit above the photo strip.
+- **Album bar.** Share, Make a reel and Save sit on one row.
+- **Favorites by year.** Favorites are grouped under year headings.
+- **Places row** on Albums, and hearts on photos sit on a small dark circle.
+- **Icons.** Dark and tinted iPhone home screen icons, and an Android themed icon.
+- **Video ad.** Louder, clearer music and sound effects, checked against store loudness.
+
+### Bug fixes
+
 
 - **Picking photos.** On iPhone, long press and drag picks a row of photos again, and it
   now works in Favorites on both apps. The drag no longer stops the list from scrolling.
