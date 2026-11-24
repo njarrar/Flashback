@@ -90,14 +90,9 @@ struct TodayView: View {
 
         ScrollViewReader { scroll in
             ScrollView {
-                Group {
-                    headerView(day: day, today: today, stackHeader: stackHeader, largeTitleOpacity: largeTitleOpacity, showCompact: showCompact, summary: summary)
-
-                    yearJump(groups: hidden ? nil : groups, scroll: scroll)
-
-                    dayContent(day: day, today: today, groups: groups, hidden: hidden, selection: selection, activeStripGroup: activeStripGroup)
-                    Color.clear.frame(height: 120)
-                }
+                pageContent(day: day, today: today, groups: groups, hidden: hidden, selection: selection,
+                            activeStripGroup: activeStripGroup, stackHeader: stackHeader,
+                            largeTitleOpacity: largeTitleOpacity, showCompact: showCompact, summary: summary, scroll: scroll)
                 .background(
                     DragSelectHook(
                         drag: drag,
@@ -139,24 +134,7 @@ struct TodayView: View {
             let groups = await store.photos(for: day)
             result = (day, groups)
         }
-        .overlay(alignment: .bottom) {
-            if selecting {
-                SelectBar(
-                    count: picked.count,
-                    allSelected: allSelected,
-                    onToggleAll: {
-                        picked = allSelected ? [] : visiblePhotos
-                    },
-                    share: {
-                        shareFor = ShareRequest(title: L.p("photos", picked.count), photos: picked)
-                    },
-                    album: { albumFor = picked },
-                    reel: { startReel(picked) }
-                )
-                .padding(.bottom, 4)
-                .transition(selectBarTransition)
-            }
-        }
+        .overlay(alignment: .bottom) { selectBarOverlay(allSelected: allSelected, visiblePhotos: visiblePhotos) }
         .animation(selectBarAnimation, value: selecting)
         .sheet(isPresented: $calendar) {
             // The screenshot demo opens on last month until the 15th, so the calendar shot
@@ -255,6 +233,38 @@ struct TodayView: View {
         .padding(.bottom, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .id("top")
+    }
+
+    @ViewBuilder
+    private func pageContent(day: MonthDay, today: MonthDay, groups: [YearGroup]?, hidden: Bool, selection: Selection,
+                             activeStripGroup: YearGroup?, stackHeader: Bool, largeTitleOpacity: CGFloat,
+                             showCompact: Bool, summary: String, scroll: ScrollViewProxy) -> some View {
+        Group {
+            headerView(day: day, today: today, stackHeader: stackHeader, largeTitleOpacity: largeTitleOpacity, showCompact: showCompact, summary: summary)
+            yearJump(groups: hidden ? nil : groups, scroll: scroll)
+            dayContent(day: day, today: today, groups: groups, hidden: hidden, selection: selection, activeStripGroup: activeStripGroup)
+            Color.clear.frame(height: 120)
+        }
+    }
+
+    @ViewBuilder
+    private func selectBarOverlay(allSelected: Bool, visiblePhotos: [Photo]) -> some View {
+        if selecting {
+            SelectBar(
+                count: picked.count,
+                allSelected: allSelected,
+                onToggleAll: {
+                    picked = allSelected ? [] : visiblePhotos
+                },
+                share: {
+                    shareFor = ShareRequest(title: L.p("photos", picked.count), photos: picked)
+                },
+                album: { albumFor = picked },
+                reel: { startReel(picked) }
+            )
+            .padding(.bottom, 4)
+            .transition(selectBarTransition)
+        }
     }
 
     private var selectBarTransition: AnyTransition {
