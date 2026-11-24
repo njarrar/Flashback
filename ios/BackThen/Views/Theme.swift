@@ -82,6 +82,8 @@ enum Palette {
     static let viewerBg = Color(uiColor: ui(0x0B0B0D))
     static let viewerInk = Color(uiColor: ui(0xF5F2EC))
     static let viewerHeart = Color(uiColor: ui(0xFF7A66))
+    /// Photo viewer: dark rounded bar under the photo holding the buttons.
+    static let viewerBar = Color(uiColor: ui(0x1B1A19, 0.78))
 
     static func hex(_ hex: UInt32, _ alpha: Double = 1) -> Color { Color(uiColor: ui(hex, alpha)) }
 }

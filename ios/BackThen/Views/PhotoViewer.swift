@@ -58,12 +58,17 @@ struct PhotoViewer: View {
             Palette.viewerBg.opacity(1 - pull).ignoresSafeArea()
 
             // Subtle darkroom ambient color wash derived from the active photo.
+            // Color.clear sets the size, so the filled image can never widen the screen.
             if !reduceMotion, let ambientImage {
-                Image(uiImage: ambientImage)
-                    .resizable()
-                    .scaledToFill()
-                    .blur(radius: 56)
-                    .scaleEffect(1.25)
+                Color.clear
+                    .overlay {
+                        Image(uiImage: ambientImage)
+                            .resizable()
+                            .scaledToFill()
+                            .blur(radius: 56)
+                            .scaleEffect(1.25)
+                    }
+                    .clipped()
                     .opacity(0.16 * Double(1 - pull))
                     .ignoresSafeArea()
                     .allowsHitTesting(false)
@@ -163,7 +168,7 @@ struct PhotoViewer: View {
                 .padding(.horizontal, 14).padding(.vertical, 6)
                 .background(
                     RoundedRectangle(cornerRadius: 28, style: .continuous)
-                        .fill(Color(red: 0x1B / 255, green: 0x1A / 255, blue: 0x19 / 255).opacity(0.78))
+                        .fill(Palette.viewerBar)
                         .overlay(RoundedRectangle(cornerRadius: 28, style: .continuous).stroke(Color.white.opacity(0.14), lineWidth: 0.5))
                 )
                 .padding(.horizontal, 12).padding(.bottom, 6)
