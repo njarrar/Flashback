@@ -80,10 +80,18 @@ class MainActivity : ComponentActivity() {
             vm.openDay(MonthDay.today())
             return
         }
-        val m = intent?.getIntExtra(EXTRA_MONTH, -1) ?: -1
-        val d = intent?.getIntExtra(EXTRA_DAY, -1) ?: -1
+        val m = intent?.let { numberExtra(it, EXTRA_MONTH) } ?: return
+        val d = numberExtra(intent, EXTRA_DAY) ?: return
         // Checked, since any app can start this screen with any numbers.
         MonthDay.fromKey("$m-$d")?.let(vm::openDay)
+    }
+
+    /** A number sent as an Int or as text. Anything else is ignored. */
+    private fun numberExtra(intent: Intent, key: String): Int? {
+        if (!intent.hasExtra(key)) return null
+        val n = intent.getIntExtra(key, Int.MIN_VALUE)
+        if (n != Int.MIN_VALUE) return n
+        return intent.getStringExtra(key)?.trim()?.toIntOrNull()
     }
 
     companion object {

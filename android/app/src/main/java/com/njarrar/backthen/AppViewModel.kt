@@ -93,11 +93,15 @@ class AppViewModel(
     val hasCities: StateFlow<Boolean> = _hasCities.asStateFlow()
 
     // A day restored after the process was killed only counts if it was saved today.
+    // The handle also holds the launch intent's extras, which any app can set to any type,
+    // so read it as Any and keep only text.
     val day = MutableStateFlow(
-        savedStateHandle.get<String>(KEY_DAY)
-            ?.takeIf { savedStateHandle.get<String>(KEY_SAVED_ON) == MonthDay.today().key }
+        savedText(KEY_DAY)
+            ?.takeIf { savedText(KEY_SAVED_ON) == MonthDay.today().key }
             ?.let(MonthDay::fromKey) ?: MonthDay.today()
     )
+
+    private fun savedText(key: String): String? = savedStateHandle.get<Any?>(key) as? String
     /** What today was when the app last checked, so it can tell when midnight has passed. */
     private var lastToday = MonthDay.today()
     val indexing = MutableStateFlow(false)
@@ -627,7 +631,9 @@ class AppViewModel(
     fun setLayout(layout: YearLayout) = update { it.copy(layout = layout) }
 
     private companion object {
-        const val KEY_DAY = "day"
-        const val KEY_SAVED_ON = "dayRestoredOn"
+        // Not "day" or "month": the reminder tap puts those in the intent as numbers, and
+        // intent extras land in the same handle. 1.24 to 1.28 crashed on launch from it.
+        const val KEY_DAY = "shownDay"
+        const val KEY_SAVED_ON = "shownDaySavedOn"
     }
 }

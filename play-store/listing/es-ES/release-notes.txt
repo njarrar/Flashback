@@ -1,1 +1,1 @@
-Un aspecto nuevo: colores más cálidos, una fila de años en Hoy para saltar entre ellos, puntos en los días del calendario con fotos, nuevas imágenes de bienvenida y favoritos agrupados por año. El visor tiene una barra de botones oscura y botones de año. Nuevos iconos oscuro y tintado. Además, correcciones: mantener pulsado y arrastrar vuelve a elegir fotos, y el recordatorio mantiene su hora al cambiar de zona horaria.
+Corrige un cierre al abrir la app desde el recordatorio diario y un bloqueo que veían algunos teléfonos mientras el widget cargaba una foto.

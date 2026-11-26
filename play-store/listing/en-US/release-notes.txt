@@ -1,1 +1,1 @@
-A fresh look: warmer colors, a row of years on Today to jump between them, dots on calendar days with photos, new welcome art, and favorites grouped by year. The photo viewer has a dark button bar and year buttons. New dark and tinted icons. Plus bug fixes: long press and drag picks photos again, photos you add with limited access show up right away, and the daily reminder keeps its time after a time zone change.
+Fixes a crash when you open the app from the daily reminder, and a freeze some phones saw while the home screen widget loaded a photo.
