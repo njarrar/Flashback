@@ -124,6 +124,19 @@ rather than take shots without real photos.
   that grows with the system text size; a large top app bar and navigation bar on
   Android. Light and dark mode.
 
+## What's new in 1.29
+
+Android fixes for a crash and a freeze that Google Play reported. iPhone is unchanged.
+
+- **Reminder crash.** Since 1.24, tapping the daily reminder while the app was closed
+  crashed it on launch. The reminder sends the day as two numbers, and the app also kept
+  the shown day under the name "day", as text, in the same place. It now keeps it under its
+  own name, reads it only as text, and reads the reminder's day as a number or as text.
+- **Widget freeze.** The widget's time limit could not stop a slow photo search or decode,
+  so on a slow phone Android could report the app as frozen. The limit now always holds.
+- **Release checks.** A new on-phone test opens the app from the reminder, the widget and
+  odd intents, also after a restart, and the store build check does the same cold starts.
+
 ## What's new in 1.28
 
 A new look and bug fixes from a full audit of both apps.

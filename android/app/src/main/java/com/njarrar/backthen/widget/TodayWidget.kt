@@ -36,11 +36,9 @@ import com.njarrar.backthen.data.decodePhoto
 import com.njarrar.backthen.data.visibleIndex
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import java.time.LocalDateTime
-import kotlin.coroutines.coroutineContext
 import kotlin.math.max
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
@@ -53,10 +51,17 @@ import kotlin.math.sqrt
 class TodayWidget : AppWidgetProvider() {
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
         val pending = goAsync()
-        CoroutineScope(Dispatchers.IO).launch {
+        val signal = CancellationSignal()
+        val scope = CoroutineScope(Dispatchers.IO)
+        val work = scope.launch { runCatching { draw(context.applicationContext, manager, ids, signal) } }
+        // A timeout around draw itself only ends at its next pause, and a photo query or decode
+        // can block for much longer on a slow phone. Android then reports the app as frozen.
+        // So wait here, where waiting can stop on time, and let the work end on its own.
+        scope.launch {
             try {
-                withTimeoutOrNull(UPDATE_TIMEOUT_MS) {
-                    runCatching { draw(context.applicationContext, manager, ids) }
+                if (withTimeoutOrNull(UPDATE_TIMEOUT_MS) { work.join() } == null) {
+                    signal.cancel()
+                    work.cancel()
                 }
             } finally {
                 pending.finish()
@@ -71,6 +76,12 @@ class TodayWidget : AppWidgetProvider() {
 
     companion object {
         private const val UPDATE_TIMEOUT_MS = 8_000L
+
+        /** What a tap on the widget opens: Today. */
+        fun tapIntent(context: Context): Intent =
+            Intent(context, MainActivity::class.java)
+                .putExtra(MainActivity.EXTRA_OPEN_TODAY, true)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
 
         /** Redraws every widget on the home screen. Does nothing when there are none. */
         fun refresh(context: Context) {
@@ -97,26 +108,22 @@ private sealed interface Shown {
 
 private data class DecodedCandidate(val photo: Photo, val year: Int, val bitmap: Bitmap)
 
-private suspend fun draw(context: Context, manager: AppWidgetManager, ids: IntArray) {
+private suspend fun draw(context: Context, manager: AppWidgetManager, ids: IntArray, signal: CancellationSignal) {
     startLanguage(context)
     val today = MonthDay.today()
     // Ask MainActivity to open whatever "today" is when tapped, never a stale cached date.
     val tap = PendingIntent.getActivity(
         context, 2,
-        Intent(context, MainActivity::class.java)
-            .putExtra(MainActivity.EXTRA_OPEN_TODAY, true)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+        TodayWidget.tapIntent(context),
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
     )
     val rootId = if (Build.VERSION.SDK_INT >= 31) android.R.id.background else R.id.widget_root
     val shown = pick(context, today)
     // Decode once across all widget instances, trying up to 5 candidates before falling back to Empty.
-    val signal = CancellationSignal()
-    val handle = coroutineContext.job.invokeOnCompletion { signal.cancel() }
-    val decoded = try {
-        (shown as? Shown.Candidates)?.let { pickDecoded(context, it, signal) }
-    } finally {
-        handle.dispose()
+    val decoded = (shown as? Shown.Candidates)?.let { pickDecoded(context, it, signal) }
+    if (signal.isCanceled) {
+        decoded?.bitmap?.recycle()
+        return
     }
     val density = context.resources.displayMetrics.density
     val preApi31CornerPx = if (Build.VERSION.SDK_INT < 31) 20f * density else 0f

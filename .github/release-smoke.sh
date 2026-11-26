@@ -28,6 +28,18 @@ for run in 1 2; do
   adb shell input tap 800 2250; sleep 3
   qa_check "release-run$run-tap4"
 done
+# Cold starts the way the reminder and the widget open the app (1.24 to 1.28 crashed on the
+# reminder's). Then the same, with the app ended in the background and its saved state read back.
+for how in "--ei month 2 --ei day 14" "--ez open_today true" "--es month 2 --es day 14"; do
+  adb shell am force-stop $PKG
+  adb shell am start -W -n $PKG/.MainActivity $how
+  sleep 6
+  qa_check "release-launch-$(echo $how | tr -cd 'a-z0-9')"
+  adb shell input keyevent KEYCODE_HOME; sleep 2
+  adb shell am kill $PKG; sleep 1
+  adb shell am start -W -n $PKG/.MainActivity $how
+  sleep 6
+done
 adb logcat -d -b crash > crash.log || true
 cat crash.log
 if grep -q "$PKG" crash.log; then

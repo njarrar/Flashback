@@ -40,6 +40,13 @@ private const val CHANNEL = "daily"
 const val EXTRA_MONTH = "month"
 const val EXTRA_DAY = "day"
 
+/** What a tap on the reminder opens: that day, as two numbers. */
+fun reminderTapIntent(ctx: Context, day: MonthDay): Intent =
+    Intent(ctx, MainActivity::class.java)
+        .putExtra(EXTRA_MONTH, day.month)
+        .putExtra(EXTRA_DAY, day.day)
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+
 /** Computes milliseconds until the next local wall-clock occurrence of [hour]:[minute], handling DST transitions. */
 internal fun nextReminderDelayMillis(
     hour: Int,
@@ -172,10 +179,7 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
             }
             val manager = ctx.getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(NotificationChannel(CHANNEL, L.s("daily_reminder"), NotificationManager.IMPORTANCE_DEFAULT))
-            val open = Intent(ctx, MainActivity::class.java)
-                .putExtra(EXTRA_MONTH, today.month)
-                .putExtra(EXTRA_DAY, today.day)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            val open = reminderTapIntent(ctx, today)
             val tap = PendingIntent.getActivity(ctx, 0, open, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
             val note = NotificationCompat.Builder(ctx, CHANNEL)
                 .setSmallIcon(R.drawable.ic_notification)

@@ -1,1 +1,1 @@
-Um visual novo: cores mais quentes, uma fileira de anos em Hoje para pular entre eles, pontos nos dias do calendário com fotos, novas imagens de boas-vindas e favoritos agrupados por ano. O visualizador tem uma barra de botões escura e botões de ano. Novos ícones escuro e colorido. E correções: tocar e segurar e depois arrastar volta a escolher fotos, e o lembrete mantém o horário quando você muda de fuso.
+Corrige um travamento ao abrir o app pelo lembrete diário e um congelamento que alguns celulares tinham enquanto o widget carregava uma foto.
